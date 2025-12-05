@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Products - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .product-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+        height: 100%;
+    }
+    
+    .product-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .product-image {
+        height: 150px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+    
+    .stock-badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-box me-2"></i>Products</h2>
+    <div>
+        <a href="{{ url_for('inventory.create_product') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Add Product
+        </a>
+    </div>
+</div>
+
+<!-- Search and Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Search by name, SKU or description" 
+                       value="{{ request.args.get('search', '') }}">
+            </div>
+            
+            <div class="col-md-3">
+                <select name="category_id" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" 
+                            {% if request.args.get('category_id')|int == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <select name="stock_status" class="form-select">
+                    <option value="">All Stock</option>
+                    <option value="low" {% if request.args.get('stock_status') == 'low' %}selected{% endif %}>
+                        Low Stock Only
+                    </option>
+                    <option value="out" {% if request.args.get('stock_status') == 'out' %}selected{% endif %}>
+                        Out of Stock
+                    </option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="d-grid gap-2 d-md-flex">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Search
+                    </button>
+                    <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-1"></i> Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Products Grid/List View -->
+<div class="mb-3 d-flex justify-content-end">
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-primary active" id="gridViewBtn">
+            <i class="fas fa-th-large"></i>
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="listViewBtn">
+            <i class="fas fa-list"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Grid View -->
+<div id="gridView">
+    <div class="row">
+        {% for product in products.items %}
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="product-card">
+                <div class="product-image">
+                    {% if product.has_imei %}
+                    <i class="fas fa-barcode fa-3x text-primary"></i>
+                    {% else %}
+                    <i class="fas fa-box fa-3x text-muted"></i>
+                    {% endif %}
+                </div>
+                
+                <h6 class="mb-1">{{ product.name }}</h6>
+                <small class="text-muted d-block mb-2">SKU: {{ product.sku }}</small>
+                
+                {% if product.category %}
+                <span class="badge bg-secondary mb-2">{{ product.category.name }}</span>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-primary fw-bold">₹{{ "%.2f"|format(product.selling_price) }}</span>
+                    <span class="text-muted small">Cost: ₹{{ "%.2f"|format(product.purchase_price) }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="small">Stock:</span>
+                    <span class="badge bg-{{ 'success' if product.stock_count > product.min_stock_level else 'danger' }} stock-badge">
+                        {{ product.stock_count }} units
+                    </span>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i> View Details
+                    </a>
+                    <a href="{{ url_for('inventory.stock_in') }}?product_id={{ product.id }}" 
+                       class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-plus me-1"></i> Stock In
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No products found</h5>
+                    <p class="text-muted">Try adjusting your search criteria</p>
+                    <a href="{{ url_for('inventory.create_product') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Add Your First Product
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- List View (Hidden by default) -->
+<div id="listView" style="display: none;">
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th width="60">Image</th>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th class="text-center">Stock</th>
+                            <th class="text-end">Cost Price</th>
+                            <th class="text-end">Selling Price</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products.items %}
+                        <tr>
+                            <td>
+                                <div class="bg-light rounded p-2 text-center">
+                                    {% if product.has_imei %}
+                                    <i class="fas fa-barcode text-primary"></i>
+                                    {% else %}
+                                    <i class="fas fa-box text-muted"></i>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <h6 class="mb-0">{{ product.name }}</h6>
+                                <small class="text-muted">SKU: {{ product.sku }}</small>
+                            </td>
+                            <td>{{ product.category.name if product.category else '-' }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ 'success' if product.stock_count > product.min_stock_level else 'danger' }}">
+                                    {{ product.stock_count }}
+                                </span>
+                            </td>
+                            <td class="text-end">₹{{ "%.2f"|format(product.purchase_price) }}</td>
+                            <td class="text-end">₹{{ "%.2f"|format(product.selling_price) }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if product.is_active else 'secondary' }}">
+                                    {{ 'Active' if product.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+                                       class="btn btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('inventory.edit_product', product_id=product.id) }}" 
+                                       class="btn btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('inventory.stock_in') }}?product_id={{ product.id }}" 
+                                       class="btn btn-outline-success">
+                                        <i class="fas fa-plus"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if products.pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if products.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('inventory.product_list', page=products.prev_num, search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in products.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                <li class="page-item {% if page_num == products.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('inventory.product_list', page=page_num, search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if products.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('inventory.product_list', page=products.next_num, search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Quick Stats -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ products.total }}</h3>
+                <p class="text-muted mb-0">Total Products</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ categories|length }}</h3>
+                <p class="text-muted mb-0">Categories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ products.items|selectattr('stock_count', 'le', 5)|list|length }}</h3>
+                <p class="text-muted mb-0">Low Stock Items</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // View toggle functionality
+    $('#gridViewBtn').on('click', function() {
+        $(this).addClass('active').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#listViewBtn').removeClass('active').removeClass('btn-primary').addClass('btn-outline-primary');
+        $('#gridView').show();
+        $('#listView').hide();
+    });
+    
+    $('#listViewBtn').on('click', function() {
+        $(this).addClass('active').removeClass('btn-outline-primary').addClass('btn-primary');
+        $('#gridViewBtn').removeClass('active').removeClass('btn-primary').addClass('btn-outline-primary');
+        $('#gridView').hide();
+        $('#listView').show();
+    });
+});
+</script>
+{% endblock %}

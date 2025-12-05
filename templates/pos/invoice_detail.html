@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice {{ invoice.invoice_number }} - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoice-header {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .company-logo {
+        font-size: 2rem;
+        color: var(--primary-color);
+    }
+    
+    .invoice-table th {
+        background-color: #f8f9fa;
+    }
+    
+    .totals-table {
+        width: 300px;
+        margin-left: auto;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        body {
+            font-size: 12px;
+        }
+        
+        .invoice-table th, 
+        .invoice-table td {
+            padding: 4px 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <!-- Header -->
+        <div class="invoice-header">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="company-logo">
+                        <i class="fas fa-mobile-alt"></i> Mobile Shop ERP
+                    </div>
+                    <p class="mb-1">123 Mobile Street</p>
+                    <p class="mb-1">City, State 12345</p>
+                    <p class="mb-0">Phone: (123) 456-7890 | GST: 27ABCDE1234F1Z5</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h1 class="display-6 mb-2">INVOICE</h1>
+                    <p class="mb-1"><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
+                    <p class="mb-1"><strong>Date:</strong> {{ invoice.date.strftime('%B %d, %Y') }}</p>
+                    <p class="mb-0"><strong>Time:</strong> {{ invoice.date.strftime('%I:%M %p') }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bill To -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5>Bill To:</h5>
+                <p class="mb-1"><strong>{{ invoice.customer_name }}</strong></p>
+                {% if invoice.customer_phone %}
+                <p class="mb-1">Phone: {{ invoice.customer_phone }}</p>
+                {% endif %}
+                {% if invoice.customer and invoice.customer.address %}
+                <p class="mb-0">{{ invoice.customer.address }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-6 text-end">
+                <h5>Sold By:</h5>
+                <p class="mb-1"><strong>{{ invoice.creator.username }}</strong></p>
+                <p class="mb-0">{{ current_user.role|title }}</p>
+            </div>
+        </div>
+        
+        <!-- Items Table -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered invoice-table">
+                <thead>
+                    <tr>
+                        <th width="50">#</th>
+                        <th>Item Description</th>
+                        <th width="100">IMEI/Serial</th>
+                        <th width="100" class="text-center">Qty</th>
+                        <th width="120" class="text-end">Unit Price</th>
+                        <th width="120" class="text-end">Discount</th>
+                        <th width="120" class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in invoice.items %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <strong>{{ item.product.name }}</strong><br>
+                            <small class="text-muted">SKU: {{ item.product.sku }}</small>
+                        </td>
+                        <td>
+                            {% if item.stock_item and item.stock_item.imei %}
+                            <small>{{ item.stock_item.imei }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ item.quantity }}</td>
+                        <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
+                        <td class="text-end">₹{{ "%.2f"|format(item.discount) }}</td>
+                        <td class="text-end">₹{{ "%.2f"|format(item.total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Totals -->
+        <div class="row">
+            <div class="col-md-6">
+                {% if invoice.notes %}
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Notes:</h6>
+                        <p class="mb-0">{{ invoice.notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <h6>Payment Information:</h6>
+                    <p class="mb-1">
+                        <strong>Status:</strong> 
+                        <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' }}">
+                            {{ invoice.payment_status|title }}
+                        </span>
+                    </p>
+                    <p class="mb-0">
+                        <strong>Method:</strong> {{ invoice.payment_method|title }}
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-bordered totals-table">
+                    <tr>
+                        <td><strong>Subtotal</strong></td>
+                        <td class="text-end">₹{{ "%.2f"|format(invoice.subtotal) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tax (15%)</strong></td>
+                        <td class="text-end">₹{{ "%.2f"|format(invoice.tax) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Discount</strong></td>
+                        <td class="text-end">₹{{ "%.2f"|format(invoice.discount) }}</td>
+                    </tr>
+                    <tr class="table-active">
+                        <td><strong>Total Amount</strong></td>
+                        <td class="text-end"><strong>₹{{ "%.2f"|format(invoice.total) }}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Terms & Conditions -->
+        <div class="mt-4 pt-4 border-top">
+            <h6>Terms & Conditions:</h6>
+            <small class="text-muted">
+                1. Goods once sold will not be taken back.<br>
+                2. Warranty as per manufacturer terms.<br>
+                3. All disputes subject to local jurisdiction.<br>
+                4. Please keep this invoice for warranty claims.
+            </small>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-4 pt-4 border-top text-center">
+            <p class="mb-1">Thank you for your business!</p>
+            <p class="text-muted small mb-0">
+                For any queries, contact: support@mobileshop.com | Phone: (123) 456-7890
+            </p>
+        </div>
+        
+        <!-- Actions -->
+        <div class="mt-4 pt-4 border-top no-print">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <a href="{{ url_for('pos.invoice_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+                <div>
+                    <button onclick="window.print()" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-print me-1"></i> Print Invoice
+                    </button>
+                    <button class="btn btn-outline-success me-2">
+                        <i class="fas fa-file-pdf me-1"></i> Download PDF
+                    </button>
+                    {% if invoice.payment_status != 'paid' %}
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+                        <i class="fas fa-credit-card me-1"></i> Add Payment
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Payment Modal -->
+{% if invoice.payment_status != 'paid' %}
+<div class="modal fade" id="addPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="paymentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Amount Due</label>
+                        <input type="text" class="form-control" value="₹{{ "%.2f"|format(invoice.total) }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount Received *</label>
+                        <input type="number" class="form-control" id="amountReceived" 
+                               step="0.01" min="0" max="{{ invoice.total }}" 
+                               value="{{ invoice.total }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method *</label>
+                        <select class="form-select" id="paymentMethod" required>
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="online">Online</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference Number (Optional)</label>
+                        <input type="text" class="form-control" id="referenceNumber">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processPayment()">Process Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function processPayment() {
+    const amount = parseFloat($('#amountReceived').val());
+    const method = $('#paymentMethod').val();
+    const reference = $('#referenceNumber').val();
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid amount');
+        return;
+    }
+    
+    $.ajax({
+        url: '/pos/add-payment/{{ invoice.id }}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            amount: amount,
+            method: method,
+            reference: reference
+        }),
+        success: function(response) {
+            if (response.success) {
+                alert('Payment processed successfully');
+                location.reload();
+            } else {
+                alert(response.message);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

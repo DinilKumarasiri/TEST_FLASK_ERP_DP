@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Sales - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-method-card {
+        border-left: 4px solid;
+    }
+    .cash { border-color: #28a745; }
+    .card { border-color: #17a2b8; }
+    .online { border-color: #6f42c1; }
+    .due { border-color: #fd7e14; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-bar me-2"></i>Daily Sales Report</h2>
+    <div>
+        <form method="GET" class="d-inline">
+            <input type="date" name="date" value="{{ date.strftime('%Y-%m-%d') }}" 
+                   class="form-control" onchange="this.form.submit()">
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">₹{{ "%.2f"|format(total_sales) }}</h3>
+                <p class="text-muted mb-0">Total Sales</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ invoices|length }}</h3>
+                <p class="text-muted mb-0">Transactions</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">₹{{ "%.2f"|format(total_tax) }}</h3>
+                <p class="text-muted mb-0">Tax Collected</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="mb-1">₹{{ "%.2f"|format(total_discount) }}</h3>
+                <p class="text-muted mb-0">Discount Given</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Method Breakdown -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Payment Method Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for method, amount in payment_methods.items() %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card payment-method-card {{ method }}">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ method|title }}</h5>
+                                <h3 class="card-text">₹{{ "%.2f"|format(amount) }}</h3>
+                                <small class="text-muted">
+                                    {{ "%.1f"|format((amount/total_sales)*100 if total_sales > 0 else 0) }}% of total
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Transactions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Transactions on {{ date.strftime('%B %d, %Y') }}</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="printReport()">
+                    <i class="fas fa-print me-1"></i> Print Report
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Time</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-end">Tax</th>
+                                <th class="text-end">Discount</th>
+                                <th class="text-end">Total</th>
+                                <th>Payment</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in invoices %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('pos.invoice_detail', invoice_id=invoice.id) }}">
+                                        {{ invoice.invoice_number }}
+                                    </a>
+                                </td>
+                                <td>{{ invoice.date.strftime('%H:%M') }}</td>
+                                <td>{{ invoice.customer_name or 'Walk-in' }}</td>
+                                <td>{{ invoice.items|length }} items</td>
+                                <td class="text-end">₹{{ "%.2f"|format(invoice.subtotal) }}</td>
+                                <td class="text-end">₹{{ "%.2f"|format(invoice.tax) }}</td>
+                                <td class="text-end">₹{{ "%.2f"|format(invoice.discount) }}</td>
+                                <td class="text-end">
+                                    <strong>₹{{ "%.2f"|format(invoice.total) }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">
+                                        {{ invoice.payment_method|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('pos.invoice_detail', invoice_id=invoice.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4">
+                                    <i class="fas fa-chart-line fa-2x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No sales transactions for {{ date.strftime('%B %d, %Y') }}</h5>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="4" class="text-end"><strong>Totals:</strong></td>
+                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_sales - total_tax + total_discount) }}</strong></td>
+                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_tax) }}</strong></td>
+                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_discount) }}</strong></td>
+                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_sales) }}</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="mb-3">Export Report</h5>
+                <button class="btn btn-outline-primary me-2">
+                    <i class="fas fa-file-excel me-1"></i> Export as Excel
+                </button>
+                <button class="btn btn-outline-danger me-2">
+                    <i class="fas fa-file-pdf me-1"></i> Export as PDF
+                </button>
+                <button class="btn btn-outline-success" onclick="window.location.href='{{ url_for('pos.daily_sales') }}?date={{ date.strftime('%Y-%m-%d') }}&print=1'">
+                    <i class="fas fa-print me-1"></i> Print Friendly Version
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function printReport() {
+    window.print();
+}
+</script>
+{% endblock %}

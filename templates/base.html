@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mobile Shop ERP{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --success-color: #4cc9f0;
+            --danger-color: #f72585;
+            --warning-color: #f8961e;
+            --info-color: #7209b7;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            position: fixed;
+            width: 250px;
+            padding-top: 20px;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            margin: 5px 10px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-card {
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card i {
+            font-size: 2.5rem;
+            opacity: 0.8;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: static;
+                min-height: auto;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar d-none d-md-block">
+        <div class="text-center mb-4">
+            <h3><i class="fas fa-mobile-alt me-2"></i>Mobile ERP</h3>
+            <p class="text-muted">Shop Management System</p>
+        </div>
+        
+        <nav class="nav flex-column">
+            <a class="nav-link {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
+               href="{{ url_for('pos.dashboard') }}">
+                <i class="fas fa-shopping-cart me-2"></i>POS
+            </a>
+            
+            <a class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
+               href="{{ url_for('inventory.inventory_dashboard') }}">
+                <i class="fas fa-boxes me-2"></i>Inventory
+            </a>
+            
+            <a class="nav-link {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
+               href="{{ url_for('repair.repair_dashboard') }}">
+                <i class="fas fa-tools me-2"></i>Repair
+            </a>
+            
+            <a class="nav-link {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
+               href="{{ url_for('employee.employee_dashboard') }}">
+                <i class="fas fa-users me-2"></i>Employees
+            </a>
+            <!-- Test Button added -->
+
+            <a class="nav-link" 
+               href="{{ url_for('employee.employee_dashboard') }}">
+                <i class="fas fa-users me-2"></i>TEST BUTTON
+            </a>
+            <!-- Test Button added -->
+
+
+
+            {% if current_user.is_authenticated %}
+                <div class="mt-4 pt-4 border-top">
+                    <div class="px-3">
+                        <small class="text-muted">Logged in as</small>
+                        <h6>{{ current_user.username }}</h6>
+                        <small class="text-muted">{{ current_user.role|title }}</small>
+                    </div>
+                    
+                    <a class="nav-link mt-3" href="{{ url_for('auth.change_password') }}">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </a>
+                    <a class="nav-link" href="{{ url_for('auth.register') }}">
+                        <i class="fas fa-user-plus me-2"></i>Add User
+                    </a>
+                    <a class="nav-link" href="{{ url_for('employee.employee_list') }}">
+                        <i class="fas fa-users me-2"></i>Manage Employees
+                    </a>
+                    
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </a>
+                </div>
+            {% endif %}
+        </nav>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Mobile Header -->
+        <nav class="navbar navbar-light bg-light d-md-none mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-mobile-alt me-2"></i>Mobile ERP
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+        </nav>
+        
+        <!-- Mobile Navigation -->
+        <div class="collapse d-md-none mb-4" id="mobileNav">
+            <div class="card">
+                <div class="card-body">
+                    <div class="nav flex-column">
+                        <a class="nav-link" href="{{ url_for('pos.dashboard') }}">
+                            <i class="fas fa-shopping-cart me-2"></i>POS
+                        </a>
+                        <a class="nav-link" href="{{ url_for('inventory.inventory_dashboard') }}">
+                            <i class="fas fa-boxes me-2"></i>Inventory
+                        </a>
+                        <a class="nav-link" href="{{ url_for('repair.repair_dashboard') }}">
+                            <i class="fas fa-tools me-2"></i>Repair
+                        </a>
+                        <a class="nav-link" href="{{ url_for('employee.employee_dashboard') }}">
+                            <i class="fas fa-users me-2"></i>Employees
+                        </a>
+                        {% if current_user.is_authenticated %}
+                            <a class="nav-link" href="{{ url_for('auth.change_password') }}">
+                                <i class="fas fa-key me-2"></i>Change Password
+                            </a>
+                            <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

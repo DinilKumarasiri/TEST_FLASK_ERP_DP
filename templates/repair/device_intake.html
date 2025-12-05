@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+
+{% block title %}Device Intake - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-section h5 {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .customer-info-box {
+        background: #e7f3ff;
+        border-left: 4px solid #0d6efd;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .device-image-placeholder {
+        width: 100%;
+        height: 200px;
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .device-image-placeholder:hover {
+        border-color: #0d6efd;
+        background: #e7f3ff;
+    }
+    
+    .accessories-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .accessories-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .accessories-list li:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-mobile-alt me-2"></i>Device Intake Form</h2>
+    <div>
+        <a href="{{ url_for('repair.repair_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('repair.device_intake') }}" enctype="multipart/form-data">
+    <!-- Customer Information Section -->
+    <div class="form-section">
+        <h5><i class="fas fa-user me-2"></i>Customer Information</h5>
+        
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Customer Phone *</label>
+                <input type="text" name="customer_phone" class="form-control" 
+                       placeholder="Enter phone number" required 
+                       onchange="findCustomerByPhone(this.value)">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Customer Name *</label>
+                <input type="text" name="customer_name" class="form-control" 
+                       placeholder="Enter full name" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Email</label>
+                <input type="email" name="customer_email" class="form-control" 
+                       placeholder="Enter email address">
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <label class="form-label">Address</label>
+                <textarea name="customer_address" class="form-control" 
+                          rows="2" placeholder="Enter address"></textarea>
+            </div>
+        </div>
+        
+        <div id="existingCustomerInfo" class="customer-info-box" style="display: none;">
+            <h6><i class="fas fa-info-circle me-2"></i>Existing Customer Found</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Name:</strong> <span id="custName"></span></p>
+                    <p class="mb-1"><strong>Email:</strong> <span id="custEmail"></span></p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Phone:</strong> <span id="custPhone"></span></p>
+                    <p class="mb-0"><strong>Total Repairs:</strong> <span id="custRepairs"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Device Information Section -->
+    <div class="form-section">
+        <h5><i class="fas fa-mobile me-2"></i>Device Information</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Device Type *</label>
+                        <select name="device_type" class="form-select" required>
+                            <option value="">Select type</option>
+                            <option value="mobile">Mobile Phone</option>
+                            <option value="tablet">Tablet</option>
+                            <option value="laptop">Laptop</option>
+                            <option value="smartwatch">Smart Watch</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Brand *</label>
+                        <select name="brand" class="form-select" required>
+                            <option value="">Select brand</option>
+                            <option value="Apple">Apple</option>
+                            <option value="Samsung">Samsung</option>
+                            <option value="Xiaomi">Xiaomi</option>
+                            <option value="OnePlus">OnePlus</option>
+                            <option value="Vivo">Vivo</option>
+                            <option value="Oppo">Oppo</option>
+                            <option value="Realme">Realme</option>
+                            <option value="Motorola">Motorola</option>
+                            <option value="Nokia">Nokia</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Model *</label>
+                    <input type="text" name="model" class="form-control" 
+                           placeholder="e.g., iPhone 13 Pro, Galaxy S21" required>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">IMEI Number</label>
+                        <input type="text" name="imei" class="form-control" 
+                               placeholder="Enter IMEI (15 digits)">
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Serial Number</label>
+                        <input type="text" name="serial_number" class="form-control" 
+                               placeholder="Enter serial number">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Device Photos</label>
+                <div class="device-image-placeholder" onclick="document.getElementById('devicePhotos').click()">
+                    <div class="text-center">
+                        <i class="fas fa-camera fa-3x text-muted mb-3"></i>
+                        <p class="mb-1">Click to upload device photos</p>
+                        <small class="text-muted">Max 5 photos, 2MB each</small>
+                    </div>
+                </div>
+                <input type="file" id="devicePhotos" name="device_photos" 
+                       accept="image/*" multiple style="display: none;">
+                <div id="photoPreview" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Problem Description Section -->
+    <div class="form-section">
+        <h5><i class="fas fa-exclamation-triangle me-2"></i>Problem Description</h5>
+        
+        <div class="mb-3">
+            <label class="form-label">Issue Description *</label>
+            <textarea name="issue_description" class="form-control" 
+                      rows="4" placeholder="Describe the problem in detail..." required></textarea>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Estimated Repair Cost</label>
+                <div class="input-group">
+                    <span class="input-group-text">₹</span>
+                    <input type="number" name="estimated_cost" class="form-control" 
+                           step="0.01" min="0" placeholder="0.00">
+                </div>
+                <small class="text-muted">This is an initial estimate, final cost may vary</small>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Expected Completion Date</label>
+                <input type="date" name="expected_date" class="form-control" 
+                       min="{{ now.strftime('%Y-%m-%d') }}">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Accessories Section -->
+    <div class="form-section">
+        <h5><i class="fas fa-box-open me-2"></i>Accessories Received</h5>
+        
+        <div class="mb-3">
+            <label class="form-label">Accessories Received with Device</label>
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accessories" value="charger" id="charger">
+                        <label class="form-check-label" for="charger">
+                            <i class="fas fa-plug me-1"></i> Charger
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accessories" value="cable" id="cable">
+                        <label class="form-check-label" for="cable">
+                            <i class="fas fa-bolt me-1"></i> USB Cable
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accessories" value="headphones" id="headphones">
+                        <label class="form-check-label" for="headphones">
+                            <i class="fas fa-headphones me-1"></i> Headphones
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accessories" value="case" id="case">
+                        <label class="form-check-label" for="case">
+                            <i class="fas fa-mobile me-1"></i> Case/Cover
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Additional Accessories/Notes</label>
+            <textarea name="accessories_received" class="form-control" 
+                      rows="2" placeholder="List any additional accessories or special notes..."></textarea>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Device Condition</label>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="condition" value="excellent" id="excellent">
+                        <label class="form-check-label" for="excellent">
+                            <span class="badge bg-success">Excellent</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="condition" value="good" id="good" checked>
+                        <label class="form-check-label" for="good">
+                            <span class="badge bg-primary">Good</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="condition" value="fair" id="fair">
+                        <label class="form-check-label" for="fair">
+                            <span class="badge bg-warning">Fair</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Terms & Conditions -->
+    <div class="form-section">
+        <h5><i class="fas fa-file-contract me-2"></i>Terms & Conditions</h5>
+        
+        <div class="mb-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="terms" required>
+                <label class="form-check-label" for="terms">
+                    I accept the terms and conditions of service
+                </label>
+            </div>
+        </div>
+        
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6>Important Notes:</h6>
+                <ul class="mb-0">
+                    <li>Data backup is customer's responsibility</li>
+                    <li>We are not responsible for data loss</li>
+                    <li>Original parts will be returned if replaced</li>
+                    <li>Estimated cost may vary based on actual repair</li>
+                    <li>Unclaimed devices will be disposed after 30 days</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Submit Section -->
+    <div class="form-section">
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button type="reset" class="btn btn-outline-secondary me-md-2">
+                <i class="fas fa-redo me-1"></i> Reset Form
+            </button>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-check-circle me-1"></i> Submit Intake Form
+            </button>
+        </div>
+    </div>
+</form>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Job Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Preview content will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Edit</button>
+                <button type="button" class="btn btn-primary">Create Job</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Find customer by phone
+function findCustomerByPhone(phone) {
+    if (phone.length < 10) return;
+    
+    $.ajax({
+        url: '/repair/find-customer',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ phone: phone }),
+        success: function(response) {
+            if (response.success) {
+                showExistingCustomer(response.customer);
+            } else {
+                hideExistingCustomer();
+            }
+        }
+    });
+}
+
+function showExistingCustomer(customer) {
+    $('#custName').text(customer.name);
+    $('#custEmail').text(customer.email || 'N/A');
+    $('#custPhone').text(customer.phone);
+    $('#custRepairs').text(customer.repair_count || '0');
+    
+    // Auto-fill form fields
+    $('input[name="customer_name"]').val(customer.name);
+    $('input[name="customer_email"]').val(customer.email || '');
+    $('textarea[name="customer_address"]').val(customer.address || '');
+    
+    $('#existingCustomerInfo').show();
+}
+
+function hideExistingCustomer() {
+    $('#existingCustomerInfo').hide();
+}
+
+// Photo preview
+$('#devicePhotos').on('change', function() {
+    const preview = $('#photoPreview');
+    preview.empty();
+    
+    if (this.files.length > 5) {
+        alert('Maximum 5 photos allowed');
+        this.value = '';
+        return;
+    }
+    
+    Array.from(this.files).forEach((file, index) => {
+        if (file.size > 2 * 1024 * 1024) {
+            alert(`File ${file.name} is too large. Max size is 2MB.`);
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.append(`
+                <div class="d-inline-block me-2 mb-2 position-relative">
+                    <img src="${e.target.result}" class="img-thumbnail" width="100" height="100">
+                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0" 
+                            onclick="removePhoto(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `);
+        };
+        reader.readAsDataURL(file);
+    });
+});
+
+function removePhoto(index) {
+    // Remove file from input
+    const dt = new DataTransfer();
+    const input = document.getElementById('devicePhotos');
+    
+    for (let i = 0; i < input.files.length; i++) {
+        if (i !== index) {
+            dt.items.add(input.files[i]);
+        }
+    }
+    
+    input.files = dt.files;
+    
+    // Trigger change event to update preview
+    $(input).trigger('change');
+}
+
+// Form validation
+$('form').on('submit', function(e) {
+    // Basic validation
+    const phone = $('input[name="customer_phone"]').val();
+    if (phone.length < 10) {
+        alert('Please enter a valid phone number (10 digits minimum)');
+        e.preventDefault();
+        return;
+    }
+    
+    // Check terms acceptance
+    if (!$('#terms').is(':checked')) {
+        alert('You must accept the terms and conditions');
+        e.preventDefault();
+        return;
+    }
+    
+    // Show loading
+    $('button[type="submit"]').html('<i class="fas fa-spinner fa-spin me-1"></i> Processing...');
+    $('button[type="submit"]').prop('disabled', true);
+});
+</script>
+{% endblock %}

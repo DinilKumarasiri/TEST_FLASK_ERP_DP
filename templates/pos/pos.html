@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}POS Terminal - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pos-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        height: calc(100vh - 150px);
+    }
+    
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        overflow-y: auto;
+        padding: 10px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .cart-sidebar {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .cart-items {
+        flex: 1;
+        overflow-y: auto;
+        margin: 15px 0;
+    }
+    
+    .product-card {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .cart-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .cart-total {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--primary-color);
+    }
+    
+    .barcode-input {
+        font-size: 1.2rem;
+        padding: 10px;
+        text-align: center;
+        letter-spacing: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cash-register me-2"></i>POS Terminal</h2>
+    <div>
+        <button class="btn btn-outline-danger me-2" onclick="clearCart()">
+            <i class="fas fa-trash me-1"></i>Clear Cart
+        </button>
+        <button class="btn btn-success" onclick="openCheckoutModal()">
+            <i class="fas fa-credit-card me-1"></i>Checkout
+        </button>
+    </div>
+</div>
+
+<div class="pos-container">
+    <!-- Product Grid -->
+    <div>
+        <!-- Barcode Scanner Input -->
+        <div class="mb-3">
+            <input type="text" 
+                   id="barcodeInput" 
+                   class="form-control barcode-input" 
+                   placeholder="Scan Barcode or Enter IMEI"
+                   autofocus>
+        </div>
+        
+        <!-- Category Filters -->
+        <div class="mb-3">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary active" data-category="all">All</button>
+                {% for category in categories %}
+                <button type="button" class="btn btn-outline-primary" data-category="{{ category.id }}">
+                    {{ category.name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Product Grid -->
+        <div class="product-grid" id="productGrid">
+            {% for product in products %}
+            <div class="product-card" data-product-id="{{ product.id }}" onclick="addToCart({{ product.id }})">
+                <h6>{{ product.name }}</h6>
+                <small class="text-muted">{{ product.sku }}</small>
+                <div class="mt-2">
+                    <strong>₹{{ "%.2f"|format(product.selling_price) }}</strong>
+                </div>
+                {% if product.has_imei %}
+                <small class="text-info"><i class="fas fa-barcode"></i> IMEI</small>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Cart Sidebar -->
+    <div class="cart-sidebar">
+        <h4>Cart <span id="cartCount" class="badge bg-primary">0</span></h4>
+        
+        <div class="cart-items" id="cartItems">
+            <!-- Cart items will be loaded here -->
+        </div>
+        
+        <div class="cart-summary">
+            <div class="d-flex justify-content-between mb-2">
+                <span>Subtotal:</span>
+                <span id="cartSubtotal">₹0.00</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span>Tax (15%):</span>
+                <span id="cartTax">₹0.00</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3">
+                <span>Discount:</span>
+                <span id="cartDiscount">₹0.00</span>
+            </div>
+            <div class="d-flex justify-content-between cart-total mb-4">
+                <span>Total:</span>
+                <span id="cartTotal">₹0.00</span>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Customer</label>
+                <div class="input-group">
+                    <input type="text" 
+                           id="customerPhone" 
+                           class="form-control" 
+                           placeholder="Customer Phone"
+                           onchange="findCustomer()">
+                    <button class="btn btn-outline-primary" onclick="findCustomer()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <div id="customerInfo" class="mt-2" style="display: none;">
+                    <small>Customer: <span id="customerName"></span></small>
+                </div>
+            </div>
+            
+            <div class="d-grid">
+                <button class="btn btn-primary btn-lg" onclick="openCheckoutModal()">
+                    <i class="fas fa-credit-card me-2"></i>Process Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Complete Sale</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Checkout form will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cart = {};
+let customer = null;
+
+// Initialize from session
+$(document).ready(function() {
+    loadCart();
+    $('#barcodeInput').focus();
+    
+    // Barcode scanner listener
+    $('#barcodeInput').on('keypress', function(e) {
+        if (e.key === 'Enter') {
+            scanProduct(this.value);
+            this.value = '';
+        }
+    });
+    
+    // Category filter
+    $('[data-category]').on('click', function() {
+        $('[data-category]').removeClass('active');
+        $(this).addClass('active');
+        
+        const category = $(this).data('category');
+        filterProducts(category);
+    });
+});
+
+function scanProduct(barcode) {
+    if (!barcode) return;
+    
+    $.ajax({
+        url: '/pos/scan-product',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ barcode: barcode }),
+        success: function(response) {
+            if (response.success) {
+                addToCart(response.product.id);
+            } else {
+                alert(response.message);
+            }
+        }
+    });
+}
+
+function addToCart(productId) {
+    $.ajax({
+        url: '/pos/add-to-cart',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ product_id: productId, quantity: 1 }),
+        success: function(response) {
+            if (response.success) {
+                cart = response.cart;
+                updateCartDisplay();
+            } else {
+                alert(response.message);
+            }
+        }
+    });
+}
+
+function loadCart() {
+    $.get('/pos/get-cart', function(response) {
+        cart = response.cart || {};
+        updateCartDisplay();
+    });
+}
+
+function updateCartDisplay() {
+    const cartItems = $('#cartItems');
+    cartItems.empty();
+    
+    let itemCount = 0;
+    let subtotal = 0;
+    
+    for (const productId in cart) {
+        const item = cart[productId];
+        itemCount += item.quantity;
+        subtotal += item.price * item.quantity;
+        
+        const cartItem = `
+            <div class="cart-item">
+                <div>
+                    <h6 class="mb-1">${item.name}</h6>
+                    <small>₹${item.price.toFixed(2)} x ${item.quantity}</small>
+                </div>
+                <div class="text-end">
+                    <div class="mb-1">₹${(item.price * item.quantity).toFixed(2)}</div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        cartItems.append(cartItem);
+    }
+    
+    const tax = subtotal * 0.15;
+    const total = subtotal + tax;
+    
+    $('#cartCount').text(itemCount);
+    $('#cartSubtotal').text('₹' + subtotal.toFixed(2));
+    $('#cartTax').text('₹' + tax.toFixed(2));
+    $('#cartTotal').text('₹' + total.toFixed(2));
+}
+
+function removeFromCart(productId) {
+    $.ajax({
+        url: `/pos/remove-from-cart/${productId}`,
+        method: 'POST',
+        success: function() {
+            loadCart();
+        }
+    });
+}
+
+function clearCart() {
+    if (confirm('Clear all items from cart?')) {
+        $.ajax({
+            url: '/pos/clear-cart',
+            method: 'POST',
+            success: function() {
+                cart = {};
+                updateCartDisplay();
+            }
+        });
+    }
+}
+
+function findCustomer() {
+    const phone = $('#customerPhone').val();
+    if (!phone) return;
+    
+    $.ajax({
+        url: '/pos/find-customer',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ phone: phone }),
+        success: function(response) {
+            if (response.success) {
+                customer = response.customer;
+                $('#customerName').text(customer.name);
+                $('#customerInfo').show();
+            } else {
+                $('#customerInfo').hide();
+                if (confirm('Customer not found. Create new customer?')) {
+                    createCustomer(phone);
+                }
+            }
+        }
+    });
+}
+
+function createCustomer(phone) {
+    const name = prompt('Enter customer name:');
+    if (!name) return;
+    
+    const email = prompt('Enter email (optional):');
+    const address = prompt('Enter address (optional):');
+    
+    $.ajax({
+        url: '/pos/create-customer',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            name: name,
+            phone: phone,
+            email: email || '',
+            address: address || ''
+        }),
+        success: function(response) {
+            if (response.success) {
+                customer = response.customer;
+                $('#customerName').text(customer.name);
+                $('#customerInfo').show();
+                $('#customerPhone').val(phone);
+            }
+        }
+    });
+}
+
+function openCheckoutModal() {
+    if (Object.keys(cart).length === 0) {
+        alert('Cart is empty');
+        return;
+    }
+    
+    // Load checkout form via AJAX
+    $.get('/pos/checkout-form', function(html) {
+        $('#checkoutModal .modal-body').html(html);
+        $('#checkoutModal').modal('show');
+        
+        // Set customer data if available
+        if (customer) {
+            $('#customerId').val(customer.id);
+            $('#customerNameInput').val(customer.name);
+            $('#customerPhoneInput').val(customer.phone);
+        }
+    });
+}
+
+function filterProducts(categoryId) {
+    if (categoryId === 'all') {
+        $('.product-card').show();
+    } else {
+        $('.product-card').hide();
+        $(`.product-card[data-category="${categoryId}"]`).show();
+    }
+}
+</script>
+{% endblock %}
