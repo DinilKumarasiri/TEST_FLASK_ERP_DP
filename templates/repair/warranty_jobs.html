@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Warranty Jobs - Mobile Shop ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-shield-alt me-2"></i>Warranty Jobs</h2>
+    <div>
+        <a href="{{ url_for('repair.job_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Jobs
+        </a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">{{ warranty_data|selectattr('is_active')|list|length }}</h2>
+                        <p class="mb-0">Active Warranty</p>
+                    </div>
+                    <i class="fas fa-shield-alt fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">{{ warranty_data|rejectattr('is_active')|list|length }}</h2>
+                        <p class="mb-0">Expired Warranty</p>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">{{ warranty_data|length }}</h2>
+                        <p class="mb-0">Total Warranty Jobs</p>
+                    </div>
+                    <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warranty Jobs Table -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Warranty Jobs List</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if warranty_data %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Job #</th>
+                        <th>Customer</th>
+                        <th>Device</th>
+                        <th>Completed Date</th>
+                        <th>Warranty Period</th>
+                        <th>Warranty End</th>
+                        <th>Days Remaining</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in warranty_data %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('repair.job_detail', job_id=item.job.id) }}">
+                                {{ item.job.job_number }}
+                            </a>
+                        </td>
+                        <td>{{ item.job.customer.name if item.job.customer else 'N/A' }}</td>
+                        <td>{{ item.job.brand }} {{ item.job.model }}</td>
+                        <td>{{ item.job.completed_date.strftime('%Y-%m-%d') if item.job.completed_date else 'N/A' }}</td>
+                        <td>{{ item.job.warranty_period }} months</td>
+                        <td>{{ item.warranty_end.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge bg-success">{{ item.days_remaining }} days</span>
+                            {% else %}
+                            <span class="badge bg-danger">Expired</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Expired</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('repair.job_detail', job_id=item.job.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No warranty jobs found</h5>
+            <p class="text-muted">There are no jobs with warranty periods.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Upcoming Warranty Expirations -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-calendar-exclamation me-2"></i>Upcoming Warranty Expirations (Next 30 Days)</h5>
+            </div>
+            <div class="card-body">
+                {% set upcoming = warranty_data|selectattr('is_active')|selectattr('days_remaining', 'le', 30)|list %}
+                {% if upcoming %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Job #</th>
+                                <th>Customer</th>
+                                <th>Device</th>
+                                <th>Warranty End</th>
+                                <th>Days Left</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in upcoming|sort(attribute='days_remaining') %}
+                            <tr class="{% if item.days_remaining <= 7 %}table-warning{% endif %}">
+                                <td>{{ item.job.job_number }}</td>
+                                <td>{{ item.job.customer.name if item.job.customer else 'N/A' }}</td>
+                                <td>{{ item.job.brand }} {{ item.job.model }}</td>
+                                <td>{{ item.warranty_end.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if item.days_remaining <= 7 %}
+                                    <span class="badge bg-danger">{{ item.days_remaining }} days</span>
+                                    {% elif item.days_remaining <= 15 %}
+                                    <span class="badge bg-warning">{{ item.days_remaining }} days</span>
+                                    {% else %}
+                                    <span class="badge bg-info">{{ item.days_remaining }} days</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="notifyCustomer({{ item.job.id }})">
+                                        <i class="fas fa-bell me-1"></i> Notify
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <p class="mb-0 text-muted">No warranty expirations in the next 30 days</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function notifyCustomer(jobId) {
+    if (confirm('Send warranty expiration notification to customer?')) {
+        // This would typically make an API call to send notification
+        alert('Notification sent to customer about warranty expiration.');
+    }
+}
+</script>
+{% endblock %}

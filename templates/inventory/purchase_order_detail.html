@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}PO {{ purchase_order.po_number }} - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .po-header {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .item-table th {
+        background-color: #f8f9fa;
+    }
+    
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+    }
+    
+    .received-progress {
+        height: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-purchase me-2"></i>Purchase Order Details</h2>
+    <div>
+        <a href="{{ url_for('inventory.purchase_order_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to POs
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <!-- Header -->
+        <div class="po-header">
+            <div class="row">
+                <div class="col-md-6">
+                    <h3 class="mb-2">{{ purchase_order.po_number }}</h3>
+                    <p class="mb-1"><strong>Supplier:</strong> {{ purchase_order.supplier.name }}</p>
+                    <p class="mb-1"><strong>Order Date:</strong> {{ purchase_order.order_date.strftime('%B %d, %Y') }}</p>
+                    {% if purchase_order.expected_date %}
+                    <p class="mb-1"><strong>Expected Date:</strong> {{ purchase_order.expected_date.strftime('%B %d, %Y') }}</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="badge 
+                        {% if purchase_order.status == 'received' %}bg-success
+                        {% elif purchase_order.status == 'approved' %}bg-primary
+                        {% elif purchase_order.status == 'partial' %}bg-warning
+                        {% elif purchase_order.status == 'cancelled' %}bg-danger
+                        {% else %}bg-secondary{% endif %}
+                        status-badge">
+                        {{ purchase_order.status|title }}
+                    </span>
+                    <div class="mt-2">
+                        <h4>₹{{ "%.2f"|format(purchase_order.total_amount) }}</h4>
+                        <small class="text-muted">Total Amount</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Supplier Info -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Supplier Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Name:</strong> {{ purchase_order.supplier.name }}</p>
+                        {% if purchase_order.supplier.contact_person %}
+                        <p class="mb-1"><strong>Contact:</strong> {{ purchase_order.supplier.contact_person }}</p>
+                        {% endif %}
+                        {% if purchase_order.supplier.phone %}
+                        <p class="mb-1"><strong>Phone:</strong> {{ purchase_order.supplier.phone }}</p>
+                        {% endif %}
+                        {% if purchase_order.supplier.email %}
+                        <p class="mb-1"><strong>Email:</strong> {{ purchase_order.supplier.email }}</p>
+                        {% endif %}
+                        {% if purchase_order.supplier.address %}
+                        <p class="mb-0"><strong>Address:</strong> {{ purchase_order.supplier.address }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">PO Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Created By:</strong> {{ purchase_order.creator.username if purchase_order.creator else 'System' }}</p>
+                        <p class="mb-1"><strong>Created On:</strong> {{ purchase_order.created_at.strftime('%B %d, %Y %H:%M') }}</p>
+                        <p class="mb-1"><strong>Items:</strong> {{ purchase_order.po_items|length }}</p>
+                        {% if purchase_order.notes %}
+                        <p class="mb-0"><strong>Notes:</strong> {{ purchase_order.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Items Table -->
+        <div class="mb-4">
+            <h5>Order Items</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered item-table">
+                    <thead>
+                        <tr>
+                            <th width="50">#</th>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th width="100" class="text-center">Ordered</th>
+                            <th width="100" class="text-center">Received</th>
+                            <th width="100" class="text-center">Pending</th>
+                            <th width="120" class="text-end">Unit Price</th>
+                            <th width="120" class="text-end">Total Price</th>
+                            <th width="100" class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in purchase_order.po_items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.product.sku }}</td>
+                            <td class="text-center">{{ item.quantity }}</td>
+                            <td class="text-center">{{ item.received_quantity }}</td>
+                            <td class="text-center">{{ item.quantity - item.received_quantity }}</td>
+                            <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
+                            <td class="text-end">₹{{ "%.2f"|format(item.total_price) }}</td>
+                            <td class="text-center">
+                                {% if item.received_quantity == 0 %}
+                                <span class="badge bg-danger">Pending</span>
+                                {% elif item.received_quantity < item.quantity %}
+                                <span class="badge bg-warning">Partial</span>
+                                {% else %}
+                                <span class="badge bg-success">Received</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-active">
+                            <td colspan="6" class="text-end"><strong>Total:</strong></td>
+                            <td colspan="3" class="text-end">
+                                <strong>₹{{ "%.2f"|format(purchase_order.total_amount) }}</strong>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Receiving Progress -->
+        <div class="mb-4">
+            <h5>Receiving Progress</h5>
+            <div class="card">
+                <div class="card-body">
+                    {% set total_items = purchase_order.po_items|length %}
+                    {% set received_items = purchase_order.po_items|selectattr('received_quantity', '>', 0)|list|length %}
+                    {% set fully_received = purchase_order.po_items|selectattr('received_quantity', '>=', attr('quantity'))|list|length %}
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Items Received</span>
+                            <span>{{ received_items }}/{{ total_items }}</span>
+                        </div>
+                        <div class="progress received-progress">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {{ (received_items / total_items * 100) if total_items > 0 else 0 }}%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Quantity Received</span>
+                            <span>
+                                {% set total_qty = purchase_order.po_items|sum(attribute='quantity') %}
+                                {% set received_qty = purchase_order.po_items|sum(attribute='received_quantity') %}
+                                {{ received_qty }}/{{ total_qty }}
+                            </span>
+                        </div>
+                        <div class="progress received-progress">
+                            <div class="progress-bar bg-info" 
+                                 style="width: {{ (received_qty / total_qty * 100) if total_qty > 0 else 0 }}%">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            {% if purchase_order.status in ['pending', 'approved', 'partial'] %}
+                            <a href="{{ url_for('inventory.receive_grn', po_id=purchase_order.id) }}" 
+                               class="btn btn-info">
+                                <i class="fas fa-box-open me-1"></i> Receive Goods
+                            </a>
+                            {% endif %}
+                            
+                            {% if purchase_order.status == 'pending' %}
+                            <div class="btn-group">
+                                <button class="btn btn-success" onclick="updateStatus('approved')">
+                                    <i class="fas fa-check me-1"></i> Approve PO
+                                </button>
+                                <button class="btn btn-danger" onclick="updateStatus('cancelled')">
+                                    <i class="fas fa-times me-1"></i> Cancel PO
+                                </button>
+                            </div>
+                            {% endif %}
+                            
+                            <button class="btn btn-outline-primary" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i> Print PO
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Update Modal (for confirmation) -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update PO Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="statusForm" method="POST" action="">
+                <div class="modal-body">
+                    <p id="statusMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateStatus(status) {
+    const messages = {
+        'approved': 'Are you sure you want to approve this purchase order?',
+        'cancelled': 'Are you sure you want to cancel this purchase order? This action cannot be undone.'
+    };
+    
+    document.getElementById('statusMessage').textContent = messages[status] || 'Update status?';
+    document.getElementById('statusForm').action = `/inventory/po/{{ purchase_order.id }}/update-status`;
+    
+    // Add status input
+    const form = document.getElementById('statusForm');
+    let statusInput = form.querySelector('input[name="status"]');
+    if (!statusInput) {
+        statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        form.appendChild(statusInput);
+    }
+    statusInput.value = status;
+    
+    $('#statusModal').modal('show');
+}
+</script>
+{% endblock %}

@@ -9,7 +9,6 @@ from datetime import datetime
 import random
 import string
 
-
 pos_bp = Blueprint('pos', __name__)
 
 @pos_bp.route('/')
@@ -61,7 +60,7 @@ def dashboard():
     ).limit(10).all()
     
     return render_template('pos/dashboard.html',
-                         now=datetime.utcnow(),  # Add this line
+                         now=datetime.utcnow(),
                          today_sales=today_sales,
                          today_transactions=today_transactions,
                          today_cash=today_cash,
@@ -305,7 +304,6 @@ def checkout():
             stock_item = None
             if product.has_imei:
                 # For products with IMEI, need to assign specific stock item
-                # This would typically come from the POS interface
                 stock_item = StockItem.query.filter_by(
                     product_id=product.id,
                     status='available'
@@ -401,7 +399,7 @@ def daily_sales():
 
 @pos_bp.route('/invoices')
 @login_required
-def invoice_list():
+def invoices_list():
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
@@ -415,8 +413,108 @@ def invoice_list():
 
 @pos_bp.route('/invoice/<int:invoice_id>')
 @login_required
-def invoice_detail(invoice_id):
+def invoice_details(invoice_id):
     invoice = Invoice.query.get_or_404(invoice_id)
     return render_template('pos/invoice_detail.html',
                          invoice=invoice,
                          title=f'Invoice {invoice.invoice_number}')
+
+@pos_bp.route('/test/create-invoice')
+@login_required
+def create_test_invoice():
+    """Create a test invoice for debugging"""
+    try:
+        # Check if we have a customer
+        customer = Customer.query.first()
+        if not customer:
+            # Create a test customer
+            customer = Customer(
+                name='Test Customer',
+                phone='1234567890',
+                email='test@example.com'
+            )
+            db.session.add(customer)
+            db.session.flush()
+        
+        # Generate invoice number
+        invoice_number = generate_invoice_number()
+        
+        # Create test invoice
+        invoice = Invoice(
+            invoice_number=invoice_number,
+            customer_id=customer.id,
+            customer_name=customer.name,
+            customer_phone=customer.phone,
+            subtotal=1000.00,
+            tax=150.00,
+            total=1150.00,
+            payment_status='paid',
+            payment_method='cash',
+            created_by=current_user.id
+        )
+        
+        db.session.add(invoice)
+        db.session.flush()  # Get invoice ID
+        
+        # Add some test items
+        products = Product.query.limit(3).all()
+        for i, product in enumerate(products):
+            item = InvoiceItem(
+                invoice_id=invoice.id,
+                product_id=product.id,
+                quantity=1,
+                unit_price=product.selling_price,
+                total=product.selling_price
+            )
+            db.session.add(item)
+        
+        # Add payment record
+        payment = Payment(
+            invoice_id=invoice.id,
+            amount=1150.00,
+            payment_method='cash',
+            received_by=current_user.id
+        )
+        db.session.add(payment)
+        
+        db.session.commit()
+        
+        flash(f'Test invoice created: {invoice_number} (ID: {invoice.id})', 'success')
+        return redirect(url_for('pos.invoice_details', invoice_id=invoice.id))
+    except Exception as e:
+        flash(f'Error creating test invoice: {str(e)}', 'danger')
+        return redirect(url_for('pos.dashboard'))
+
+@pos_bp.route('/add-payment/<int:invoice_id>', methods=['POST'])
+@login_required
+def add_payment(invoice_id):
+    try:
+        data = request.get_json()
+        invoice = Invoice.query.get_or_404(invoice_id)
+        
+        amount = data.get('amount', 0)
+        method = data.get('method', 'cash')
+        reference = data.get('reference', '')
+        
+        # Create payment
+        payment = Payment(
+            invoice_id=invoice_id,
+            amount=amount,
+            payment_method=method,
+            reference_number=reference,
+            received_by=current_user.id
+        )
+        
+        db.session.add(payment)
+        
+        # Update invoice status
+        if amount >= invoice.total:
+            invoice.payment_status = 'paid'
+        elif amount > 0:
+            invoice.payment_status = 'partial'
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Payment added successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})

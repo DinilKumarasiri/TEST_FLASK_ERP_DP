@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Job Card - {{ job.job_number }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0 text-center">Repair Job Card</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Job Header -->
+                    <div class="text-center mb-4">
+                        <h3>{{ job.job_number }}</h3>
+                        <p class="text-muted">Mobile Shop ERP</p>
+                    </div>
+                    
+                    <!-- Customer Info -->
+                    <div class="mb-4">
+                        <h5>Customer Information</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Name</th>
+                                <td>{{ job.customer.name if job.customer else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Phone</th>
+                                <td>{{ job.customer.phone if job.customer else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td>{{ job.customer.email if job.customer else 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Address</th>
+                                <td>{{ job.customer.address if job.customer else 'N/A' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Device Info -->
+                    <div class="mb-4">
+                        <h5>Device Information</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Device Type</th>
+                                <td>{{ job.device_type|title }}</td>
+                            </tr>
+                            <tr>
+                                <th>Brand/Model</th>
+                                <td>{{ job.brand }} {{ job.model }}</td>
+                            </tr>
+                            <tr>
+                                <th>IMEI</th>
+                                <td>{{ job.imei or 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Serial Number</th>
+                                <td>{{ job.serial_number or 'N/A' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Issue Description -->
+                    <div class="mb-4">
+                        <h5>Issue Description</h5>
+                        <div class="border p-3">
+                            {{ job.issue_description|replace('\n', '<br>')|safe }}
+                        </div>
+                    </div>
+                    
+                    <!-- Accessories -->
+                    {% if job.accessories_received %}
+                    <div class="mb-4">
+                        <h5>Accessories Received</h5>
+                        <div class="border p-3">
+                            {{ job.accessories_received|replace('\n', '<br>')|safe }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Financial Info -->
+                    <div class="mb-4">
+                        <h5>Financial Information</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Estimated Cost</th>
+                                <td>₹{{ "%.2f"|format(job.estimated_cost) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Final Cost</th>
+                                <td>₹{{ "%.2f"|format(job.final_cost) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Warranty</th>
+                                <td>{{ job.warranty_period }} months</td>
+                            </tr>
+                            <tr>
+                                <th>Status</th>
+                                <td>{{ job.status|title }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Dates -->
+                    <div class="mb-4">
+                        <h5>Important Dates</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Created Date</th>
+                                <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% if job.approval_date %}
+                            <tr>
+                                <th>Approval Date</th>
+                                <td>{{ job.approval_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if job.completed_date %}
+                            <tr>
+                                <th>Completed Date</th>
+                                <td>{{ job.completed_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if job.delivered_date %}
+                            <tr>
+                                <th>Delivered Date</th>
+                                <td>{{ job.delivered_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    
+                    <!-- Signatures -->
+                    <div class="row mt-5">
+                        <div class="col-6 text-center">
+                            <p class="border-top pt-2">Customer Signature</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <p class="border-top pt-2">Technician Signature</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Print Button -->
+                    <div class="text-center mt-4">
+                        <button class="btn btn-primary" onclick="window.print()">
+                            <i class="fas fa-print me-2"></i> Print Job Card
+                        </button>
+                        <a href="{{ url_for('repair.job_detail', job_id=job.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Job Details
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>Generated on {{ now.strftime('%Y-%m-%d %H:%M') }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .sidebar, .main-content > :not(.container) {
+        display: none !important;
+    }
+    .container {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .btn {
+        display: none !important;
+    }
+    .card-footer {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}
