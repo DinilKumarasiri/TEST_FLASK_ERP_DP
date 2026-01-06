@@ -159,6 +159,8 @@ def job_list():
         status = request.args.get('status', 'all')
         technician_id = request.args.get('technician_id', type=int)
         
+        print(f"DEBUG: status={status}, technician_id={technician_id}")
+        
         query = RepairJob.query
         
         if status != 'all':
@@ -170,14 +172,23 @@ def job_list():
         jobs = query.order_by(RepairJob.created_at.desc()).all()
         technicians = User.query.filter_by(role='technician', is_active=True).all()
         
+        print(f"DEBUG: Found {len(jobs)} jobs, {len(technicians)} technicians")
+        
+        # Simple test render
         return render_template('repair/jobs.html',
                              jobs=jobs,
                              technicians=technicians,
                              status=status,
                              title='Repair Jobs')
     except Exception as e:
+        print(f"DEBUG: Full error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f'Error loading jobs: {str(e)}', 'danger')
         return redirect(url_for('repair.repair_dashboard'))
+    
+    
+    
 
 @repair_bp.route('/job/<int:job_id>')
 @login_required

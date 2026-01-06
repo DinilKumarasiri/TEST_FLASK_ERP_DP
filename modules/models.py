@@ -257,6 +257,7 @@ class LeaveRequest(db.Model):
     leave_type = db.Column(db.String(30), nullable=False)  # sick, casual, annual, etc.
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
+    days_requested = db.Column(db.Integer, default=1)  # Make sure this line is present
     reason = db.Column(db.Text)
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -279,9 +280,10 @@ class Commission(db.Model):
     commission_amount = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending')  # pending, paid
     payment_date = db.Column(db.DateTime)
+    notes = db.Column(db.Text)  # Add this field
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationships - specify foreign_keys explicitly
-    employee = db.relationship('User', foreign_keys=[employee_id], backref='commissions')
+    # Relationships
+    employee = db.relationship('User', backref='commissions')
     invoice = db.relationship('Invoice', backref='commissions')
     repair_job = db.relationship('RepairJob', backref='commissions')

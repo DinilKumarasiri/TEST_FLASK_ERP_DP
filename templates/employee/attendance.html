@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Management - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .attendance-table th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .date-picker {
+        max-width: 200px;
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+    
+    .attendance-actions {
+        min-width: 120px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-calendar-check me-2"></i>Attendance Management</h2>
+    <div>
+        <a href="{{ url_for('employee.attendance_report') }}" class="btn btn-outline-primary">
+            <i class="fas fa-chart-bar me-1"></i> View Reports
+        </a>
+    </div>
+</div>
+
+<!-- Date Selection Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <h5 class="mb-0">Select Date:</h5>
+            </div>
+            <div class="col-md-4">
+                <input type="date" id="datePicker" class="form-control date-picker" 
+                       value="{{ selected_date.strftime('%Y-%m-%d') }}"
+                       onchange="changeDate(this.value)">
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" onclick="changeDate('{{ (selected_date - timedelta(days=1)).strftime("%Y-%m-%d") }}')">
+                        <i class="fas fa-chevron-left me-1"></i> Previous
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="changeDate('{{ now.strftime("%Y-%m-%d") }}')">
+                        Today
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="changeDate('{{ (selected_date + timedelta(days=1)).strftime("%Y-%m-%d") }}')">
+                        Next <i class="fas fa-chevron-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1" id="presentCount">0</h2>
+                        <p class="mb-0">Present</p>
+                    </div>
+                    <i class="fas fa-user-check fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1" id="checkedInCount">0</h2>
+                        <p class="mb-0">Checked In</p>
+                    </div>
+                    <i class="fas fa-sign-in-alt fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1" id="checkedOutCount">0</h2>
+                        <p class="mb-0">Checked Out</p>
+                    </div>
+                    <i class="fas fa-sign-out-alt fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1" id="absentCount">0</h2>
+                        <p class="mb-0">Absent</p>
+                    </div>
+                    <i class="fas fa-user-times fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="card">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-users me-2"></i>
+            Attendance for {{ selected_date.strftime('%A, %B %d, %Y') }}
+        </h5>
+        <div>
+            <button class="btn btn-sm btn-success" onclick="markAllAttendance('check_in')">
+                <i class="fas fa-sign-in-alt me-1"></i> Check In All
+            </button>
+            <button class="btn btn-sm btn-info" onclick="markAllAttendance('check_out')">
+                <i class="fas fa-sign-out-alt me-1"></i> Check Out All
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 attendance-table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Role</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Check In</th>
+                        <th class="text-center">Check Out</th>
+                        <th class="text-center">Hours</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in employee_attendance %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                     style="width: 36px; height: 36px;">
+                                    {{ item.employee.username[:1]|upper }}
+                                </div>
+                                <div class="ms-2">
+                                    <h6 class="mb-0">{{ item.employee.username }}</h6>
+                                    <small class="text-muted">{{ item.employee.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.employee.role|title }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if item.record %}
+                                {% if item.record.status == 'present' %}
+                                    <span class="badge bg-success">Present</span>
+                                {% elif item.record.status == 'absent' %}
+                                    <span class="badge bg-danger">Absent</span>
+                                {% elif item.record.status == 'half_day' %}
+                                    <span class="badge bg-warning">Half Day</span>
+                                {% elif item.record.status == 'leave' %}
+                                    <span class="badge bg-info">On Leave</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Not Marked</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.record and item.record.check_in %}
+                                <span class="badge bg-success">{{ item.record.check_in.strftime('%H:%M') }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">--:--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.record and item.record.check_out %}
+                                <span class="badge bg-info">{{ item.record.check_out.strftime('%H:%M') }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">--:--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.record and item.record.total_hours %}
+                                <span class="badge bg-primary">{{ "%.1f"|format(item.record.total_hours) }}h</span>
+                            {% else %}
+                                <span class="badge bg-secondary">0h</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center attendance-actions">
+                            <div class="btn-group btn-group-sm">
+                                {% if not item.record or not item.record.check_in %}
+                                <button class="btn btn-outline-success" 
+                                        onclick="markAttendance({{ item.employee.id }}, 'check_in')"
+                                        title="Check In">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                </button>
+                                {% endif %}
+                                {% if item.record and item.record.check_in and not item.record.check_out %}
+                                <button class="btn btn-outline-info" 
+                                        onclick="markAttendance({{ item.employee.id }}, 'check_out')"
+                                        title="Check Out">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                                {% endif %}
+                                {% if item.record %}
+                                <button class="btn btn-outline-warning" 
+                                        onclick="editAttendance({{ item.employee.id }})"
+                                        title="Edit Attendance">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                            <p class="mb-0 text-muted">No active employees found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="row">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Total Employees: {{ employee_attendance|length }}
+                </small>
+            </div>
+            <div class="col-md-6 text-end">
+                <small class="text-muted">
+                    Last Updated: {{ now.strftime('%H:%M:%S') }}
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="fas fa-key me-2"></i>Status Legend</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <span class="badge bg-success me-2">●</span>
+                <span>Present & Checked In</span>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-info me-2">●</span>
+                <span>Present & Checked Out</span>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-danger me-2">●</span>
+                <span>Absent</span>
+            </div>
+            <div class="col-md-3">
+                <span class="badge bg-secondary me-2">●</span>
+                <span>Not Marked</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Attendance Modal -->
+<div class="modal fade" id="editAttendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Attendance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAttendanceForm">
+                    <input type="hidden" id="editEmployeeId" name="employee_id">
+                    <input type="hidden" id="editDate" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select id="editStatus" class="form-select" name="status">
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="half_day">Half Day</option>
+                            <option value="leave">Leave</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Check In Time</label>
+                            <input type="time" id="editCheckIn" class="form-control" name="check_in">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Check Out Time</label>
+                            <input type="time" id="editCheckOut" class="form-control" name="check_out">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea id="editNotes" class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAttendance()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize counters
+function updateCounters() {
+    let presentCount = 0;
+    let checkedInCount = 0;
+    let checkedOutCount = 0;
+    let absentCount = 0;
+    
+    document.querySelectorAll('tbody tr').forEach(row => {
+        const statusBadge = row.querySelector('td:nth-child(3) .badge');
+        const checkInBadge = row.querySelector('td:nth-child(4) .badge');
+        const checkOutBadge = row.querySelector('td:nth-child(5) .badge');
+        
+        if (statusBadge && statusBadge.classList.contains('bg-success')) {
+            presentCount++;
+        } else if (statusBadge && statusBadge.classList.contains('bg-danger')) {
+            absentCount++;
+        }
+        
+        if (checkInBadge && !checkInBadge.textContent.includes('--:--')) {
+            checkedInCount++;
+        }
+        
+        if (checkOutBadge && !checkOutBadge.textContent.includes('--:--')) {
+            checkedOutCount++;
+        }
+    });
+    
+    document.getElementById('presentCount').textContent = presentCount;
+    document.getElementById('checkedInCount').textContent = checkedInCount;
+    document.getElementById('checkedOutCount').textContent = checkedOutCount;
+    document.getElementById('absentCount').textContent = absentCount;
+}
+
+// Update counters on page load
+document.addEventListener('DOMContentLoaded', updateCounters);
+
+// Change date function
+function changeDate(newDate) {
+    window.location.href = `/employee/attendance?date=${newDate}`;
+}
+
+// Mark attendance for single employee
+function markAttendance(employeeId, action) {
+    const date = document.getElementById('datePicker').value;
+    
+    $.ajax({
+        url: '/employee/mark-attendance',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            employee_id: employeeId,
+            action: action,
+            date: date
+        }),
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function() {
+            alert('Error marking attendance. Please try again.');
+        }
+    });
+}
+
+// Mark attendance for all employees
+function markAllAttendance(action) {
+    if (!confirm(`Are you sure you want to ${action.replace('_', ' ')} all employees?`)) {
+        return;
+    }
+    
+    const date = document.getElementById('datePicker').value;
+    const buttons = document.querySelectorAll(`button[onclick*="${action}"]`);
+    
+    buttons.forEach((button, index) => {
+        const employeeId = button.getAttribute('onclick').match(/\d+/)[0];
+        setTimeout(() => {
+            markAttendance(employeeId, action);
+        }, index * 100); // Stagger requests
+    });
+}
+
+// Edit attendance
+function editAttendance(employeeId) {
+    const row = document.querySelector(`button[onclick*="editAttendance(${employeeId})"]`).closest('tr');
+    
+    // Get current values
+    const statusBadge = row.querySelector('td:nth-child(3) .badge');
+    let status = 'present';
+    if (statusBadge.classList.contains('bg-danger')) status = 'absent';
+    else if (statusBadge.classList.contains('bg-warning')) status = 'half_day';
+    else if (statusBadge.classList.contains('bg-info')) status = 'leave';
+    
+    const checkInBadge = row.querySelector('td:nth-child(4) .badge');
+    const checkOutBadge = row.querySelector('td:nth-child(5) .badge');
+    
+    // Set form values
+    document.getElementById('editEmployeeId').value = employeeId;
+    document.getElementById('editStatus').value = status;
+    document.getElementById('editCheckIn').value = checkInBadge.textContent.includes('--:--') ? '' : checkInBadge.textContent;
+    document.getElementById('editCheckOut').value = checkOutBadge.textContent.includes('--:--') ? '' : checkOutBadge.textContent;
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('editAttendanceModal')).show();
+}
+
+// Save attendance changes
+function saveAttendance() {
+    const formData = {
+        employee_id: document.getElementById('editEmployeeId').value,
+        date: document.getElementById('editDate').value,
+        status: document.getElementById('editStatus').value,
+        check_in: document.getElementById('editCheckIn').value,
+        check_out: document.getElementById('editCheckOut').value,
+        notes: document.getElementById('editNotes').value
+    };
+    
+    $.ajax({
+        url: '/employee/update-attendance',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function() {
+            alert('Error updating attendance. Please try again.');
+        }
+    });
+}
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl + I for check in all
+    if (e.ctrlKey && e.key === 'i') {
+        e.preventDefault();
+        markAllAttendance('check_in');
+    }
+    // Ctrl + O for check out all
+    else if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
+        markAllAttendance('check_out');
+    }
+    // Ctrl + T for today
+    else if (e.ctrlKey && e.key === 't') {
+        e.preventDefault();
+        changeDate('{{ now.strftime("%Y-%m-%d") }}');
+    }
+});
+
+// Auto-refresh every 60 seconds
+setInterval(() => {
+    location.reload();
+}, 60000);
+</script>
+{% endblock %}

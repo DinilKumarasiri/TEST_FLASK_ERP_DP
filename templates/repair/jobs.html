@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}Repair Jobs - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .job-card {
+        border-left: 4px solid;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .job-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .status-received { border-color: #6c757d; }
+    .status-diagnostic { border-color: #fd7e14; }
+    .status-repairing { border-color: #0d6efd; }
+    .status-waiting_parts { border-color: #ffc107; }
+    .status-completed { border-color: #198754; }
+    .status-delivered { border-color: #20c997; }
+    
+    .filter-badge {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .filter-badge:hover {
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tools me-2"></i>Repair Jobs</h2>
+    <div>
+        <a href="{{ url_for('repair.device_intake') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Intake
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Status Filter</label>
+                <select name="status" class="form-select">
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>All Statuses</option>
+                    <option value="received" {% if status == 'received' %}selected{% endif %}>Received</option>
+                    <option value="diagnostic" {% if status == 'diagnostic' %}selected{% endif %}>Diagnostic</option>
+                    <option value="repairing" {% if status == 'repairing' %}selected{% endif %}>Repairing</option>
+                    <option value="waiting_parts" {% if status == 'waiting_parts' %}selected{% endif %}>Waiting Parts</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="delivered" {% if status == 'delivered' %}selected{% endif %}>Delivered</option>
+                </select>
+            </div>
+            
+            <div class="col-md-4">
+                <label class="form-label">Technician</label>
+                <select name="technician_id" class="form-select">
+                    <option value="">All Technicians</option>
+                    {% for tech in technicians %}
+                    <option value="{{ tech.id }}" {% if request.args.get('technician_id')|int == tech.id %}selected{% endif %}>
+                        {{ tech.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Job #, Customer, Device..." 
+                           value="{{ request.args.get('search', '') }}">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <a href="{{ url_for('repair.job_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Quick Filter Badges -->
+        <div class="mt-3">
+            <small class="text-muted me-2">Quick Filters:</small>
+            {% set pending_jobs = [] %}
+            {% for job in jobs %}
+                {% if job.status in ['received', 'diagnostic', 'repairing', 'waiting_parts'] %}
+                    {% set _ = pending_jobs.append(job) %}
+                {% endif %}
+            {% endfor %}
+            <span class="badge bg-secondary filter-badge me-2" onclick="setFilter('status', 'pending')">
+                Pending ({{ pending_jobs|length }})
+            </span>
+            <span class="badge bg-warning filter-badge me-2" onclick="setFilter('status', 'diagnostic')">
+                Diagnostic
+            </span>
+            <span class="badge bg-primary filter-badge me-2" onclick="setFilter('status', 'repairing')">
+                Repairing
+            </span>
+            <span class="badge bg-success filter-badge" onclick="setFilter('status', 'completed')">
+                Completed
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Jobs List -->
+{% if jobs %}
+<div class="row">
+    {% for job in jobs %}
+    <div class="col-md-6 mb-4">
+        <div class="card job-card status-{{ job.status }} h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">
+                            <a href="{{ url_for('repair.job_detail', job_id=job.id) }}" class="text-decoration-none">
+                                {{ job.job_number }}
+                            </a>
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-user me-1"></i> {{ job.customer.name if job.customer else 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge 
+                            {% if job.status == 'completed' %}bg-success
+                            {% elif job.status == 'delivered' %}bg-info
+                            {% elif job.status == 'diagnostic' %}bg-warning
+                            {% elif job.status == 'repairing' %}bg-primary
+                            {% elif job.status == 'waiting_parts' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ job.status|title }}
+                        </span>
+                        <div>
+                            <small class="text-muted">{{ job.created_at.strftime('%b %d') }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="mb-1">{{ job.brand }} {{ job.model }}</h6>
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-mobile-alt me-1"></i> {{ job.device_type|title }}
+                        {% if job.imei %}
+                        <span class="ms-2">
+                            <i class="fas fa-hashtag me-1"></i> {{ job.imei }}
+                        </span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">Issue:</small>
+                    <p class="mb-2">{{ job.issue_description|truncate(80) }}</p>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted d-block">Technician:</small>
+                        <small>
+                            {% if job.technician %}
+                            {{ job.technician.username }}
+                            {% else %}
+                            <span class="text-danger">Unassigned</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="col-6 text-end">
+                        <small class="text-muted d-block">Cost:</small>
+                        <small class="fw-bold">₹{{ "%.2f"|format(job.final_cost or job.estimated_cost or 0) }}</small>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('repair.job_detail', job_id=job.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i> View Details
+                    </a>
+                    {% if current_user.role in ['admin', 'manager'] or current_user.id == job.technician_id %}
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success" 
+                                onclick="updateStatus({{ job.id }}, 'repairing')"
+                                {% if job.status not in ['diagnostic', 'waiting_parts'] %}disabled{% endif %}>
+                            <i class="fas fa-play me-1"></i> Start Repair
+                        </button>
+                        <button class="btn btn-outline-warning" 
+                                onclick="updateStatus({{ job.id }}, 'waiting_parts')"
+                                {% if job.status not in ['diagnostic', 'repairing'] %}disabled{% endif %}>
+                            <i class="fas fa-clock me-1"></i> Wait Parts
+                        </button>
+                        <button class="btn btn-outline-info" 
+                                onclick="updateStatus({{ job.id }}, 'completed')"
+                                {% if job.status != 'repairing' %}disabled{% endif %}>
+                            <i class="fas fa-check me-1"></i> Complete
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        {% if job.completed_date %}
+                        Completed: {{ job.completed_date.strftime('%b %d') }}
+                        {% elif job.approval_date %}
+                        Approved: {{ job.approval_date.strftime('%b %d') }}
+                        {% else %}
+                        Created: {{ job.created_at.strftime('%b %d') }}
+                        {% endif %}
+                    </small>
+                    <div>
+                        {% if job.customer_approval %}
+                        <span class="badge bg-success">Approved</span>
+                        {% elif job.status in ['diagnostic', 'waiting_parts'] %}
+                        <span class="badge bg-warning">Awaiting Approval</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- No Jobs Found -->
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No repair jobs found</h5>
+        <p class="text-muted">Try adjusting your filters or create a new job</p>
+        <a href="{{ url_for('repair.device_intake') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Create New Job
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Stats Summary -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                {% set received_count = [] %}
+                {% for job in jobs if job.status == 'received' %}
+                    {% set _ = received_count.append(job) %}
+                {% endfor %}
+                <h3 class="mb-1">{{ received_count|length }}</h3>
+                <p class="mb-0 text-muted">Received</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                {% set diagnostic_count = [] %}
+                {% for job in jobs if job.status == 'diagnostic' %}
+                    {% set _ = diagnostic_count.append(job) %}
+                {% endfor %}
+                <h3 class="mb-1">{{ diagnostic_count|length }}</h3>
+                <p class="mb-0 text-muted">Diagnostic</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                {% set repairing_count = [] %}
+                {% for job in jobs if job.status == 'repairing' %}
+                    {% set _ = repairing_count.append(job) %}
+                {% endfor %}
+                <h3 class="mb-1">{{ repairing_count|length }}</h3>
+                <p class="mb-0 text-muted">Repairing</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                {% set completed_count = [] %}
+                {% for job in jobs if job.status == 'completed' %}
+                    {% set _ = completed_count.append(job) %}
+                {% endfor %}
+                <h3 class="mb-1">{{ completed_count|length }}</h3>
+                <p class="mb-0 text-muted">Completed</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setFilter(filter, value) {
+    const url = new URL(window.location);
+    url.searchParams.set(filter, value);
+    window.location.href = url.toString();
+}
+
+function updateStatus(jobId, status) {
+    if (confirm('Are you sure you want to update the status?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/repair/update-status/${jobId}`;
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'status';
+        input.value = status;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Quick status update buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for quick status badges
+    document.querySelectorAll('.filter-badge').forEach(badge => {
+        badge.style.cursor = 'pointer';
+    });
+});
+</script>
+{% endblock %}

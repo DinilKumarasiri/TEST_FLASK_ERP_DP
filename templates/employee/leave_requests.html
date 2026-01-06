@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Requests - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .leave-status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+    
+    .leave-card {
+        border-left: 4px solid;
+        transition: all 0.3s;
+    }
+    
+    .leave-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .leave-pending { border-color: #ffc107; }
+    .leave-approved { border-color: #198754; }
+    .leave-rejected { border-color: #dc3545; }
+    
+    .action-buttons {
+        min-width: 150px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-calendar-alt me-2"></i>Leave Requests</h2>
+    <div>
+        <a href="{{ url_for('employee.apply_leave') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Apply for Leave
+        </a>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<ul class="nav nav-tabs mb-4" id="leaveTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if request.args.get('status', 'pending') == 'pending' %}active{% endif %}" 
+           href="{{ url_for('employee.leave_requests') }}?status=pending">
+            <i class="fas fa-clock me-1"></i> Pending
+            <span class="badge bg-warning ms-1">{{ pending_count or 0 }}</span>
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if request.args.get('status') == 'approved' %}active{% endif %}" 
+           href="{{ url_for('employee.leave_requests') }}?status=approved">
+            <i class="fas fa-check-circle me-1"></i> Approved
+            <span class="badge bg-success ms-1">{{ approved_count or 0 }}</span>
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if request.args.get('status') == 'rejected' %}active{% endif %}" 
+           href="{{ url_for('employee.leave_requests') }}?status=rejected">
+            <i class="fas fa-times-circle me-1"></i> Rejected
+            <span class="badge bg-danger ms-1">{{ rejected_count or 0 }}</span>
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if request.args.get('status') == 'all' %}active{% endif %}" 
+           href="{{ url_for('employee.leave_requests') }}?status=all">
+            <i class="fas fa-list me-1"></i> All Requests
+            <span class="badge bg-secondary ms-1">{{ requests|length if requests else 0 }}</span>
+        </a>
+    </li>
+</ul>
+
+<!-- Leave Requests -->
+{% if requests and requests|length > 0 %}
+<div class="row">
+    {% for leave in requests %}
+    <div class="col-md-6 mb-4">
+        <div class="card leave-card leave-{{ leave.status }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">
+                            {{ leave.employee.username if leave.employee else 'N/A' }}
+                            {% if leave.employee and leave.employee.role %}
+                            <small class="text-muted">({{ leave.employee.role|title }})</small>
+                            {% endif %}
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-id-badge me-1"></i> Employee ID: {{ leave.employee_id }}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge 
+                            {% if leave.status == 'approved' %}bg-success
+                            {% elif leave.status == 'rejected' %}bg-danger
+                            {% else %}bg-warning{% endif %} leave-status-badge">
+                            {{ leave.status|title }}
+                        </span>
+                        <small class="d-block text-muted mt-1">
+                            {{ leave.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Leave Type</small>
+                            <strong>{{ leave.leave_type|title }} Leave</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Duration</small>
+                            <strong>
+                                {% if leave.start_date and leave.end_date %}
+                                    {{ ((leave.end_date - leave.start_date).days + 1) }} day{% if ((leave.end_date - leave.start_date).days + 1) > 1 %}s{% endif %}
+                                {% else %}
+                                    1 day
+                                {% endif %}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">From</small>
+                            <strong>{{ leave.start_date.strftime('%b %d, %Y') if leave.start_date else 'N/A' }}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">To</small>
+                            <strong>{{ leave.end_date.strftime('%b %d, %Y') if leave.end_date else 'N/A' }}</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">Reason</small>
+                    <p class="mb-0">{{ leave.reason|truncate(100) if leave.reason else 'No reason provided' }}</p>
+                </div>
+                
+                {% if leave.status == 'approved' or leave.status == 'rejected' %}
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        {% if leave.status == 'approved' %}
+                        <i class="fas fa-check-circle text-success me-1"></i> Approved by
+                        {% else %}
+                        <i class="fas fa-times-circle text-danger me-1"></i> Rejected by
+                        {% endif %}
+                    </small>
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                             style="width: 24px; height: 24px; font-size: 12px;">
+                            {{ leave.approver.username[:1]|upper if leave.approver else 'A' }}
+                        </div>
+                        <div class="ms-2">
+                            <small class="d-block">{{ leave.approver.username if leave.approver else 'Admin' }}</small>
+                            <small class="text-muted">{{ leave.approved_date.strftime('%b %d, %Y %H:%M') if leave.approved_date else '' }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">Applied on: {{ leave.created_at.strftime('%b %d, %Y') }}</small>
+                    </div>
+                    
+                    {% if current_user.role in ['admin', 'manager'] and leave.status == 'pending' %}
+                    <div class="action-buttons">
+                        <form method="POST" action="{{ url_for('employee.approve_leave', leave_id=leave.id) }}" 
+                              style="display: inline;">
+                            <button type="submit" name="action" value="approve" 
+                                    class="btn btn-sm btn-success"
+                                    onclick="return confirm('Approve this leave request?')">
+                                <i class="fas fa-check me-1"></i> Approve
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('employee.approve_leave', leave_id=leave.id) }}" 
+                              style="display: inline;">
+                            <button type="submit" name="action" value="reject" 
+                                    class="btn btn-sm btn-danger"
+                                    onclick="return confirm('Reject this leave request?')">
+                                <i class="fas fa-times me-1"></i> Reject
+                            </button>
+                        </form>
+                    </div>
+                    {% elif leave.status == 'pending' and current_user.id == leave.employee_id %}
+                    <div>
+                        <small class="text-muted">Waiting for approval</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Statistics -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="text-muted">Total Requests</h5>
+                        <h3 class="mb-0">{{ requests|length }}</h3>
+                    </div>
+                    <i class="fas fa-file-alt fa-2x text-primary"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="text-muted">Pending</h5>
+                        <h3 class="mb-0">{{ pending_count or 0 }}</h3>
+                    </div>
+                    <i class="fas fa-clock fa-2x text-warning"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="text-muted">Approved</h5>
+                        <h3 class="mb-0">{{ approved_count or 0 }}</h3>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="text-muted">Rejected</h5>
+                        <h3 class="mb-0">{{ rejected_count or 0 }}</h3>
+                    </div>
+                    <i class="fas fa-times-circle fa-2x text-danger"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No leave requests found</h5>
+        <p class="text-muted">
+            {% if request.args.get('status', 'pending') == 'pending' %}
+            There are no pending leave requests
+            {% elif request.args.get('status') == 'approved' %}
+            No approved leave requests
+            {% elif request.args.get('status') == 'rejected' %}
+            No rejected leave requests
+            {% else %}
+            No leave requests in the system
+            {% endif %}
+        </p>
+        <a href="{{ url_for('employee.apply_leave') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Apply for Leave
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Filters -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Quick Filters</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-injured fa-2x text-primary mb-2"></i>
+                        <h6>Sick Leave</h6>
+                        <h4>{{ requests|selectattr('leave_type', 'equalto', 'sick')|list|length if requests else 0 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <i class="fas fa-umbrella-beach fa-2x text-success mb-2"></i>
+                        <h6>Casual Leave</h6>
+                        <h4>{{ requests|selectattr('leave_type', 'equalto', 'casual')|list|length if requests else 0 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <i class="fas fa-plane fa-2x text-info mb-2"></i>
+                        <h6>Annual Leave</h6>
+                        <h4>{{ requests|selectattr('leave_type', 'equalto', 'annual')|list|length if requests else 0 }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                        <h6>Emergency Leave</h6>
+                        <h4>{{ requests|selectattr('leave_type', 'equalto', 'emergency')|list|length if requests else 0 }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
