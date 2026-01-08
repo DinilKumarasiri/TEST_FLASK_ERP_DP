@@ -165,7 +165,12 @@ def edit_employee(employee_id):
     employee = User.query.get_or_404(employee_id)
     form = EmployeeForm(obj=employee)
     
+    print(f"DEBUG: Form method: {request.method}")  # Debug line
+    print(f"DEBUG: Form validated: {form.validate_on_submit()}")  # Debug line
+    
     if form.validate_on_submit():
+        print("DEBUG: Form submitted and validated")  # Debug line
+        
         # Check if username or email already exists (excluding current employee)
         existing_user = User.query.filter(
             db.or_(User.username == form.username.data, User.email == form.email.data),
@@ -176,12 +181,15 @@ def edit_employee(employee_id):
             flash('Username or email already exists', 'danger')
             return render_template('employee/edit.html', form=form, employee=employee, title='Edit Employee')
         
+        print(f"DEBUG: Updating employee {employee.username}")  # Debug line
+        
         employee.username = form.username.data
         employee.email = form.email.data
         employee.role = form.role.data
         employee.is_active = form.is_active.data
         
         if form.password.data:
+            print("DEBUG: Updating password")  # Debug line
             employee.set_password(form.password.data)
         
         db.session.commit()
@@ -189,6 +197,7 @@ def edit_employee(employee_id):
         flash(f'Employee {employee.username} updated successfully', 'success')
         return redirect(url_for('employee.employee_list'))
     
+    # For GET request or failed validation
     return render_template('employee/edit.html', form=form, employee=employee, title='Edit Employee')
 
 @employee_bp.route('/delete-employee/<int:employee_id>', methods=['POST'])

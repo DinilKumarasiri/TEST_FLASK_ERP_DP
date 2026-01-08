@@ -6,20 +6,17 @@
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <div class="card-header bg-light">
                 <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Edit Employee: {{ employee.username }}</h5>
-                <span class="badge bg-{{ 'success' if employee.is_active else 'danger' }}">
-                    {{ 'Active' if employee.is_active else 'Inactive' }}
-                </span>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('employee.edit_employee', employee_id=employee.id) }}">
+                <form method="POST" action="">
                     {{ form.hidden_tag() }}
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Username *</label>
-                            {{ form.username(class="form-control", placeholder="Enter username") }}
+                            {{ form.username(class="form-control") }}
                             {% if form.username.errors %}
                                 <div class="text-danger small">
                                     {% for error in form.username.errors %}
@@ -30,11 +27,11 @@
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label">Email Address *</label>
-                            {{ form.email(class="form-control", placeholder="Enter email") }}
+                            <label class="form-label">Email *</label>
+                            {{ form.email(class="form-control") }}
                             {% if form.email.errors %}
                                 <div class="text-danger small">
-                                    {% for error in form.email.errors %}
+                                    {% for error in form.username.errors %}
                                         {{ error }}
                                     {% endfor %}
                                 </div>
@@ -45,8 +42,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Password</label>
-                            {{ form.password(class="form-control", placeholder="Leave blank to keep current password") }}
-                            <small class="text-muted">Enter new password only if you want to change it</small>
+                            {{ form.password(class="form-control", placeholder="Leave empty to keep current password") }}
                             {% if form.password.errors %}
                                 <div class="text-danger small">
                                     {% for error in form.password.errors %}
@@ -54,6 +50,7 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
+                            <small class="text-muted">Leave empty to keep current password</small>
                         </div>
                         
                         <div class="col-md-6">
@@ -74,30 +71,21 @@
                             {{ form.is_active(class="form-check-input") }}
                             <label class="form-check-label">Active Account</label>
                         </div>
-                        <small class="text-muted">Uncheck to deactivate this account</small>
                     </div>
                     
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
-                        <div>
-                            <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
-                               class="btn btn-outline-primary me-2">
-                                <i class="fas fa-eye me-1"></i> View Profile
-                            </a>
-                            <a href="{{ url_for('employee.employee_list') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-1"></i> Back to List
-                            </a>
-                        </div>
-                        <div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i> Update Employee
-                            </button>
-                        </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('employee.employee_list') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-times me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Update Employee
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
         
-        <!-- Employee Info Card -->
+        <!-- Employee Information -->
         <div class="card mt-4">
             <div class="card-header bg-light">
                 <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Employee Information</h6>
@@ -108,46 +96,43 @@
                         <table class="table table-sm">
                             <tr>
                                 <th>Employee ID:</th>
-                                <td>{{ employee.id }}</td>
+                                <td>#{{ employee.id }}</td>
                             </tr>
                             <tr>
-                                <th>Current Role:</th>
+                                <th>Created:</th>
+                                <td>{{ employee.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            <tr>
+                                <th>Current Status:</th>
                                 <td>
-                                    <span class="badge bg-{{ 
-                                        'danger' if employee.role == 'admin'
-                                        else 'primary' if employee.role == 'manager'
-                                        else 'success' if employee.role == 'technician'
-                                        else 'secondary'
-                                    }}">
-                                        {{ employee.role|title }}
+                                    <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }}">
+                                        {{ 'Active' if employee.is_active else 'Inactive' }}
                                     </span>
                                 </td>
-                            </tr>
-                            <tr>
-                                <th>Account Created:</th>
-                                <td>{{ employee.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             </tr>
                         </table>
                     </div>
                     <div class="col-md-6">
                         <table class="table table-sm">
                             <tr>
-                                <th>Account Status:</th>
+                                <th>Current Role:</th>
                                 <td>
-                                    {% if employee.is_active %}
-                                    <span class="badge bg-success">Active</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Inactive</span>
-                                    {% endif %}
+                                    <span class="badge 
+                                        {% if employee.role == 'admin' %}bg-danger
+                                        {% elif employee.role == 'manager' %}bg-primary
+                                        {% elif employee.role == 'technician' %}bg-success
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ employee.role|title }}
+                                    </span>
                                 </td>
                             </tr>
                             <tr>
                                 <th>Last Login:</th>
                                 <td>
                                     {% if employee.last_login %}
-                                    {{ employee.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                        {{ employee.last_login.strftime('%Y-%m-%d %H:%M') }}
                                     {% else %}
-                                    <span class="text-muted">Never logged in</span>
+                                        <span class="text-muted">Never logged in</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -158,4 +143,70 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    form.addEventListener('submit', function(event) {
+        // Clear previous error messages
+        document.querySelectorAll('.text-danger').forEach(el => el.textContent = '');
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        
+        let hasErrors = false;
+        
+        // Validate username
+        const username = document.getElementById('username');
+        if (!username.value.trim()) {
+            showError(username, 'Username is required');
+            hasErrors = true;
+        } else if (username.value.trim().length < 3) {
+            showError(username, 'Username must be at least 3 characters');
+            hasErrors = true;
+        }
+        
+        // Validate email
+        const email = document.getElementById('email');
+        if (!email.value.trim()) {
+            showError(email, 'Email is required');
+            hasErrors = true;
+        } else if (!isValidEmail(email.value)) {
+            showError(email, 'Please enter a valid email address');
+            hasErrors = true;
+        }
+        
+        // Validate password if provided
+        const password = document.getElementById('password');
+        if (password.value && password.value.length < 6) {
+            showError(password, 'Password must be at least 6 characters');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
+            event.preventDefault();
+        } else {
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Updating...';
+            submitBtn.disabled = true;
+        }
+    });
+    
+    function showError(inputElement, message) {
+        inputElement.classList.add('is-invalid');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'text-danger small mt-1';
+        errorDiv.textContent = message;
+        inputElement.parentNode.appendChild(errorDiv);
+    }
+    
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+});
+</script>
 {% endblock %}

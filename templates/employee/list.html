@@ -1,367 +1,378 @@
 {% extends "base.html" %}
 
-{% block title %}Employees - Mobile Shop ERP{% endblock %}
+{% block title %}Employee List - Mobile Shop ERP{% endblock %}
 
 {% block extra_css %}
 <style>
-    .employee-card {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        transition: all 0.3s;
-    }
-    
-    .employee-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
-    }
-    
     .employee-avatar {
-        width: 80px;
-        height: 80px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #4361ee, #3a0ca3);
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2rem;
         font-weight: bold;
-        margin: 0 auto 15px;
+        font-size: 16px;
     }
     
-    .role-badge {
+    .employee-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+    }
+    
+    .employee-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .status-badge {
         font-size: 0.75rem;
         padding: 4px 8px;
     }
     
-    .status-indicator {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 5px;
+    .role-badge {
+        font-size: 0.7rem;
+        padding: 3px 6px;
     }
     
-    .status-active { background-color: #28a745; }
-    .status-inactive { background-color: #dc3545; }
+    .search-container {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-users me-2"></i>Employees</h2>
+    <h2><i class="fas fa-users me-2"></i>Employee List</h2>
     <div>
-        <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-            <i class="fas fa-user-plus me-1"></i> Add Employee
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('employee.create_employee') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Add New Employee
         </a>
+        {% endif %}
     </div>
 </div>
 
 <!-- Search and Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-4">
-                <input type="text" name="search" class="form-control" 
-                       placeholder="Search by name or email" 
-                       value="{{ request.args.get('search', '') }}">
+<div class="search-container">
+    <form method="GET" class="row g-3">
+        <div class="col-md-4">
+            <input type="text" name="search" class="form-control" 
+                   placeholder="Search by name or email" 
+                   value="{{ request.args.get('search', '') }}">
+        </div>
+        
+        <div class="col-md-3">
+            <select name="role" class="form-select">
+                <option value="">All Roles</option>
+                <option value="admin" {% if request.args.get('role') == 'admin' %}selected{% endif %}>Admin</option>
+                <option value="manager" {% if request.args.get('role') == 'manager' %}selected{% endif %}>Manager</option>
+                <option value="staff" {% if request.args.get('role') == 'staff' %}selected{% endif %}>Staff</option>
+                <option value="technician" {% if request.args.get('role') == 'technician' %}selected{% endif %}>Technician</option>
+            </select>
+        </div>
+        
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="">All Status</option>
+                <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>Active Only</option>
+                <option value="inactive" {% if request.args.get('status') == 'inactive' %}selected{% endif %}>Inactive Only</option>
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="d-grid gap-2 d-md-flex">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i> Search
+                </button>
+                <a href="{{ url_for('employee.employee_list') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-redo me-1"></i> Reset
+                </a>
             </div>
-            
-            <div class="col-md-3">
-                <select name="role" class="form-select">
-                    <option value="">All Roles</option>
-                    <option value="admin" {% if request.args.get('role') == 'admin' %}selected{% endif %}>Admin</option>
-                    <option value="manager" {% if request.args.get('role') == 'manager' %}selected{% endif %}>Manager</option>
-                    <option value="staff" {% if request.args.get('role') == 'staff' %}selected{% endif %}>Staff</option>
-                    <option value="technician" {% if request.args.get('role') == 'technician' %}selected{% endif %}>Technician</option>
-                </select>
-            </div>
-            
-            <div class="col-md-3">
-                <select name="status" class="form-select">
-                    <option value="">All Status</option>
-                    <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>Active</option>
-                    <option value="inactive" {% if request.args.get('status') == 'inactive' %}selected{% endif %}>Inactive</option>
-                </select>
-            </div>
-            
-            <div class="col-md-2">
-                <div class="d-grid gap-2 d-md-flex">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-search me-1"></i> Search
-                    </button>
-                    <a href="{{ url_for('employee.employee_list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-redo me-1"></i> Reset
-                    </a>
-                </div>
-            </div>
-        </form>
+        </div>
+    </form>
+</div>
+
+<!-- Employee Count -->
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="fas fa-info-circle me-2"></i>
+        Showing <strong>{{ employees|length }}</strong> employee{{ 's' if employees|length != 1 else '' }}
+    </div>
+    <div>
+        {% set active_count = employees|selectattr('is_active', 'equalto', true)|list|length %}
+        <span class="badge bg-success">{{ active_count }} Active</span>
+        <span class="badge bg-secondary">{{ employees|length - active_count }} Inactive</span>
     </div>
 </div>
 
-<!-- View Toggle -->
-<div class="mb-3 d-flex justify-content-end">
-    <div class="btn-group" role="group">
-        <button type="button" class="btn btn-outline-primary active" id="gridViewBtn">
-            <i class="fas fa-th-large"></i> Grid
-        </button>
-        <button type="button" class="btn btn-outline-primary" id="listViewBtn">
-            <i class="fas fa-list"></i> List
-        </button>
-    </div>
-</div>
-
-<!-- Grid View -->
-<div id="gridView">
-    <div class="row">
-        {% for employee in employees %}
-        <div class="col-md-3 mb-4">
-            <div class="employee-card">
-                <div class="employee-avatar">
-                    {{ employee.username[:1]|upper }}
+<!-- Employee List -->
+{% if employees %}
+<div class="row">
+    {% for employee in employees %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card employee-card h-100" onclick="window.location.href='{{ url_for('employee.employee_detail', employee_id=employee.id) }}'">
+            <div class="card-body">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="employee-avatar me-3">
+                        {{ employee.username[:1]|upper }}
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="card-title mb-1">{{ employee.username }}</h5>
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-envelope me-1"></i> {{ employee.email }}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge 
+                            {% if employee.role == 'admin' %}bg-danger
+                            {% elif employee.role == 'manager' %}bg-primary
+                            {% elif employee.role == 'technician' %}bg-success
+                            {% else %}bg-secondary{% endif %} role-badge">
+                            {{ employee.role|title }}
+                        </span>
+                        <div class="mt-1">
+                            <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }} status-badge">
+                                {{ 'Active' if employee.is_active else 'Inactive' }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 
-                <h5 class="text-center mb-2">{{ employee.username }}</h5>
-                <p class="text-center text-muted small mb-3">{{ employee.email }}</p>
-                
-                <div class="d-flex justify-content-center mb-3">
-                    <span class="badge bg-{{ 
-                        'danger' if employee.role == 'admin'
-                        else 'primary' if employee.role == 'manager'
-                        else 'success' if employee.role == 'technician'
-                        else 'secondary'
-                    }} role-badge">
-                        {{ employee.role|title }}
-                    </span>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted d-block">Employee ID</small>
+                        <strong>#{{ employee.id }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Joined</small>
+                        <strong>{{ employee.created_at.strftime('%b %d, %Y') }}</strong>
+                    </div>
                 </div>
                 
-                <div class="text-center mb-3">
-                    <span class="d-inline-flex align-items-center">
-                        <span class="status-indicator status-{{ 'active' if employee.is_active else 'inactive' }}"></span>
-                        <small>{{ 'Active' if employee.is_active else 'Inactive' }}</small>
-                    </span>
+                <!-- Quick Stats -->
+                <div class="row mb-3">
+                    <div class="col-4 text-center">
+                        <small class="text-muted d-block">Sales</small>
+                        <span class="badge bg-info">0</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <small class="text-muted d-block">Repairs</small>
+                        <span class="badge bg-warning">0</span>
+                    </div>
+                    <div class="col-4 text-center">
+                        <small class="text-muted d-block">Attendance</small>
+                        <span class="badge bg-success">95%</span>
+                    </div>
                 </div>
                 
-                <div class="d-grid gap-2">
+                <div class="d-flex justify-content-between align-items-center">
                     <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
                        class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-eye me-1"></i> View Details
                     </a>
                     
                     {% if current_user.role == 'admin' %}
-                    <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" 
-                       class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-edit me-1"></i> Edit
-                    </a>
+                    <div class="btn-group">
+                        <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" 
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        
+                        {% if employee.id != current_user.id %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                onclick="deleteEmployee({{ employee.id }}, '{{ employee.username }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No employees found</h5>
-                    <p class="text-muted">Try adjusting your search criteria</p>
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-                        <i class="fas fa-user-plus me-1"></i> Add First Employee
-                    </a>
-                </div>
-            </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Table View (Alternative) -->
+<div class="card mt-4 d-none d-lg-block">
+    <div class="card-header">
+        <h5 class="mb-0">Employee Table View</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Joined Date</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="employee-avatar me-2">
+                                    {{ employee.username[:1]|upper }}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">{{ employee.username }}</h6>
+                                    <small class="text-muted">ID: #{{ employee.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if employee.role == 'admin' %}bg-danger
+                                {% elif employee.role == 'manager' %}bg-primary
+                                {% elif employee.role == 'technician' %}bg-success
+                                {% else %}bg-secondary{% endif %}">
+                                {{ employee.role|title }}
+                            </span>
+                        </td>
+                        <td>{{ employee.email }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }}">
+                                {{ 'Active' if employee.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td>{{ employee.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if employee.last_login %}
+                                {{ employee.last_login.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if current_user.role == 'admin' %}
+                                <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% endfor %}
     </div>
 </div>
 
-<!-- List View (Hidden by default) -->
-<div id="listView" style="display: none;">
-    <div class="card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Employee</th>
-                            <th>Contact</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Joined</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for employee in employees %}
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
-                                         style="width: 40px; height: 40px;">
-                                        {{ employee.username[:1]|upper }}
-                                    </div>
-                                    <div class="ms-3">
-                                        <h6 class="mb-0">{{ employee.username }}</h6>
-                                        <small class="text-muted">ID: EMP{{ "%04d"|format(employee.id) }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <p class="mb-1">{{ employee.email }}</p>
-                                <small class="text-muted">No phone</small>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 
-                                    'danger' if employee.role == 'admin'
-                                    else 'primary' if employee.role == 'manager'
-                                    else 'success' if employee.role == 'technician'
-                                    else 'secondary'
-                                }}">
-                                    {{ employee.role|title }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if employee.is_active else 'danger' }}">
-                                    {{ 'Active' if employee.is_active else 'Inactive' }}
-                                </span>
-                            </td>
-                            <td>
-                                <small>{{ employee.created_at.strftime('%Y-%m-%d') }}</small>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
-                                       class="btn btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if current_user.role == 'admin' %}
-                                    <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" 
-                                       class="btn btn-outline-secondary">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button class="btn btn-outline-danger" 
-                                            onclick="confirmDeactivate({{ employee.id }}, '{{ employee.username }}')"
-                                            {% if employee.id == current_user.id %}disabled{% endif %}>
-                                        <i class="fas fa-ban"></i>
-                                    </button>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No employees found</h5>
+        <p class="text-muted mb-4">Try adjusting your search criteria or add new employees</p>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('employee.create_employee') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Add First Employee
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <a href="{{ url_for('employee.employee_dashboard') }}" class="btn btn-outline-primary w-100">
+            <i class="fas fa-chart-line me-2"></i> Dashboard
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('employee.attendance') }}" class="btn btn-outline-success w-100">
+            <i class="fas fa-calendar-check me-2"></i> Attendance
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('employee.leave_requests') }}" class="btn btn-outline-warning w-100">
+            <i class="fas fa-calendar-alt me-2"></i> Leave Requests
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('employee.user_roles') }}" class="btn btn-outline-info w-100">
+            <i class="fas fa-user-shield me-2"></i> User Roles
+        </a>
     </div>
 </div>
 
 <!-- Statistics -->
 <div class="row mt-4">
     <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h3 class="mb-1">{{ employees|length }}</h3>
-                <p class="text-muted mb-0">Total Employees</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h3 class="mb-1">{{ employees|selectattr('is_active')|list|length }}</h3>
-                <p class="text-muted mb-0">Active Employees</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h3 class="mb-1">{{ employees|selectattr('role', 'equalto', 'technician')|list|length }}</h3>
-                <p class="text-muted mb-0">Technicians</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h3 class="mb-1">{{ employees|selectattr('role', 'equalto', 'admin')|list|length }}</h3>
-                <p class="text-muted mb-0">Admins</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Role Distribution -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Employee Role Distribution</h5>
-            </div>
+        <div class="card bg-primary text-white">
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8">
-                        <canvas id="roleChart" height="200"></canvas>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">{{ employees|length }}</h2>
+                        <p class="mb-0">Total Employees</p>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mt-3">
-                            {% set role_counts = {
-                                'admin': 0,
-                                'manager': 0,
-                                'technician': 0,
-                                'staff': 0
-                            } %}
-                            
-                            {% for employee in employees %}
-                                {% if role_counts.update({employee.role: role_counts[employee.role] + 1}) %}{% endif %}
-                            {% endfor %}
-                            
-                            {% for role, count in role_counts.items() if count > 0 %}
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge bg-{{ 
-                                    'danger' if role == 'admin'
-                                    else 'primary' if role == 'manager'
-                                    else 'success' if role == 'technician'
-                                    else 'secondary'
-                                }}">
-                                    {{ role|title }}
-                                </span>
-                                <span class="fw-bold">{{ count }}</span>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
+                    <i class="fas fa-users fa-2x opacity-50"></i>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Deactivate Modal -->
-<div class="modal fade" id="deactivateModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Deactivate Employee</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to deactivate <strong id="employeeName"></strong>?</p>
-                <p class="text-muted small">Deactivated employees cannot log in to the system.</p>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="confirmDeactivate">
-                    <label class="form-check-label" for="confirmDeactivate">
-                        I understand this action cannot be undone
-                    </label>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        {% set active_count = employees|selectattr('is_active', 'equalto', true)|list|length %}
+                        <h2 class="mb-1">{{ active_count }}</h2>
+                        <p class="mb-0">Active Employees</p>
+                    </div>
+                    <i class="fas fa-user-check fa-2x opacity-50"></i>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeactivateBtn" disabled>
-                    Deactivate Employee
-                </button>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        {% set tech_count = employees|selectattr('role', 'equalto', 'technician')|selectattr('is_active', 'equalto', true)|list|length %}
+                        <h2 class="mb-1">{{ tech_count }}</h2>
+                        <p class="mb-0">Technicians</p>
+                    </div>
+                    <i class="fas fa-user-cog fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        {% set staff_count = employees|selectattr('role', 'equalto', 'staff')|selectattr('is_active', 'equalto', true)|list|length %}
+                        <h2 class="mb-1">{{ staff_count }}</h2>
+                        <p class="mb-0">Staff Members</p>
+                    </div>
+                    <i class="fas fa-user-tie fa-2x opacity-50"></i>
+                </div>
             </div>
         </div>
     </div>
@@ -369,98 +380,41 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let currentEmployeeId = null;
-
-$(document).ready(function() {
-    // View toggle
-    $('#gridViewBtn').on('click', function() {
-        $(this).addClass('active').removeClass('btn-outline-primary').addClass('btn-primary');
-        $('#listViewBtn').removeClass('active').removeClass('btn-primary').addClass('btn-outline-primary');
-        $('#gridView').show();
-        $('#listView').hide();
-    });
-    
-    $('#listViewBtn').on('click', function() {
-        $(this).addClass('active').removeClass('btn-outline-primary').addClass('btn-primary');
-        $('#gridViewBtn').removeClass('active').removeClass('btn-primary').addClass('btn-outline-primary');
-        $('#gridView').hide();
-        $('#listView').show();
-    });
-    
-    // Deactivate confirmation
-    $('#confirmDeactivate').on('change', function() {
-        $('#confirmDeactivateBtn').prop('disabled', !this.checked);
-    });
-    
-    $('#confirmDeactivateBtn').on('click', function() {
-        if (!currentEmployeeId) return;
-        
-        $.ajax({
-            url: `/employee/deactivate/${currentEmployeeId}`,
+function deleteEmployee(employeeId, employeeName) {
+    if (confirm(`Are you sure you want to deactivate ${employeeName}? This will prevent them from logging in.`)) {
+        fetch(`/employee/delete-employee/${employeeId}`, {
             method: 'POST',
-            success: function(response) {
-                if (response.success) {
-                    location.reload();
-                }
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
             }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error deleting employee');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting employee');
         });
-    });
-    
-    // Create role distribution chart
-    createRoleChart();
-});
-
-function confirmDeactivate(employeeId, employeeName) {
-    currentEmployeeId = employeeId;
-    $('#employeeName').text(employeeName);
-    $('#deactivateModal').modal('show');
+    }
 }
 
-function createRoleChart() {
-    const ctx = document.getElementById('roleChart').getContext('2d');
-    
-    // This data would normally come from the server
-    const roleData = {
-        'Admin': {{ role_counts.get('admin', 0) }},
-        'Manager': {{ role_counts.get('manager', 0) }},
-        'Technician': {{ role_counts.get('technician', 0) }},
-        'Staff': {{ role_counts.get('staff', 0) }}
-    };
-    
-    const labels = Object.keys(roleData).filter(key => roleData[key] > 0);
-    const data = labels.map(label => roleData[label]);
-    const colors = labels.map(label => {
-        switch(label) {
-            case 'Admin': return '#dc3545';
-            case 'Manager': return '#0d6efd';
-            case 'Technician': return '#198754';
-            case 'Staff': return '#6c757d';
-            default: return '#adb5bd';
-        }
-    });
-    
-    new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
+// Add CSRF token for AJAX requests
+document.addEventListener('DOMContentLoaded', function() {
+    // Add CSRF token to all AJAX requests
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
+                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() if csrf_token else '' }}");
             }
         }
     });
-}
+});
 </script>
 {% endblock %}

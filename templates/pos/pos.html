@@ -4,59 +4,111 @@
 
 {% block extra_css %}
 <style>
+    /* Base Styles */
     .pos-container {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 20px;
-        height: calc(100vh - 150px);
+        min-height: calc(100vh - 150px);
+    }
+    
+    /* Mobile First Approach */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .product-section {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
     }
     
     .product-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
         overflow-y: auto;
         padding: 10px;
         background: white;
         border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        max-height: 60vh;
     }
     
-    .cart-sidebar {
+    .cart-section {
         background: white;
         border-radius: 10px;
         padding: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         display: flex;
         flex-direction: column;
+        height: fit-content;
+        max-height: 80vh;
     }
     
-    .cart-items {
-        flex: 1;
-        overflow-y: auto;
-        margin: 15px 0;
-    }
-    
+    /* Product Cards */
     .product-card {
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 12px 8px;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.2s ease;
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 120px;
+        background: white;
     }
     
     .product-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-color: var(--primary-color);
+    }
+    
+    .product-card:active {
+        transform: translateY(0);
+    }
+    
+    /* Cart Styles */
+    .cart-items {
+        flex: 1;
+        overflow-y: auto;
+        margin: 15px 0;
+        max-height: 300px;
+        min-height: 200px;
     }
     
     .cart-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px;
+        padding: 12px 0;
         border-bottom: 1px solid #eee;
+    }
+    
+    .cart-item-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .quantity-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .quantity-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .cart-total {
@@ -65,21 +117,222 @@
         color: var(--primary-color);
     }
     
+    /* Barcode Input */
     .barcode-input {
-        font-size: 1.2rem;
-        padding: 10px;
+        font-size: 1.1rem;
+        padding: 12px;
         text-align: center;
         letter-spacing: 2px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        transition: border-color 0.3s;
+    }
+    
+    .barcode-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Category Filters */
+    .category-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+    
+    .category-btn {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    /* Checkout Button */
+    .checkout-btn {
+        padding: 12px 20px;
+        font-size: 1.1rem;
+    }
+    
+    /* Customer Info */
+    .customer-info {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 10px;
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    /* Empty States */
+    .empty-cart {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-cart i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.3;
+    }
+    
+    /* Tablet Styles (768px and up) */
+    @media (min-width: 768px) {
+        .pos-container {
+            height: calc(100vh - 150px);
+        }
+        
+        .main-grid {
+            grid-template-columns: 1.5fr 1fr;
+            height: 100%;
+        }
+        
+        .product-grid {
+            max-height: calc(100vh - 250px);
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        }
+        
+        .cart-items {
+            max-height: calc(100vh - 400px);
+        }
+        
+        .barcode-input {
+            font-size: 1.2rem;
+        }
+    }
+    
+    /* Desktop Styles (992px and up) */
+    @media (min-width: 992px) {
+        .main-grid {
+            grid-template-columns: 2fr 1fr;
+        }
+        
+        .product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+        
+        .product-card {
+            padding: 15px 10px;
+            min-height: 140px;
+        }
+        
+        .category-btn {
+            padding: 8px 16px;
+            font-size: 1rem;
+        }
+    }
+    
+    /* Large Desktop Styles (1200px and up) */
+    @media (min-width: 1200px) {
+        .product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+        
+        .product-card {
+            padding: 20px 15px;
+            min-height: 150px;
+        }
+    }
+    
+    /* Small Mobile Styles (max-width: 576px) */
+    @media (max-width: 576px) {
+        .pos-container {
+            min-height: calc(100vh - 120px);
+        }
+        
+        .product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            padding: 8px;
+        }
+        
+        .product-card {
+            padding: 10px 6px;
+            min-height: 110px;
+        }
+        
+        .cart-section {
+            padding: 15px;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .barcode-input {
+            font-size: 1rem;
+            padding: 10px;
+        }
+        
+        .cart-total {
+            font-size: 1.3rem;
+        }
+        
+        .quantity-btn {
+            width: 24px;
+            height: 24px;
+        }
+    }
+    
+    /* Modal Responsive */
+    @media (max-width: 768px) {
+        .modal-dialog {
+            margin: 10px;
+        }
+    }
+    
+    /* Touch-friendly adjustments */
+    @media (hover: none) and (pointer: coarse) {
+        .product-card:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .product-card:active {
+            background-color: #f8f9fa;
+            transform: scale(0.98);
+        }
+        
+        .btn {
+            padding: 10px 16px;
+        }
+    }
+    
+    /* Landscape Mode for Mobile */
+    @media (max-height: 600px) and (orientation: landscape) {
+        .pos-container {
+            min-height: auto;
+        }
+        
+        .product-grid {
+            max-height: 50vh;
+        }
+        
+        .cart-items {
+            max-height: 150px;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-cash-register me-2"></i>POS Terminal</h2>
-    <div>
-        <button class="btn btn-outline-danger me-2" onclick="clearCart()">
-            <i class="fas fa-trash me-1"></i>Clear Cart
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="fas fa-cash-register me-2"></i>POS Terminal</h2>
+    <div class="action-buttons">
+        <button class="btn btn-outline-danger" onclick="clearCart()">
+            <i class="fas fa-trash me-1"></i>Clear
         </button>
         <button class="btn btn-success" onclick="openCheckoutModal()">
             <i class="fas fa-credit-card me-1"></i>Checkout
@@ -88,157 +341,242 @@
 </div>
 
 <div class="pos-container">
-    <!-- Product Grid -->
-    <div>
-        <!-- Barcode Scanner Input -->
-        <div class="mb-3">
-            <input type="text" 
-                   id="barcodeInput" 
-                   class="form-control barcode-input" 
-                   placeholder="Scan Barcode or Enter IMEI"
-                   autofocus>
-        </div>
-        
-        <!-- Category Filters -->
-        <div class="mb-3">
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-outline-primary active" data-category="all">All</button>
+    <div class="main-grid">
+        <!-- Product Section -->
+        <div class="product-section">
+            <!-- Barcode Scanner Input -->
+            <div class="mb-3">
+                <input type="text" 
+                       id="barcodeInput" 
+                       class="form-control barcode-input" 
+                       placeholder="📱 Scan Barcode or Enter IMEI"
+                       autofocus
+                       autocapitalize="none"
+                       autocomplete="off">
+                <div class="form-text text-end mt-1">
+                    <small>Press Enter after scanning</small>
+                </div>
+            </div>
+            
+            <!-- Category Filters -->
+            <div class="category-filters">
+                <button type="button" 
+                        class="btn btn-outline-primary category-btn active" 
+                        data-category="all">
+                    All
+                </button>
                 {% for category in categories %}
-                <button type="button" class="btn btn-outline-primary" data-category="{{ category.id }}">
+                <button type="button" 
+                        class="btn btn-outline-primary category-btn" 
+                        data-category="{{ category.id }}">
                     {{ category.name }}
                 </button>
                 {% endfor %}
             </div>
-        </div>
-        
-        <!-- Product Grid -->
-        <div class="product-grid" id="productGrid">
-            {% for product in products %}
-            <div class="product-card" data-product-id="{{ product.id }}" onclick="addToCart({{ product.id }})">
-                <h6>{{ product.name }}</h6>
-                <small class="text-muted">{{ product.sku }}</small>
-                <div class="mt-2">
-                    <strong>₹{{ "%.2f"|format(product.selling_price) }}</strong>
+            
+            <!-- Product Grid -->
+            <div class="product-grid" id="productGrid">
+                {% for product in products %}
+                <div class="product-card" 
+                     data-product-id="{{ product.id }}" 
+                     data-category="{{ product.category_id }}"
+                     onclick="addToCart({{ product.id }})"
+                     data-product-name="{{ product.name }}">
+                    <h6 class="product-name mb-1">{{ product.name }}</h6>
+                    <small class="text-muted d-block mb-1">{{ product.sku }}</small>
+                    <div class="mt-2">
+                        <strong class="text-primary">₹{{ "%.2f"|format(product.selling_price) }}</strong>
+                    </div>
+                    {% if product.has_imei %}
+                    <small class="text-info mt-1"><i class="fas fa-barcode"></i> IMEI</small>
+                    {% endif %}
+                    {% if product.stock_quantity <= 5 %}
+                    <small class="text-danger mt-1"><i class="fas fa-exclamation-triangle"></i> Low Stock</small>
+                    {% endif %}
                 </div>
-                {% if product.has_imei %}
-                <small class="text-info"><i class="fas fa-barcode"></i> IMEI</small>
-                {% endif %}
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
-    </div>
-    
-    <!-- Cart Sidebar -->
-    <div class="cart-sidebar">
-        <h4>Cart <span id="cartCount" class="badge bg-primary">0</span></h4>
-        
-        <div class="cart-items" id="cartItems">
-            <!-- Cart items will be loaded here -->
         </div>
         
-        <div class="cart-summary">
-            <div class="d-flex justify-content-between mb-2">
-                <span>Subtotal:</span>
-                <span id="cartSubtotal">₹0.00</span>
-            </div>
-            <div class="d-flex justify-content-between mb-2">
-                <span>Tax (15%):</span>
-                <span id="cartTax">₹0.00</span>
-            </div>
-            <div class="d-flex justify-content-between mb-3">
-                <span>Discount:</span>
-                <span id="cartDiscount">₹0.00</span>
-            </div>
-            <div class="d-flex justify-content-between cart-total mb-4">
-                <span>Total:</span>
-                <span id="cartTotal">₹0.00</span>
+        <!-- Cart Section -->
+        <div class="cart-section">
+            <h4 class="d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-shopping-cart me-2"></i>Cart</span>
+                <span id="cartCount" class="badge bg-primary rounded-pill">0</span>
+            </h4>
+            
+            <div class="cart-items" id="cartItems">
+                <div class="empty-cart" id="emptyCart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <p class="mb-0">Your cart is empty</p>
+                    <small class="text-muted">Scan or tap products to add</small>
+                </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Customer</label>
-                <div class="input-group">
-                    <input type="text" 
-                           id="customerPhone" 
-                           class="form-control" 
-                           placeholder="Customer Phone"
-                           onchange="findCustomer()">
-                    <button class="btn btn-outline-primary" onclick="findCustomer()">
-                        <i class="fas fa-search"></i>
+            <div class="cart-summary mt-3">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal:</span>
+                    <span id="cartSubtotal">₹0.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tax (15%):</span>
+                    <span id="cartTax">₹0.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Discount:</span>
+                    <span id="cartDiscount">₹0.00</span>
+                </div>
+                <div class="d-flex justify-content-between cart-total mb-3">
+                    <span>Total:</span>
+                    <span id="cartTotal">₹0.00</span>
+                </div>
+                
+                <!-- Customer Search -->
+                <div class="mb-3">
+                    <label class="form-label">Customer Phone</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                        <input type="tel" 
+                               id="customerPhone" 
+                               class="form-control" 
+                               placeholder="Enter phone number"
+                               inputmode="tel"
+                               onchange="findCustomer()">
+                        <button class="btn btn-outline-primary" onclick="findCustomer()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div id="customerInfo" class="customer-info mt-2" style="display: none;">
+                        <small class="d-block">
+                            <i class="fas fa-user me-1"></i>
+                            <span id="customerName"></span>
+                        </small>
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-phone me-1"></i>
+                            <span id="customerPhoneDisplay"></span>
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Process Payment Button -->
+                <div class="d-grid">
+                    <button class="btn btn-primary btn-lg checkout-btn" onclick="openCheckoutModal()">
+                        <i class="fas fa-credit-card me-2"></i>Process Payment
                     </button>
                 </div>
-                <div id="customerInfo" class="mt-2" style="display: none;">
-                    <small>Customer: <span id="customerName"></span></small>
-                </div>
-            </div>
-            
-            <div class="d-grid">
-                <button class="btn btn-primary btn-lg" onclick="openCheckoutModal()">
-                    <i class="fas fa-credit-card me-2"></i>Process Payment
-                </button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Checkout Modal -->
-<div class="modal fade" id="checkoutModal" tabindex="-1">
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Complete Sale</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" id="checkoutModalBody">
                 <!-- Checkout form will be loaded here -->
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let cart = {};
 let customer = null;
+let barcodeTimer;
 
-// Initialize from session
+// Initialize
 $(document).ready(function() {
     loadCart();
+    focusBarcodeInput();
+    setupEventListeners();
+    setupTouchEvents();
+});
+
+function focusBarcodeInput() {
     $('#barcodeInput').focus();
+    // On mobile, prevent auto-zoom on focus
+    $('#barcodeInput').on('focus', function() {
+        $(this).attr('style', 'font-size: 16px !important');
+    });
+}
+
+function setupEventListeners() {
+    // Barcode scanner with debounce
+    $('#barcodeInput').on('input', function(e) {
+        clearTimeout(barcodeTimer);
+        barcodeTimer = setTimeout(() => {
+            if (this.value.length >= 3) { // Minimum barcode length
+                scanProduct(this.value);
+                this.value = '';
+            }
+        }, 300);
+    });
     
-    // Barcode scanner listener
-    $('#barcodeInput').on('keypress', function(e) {
-        if (e.key === 'Enter') {
-            scanProduct(this.value);
-            this.value = '';
+    // Category filter with touch support
+    $('.category-btn').on('click touchstart', function(e) {
+        e.preventDefault();
+        $('.category-btn').removeClass('active');
+        $(this).addClass('active');
+        filterProducts($(this).data('category'));
+    });
+    
+    // Keyboard shortcuts
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            $('#barcodeInput').focus().select();
+        }
+        if (e.ctrlKey && e.key === 'k') {
+            e.preventDefault();
+            $('#barcodeInput').focus().select();
+        }
+    });
+}
+
+function setupTouchEvents() {
+    // Prevent double-tap zoom on product cards
+    $('.product-card').on('touchstart', function(e) {
+        if (e.touches.length > 1) {
+            e.preventDefault();
         }
     });
     
-    // Category filter
-    $('[data-category]').on('click', function() {
-        $('[data-category]').removeClass('active');
-        $(this).addClass('active');
-        
-        const category = $(this).data('category');
-        filterProducts(category);
+    // Add touch feedback
+    $('.product-card').on('touchstart', function() {
+        $(this).addClass('touch-active');
+    }).on('touchend', function() {
+        $(this).removeClass('touch-active');
     });
-});
+}
 
 function scanProduct(barcode) {
-    if (!barcode) return;
+    if (!barcode.trim()) return;
+    
+    showToast('Scanning product...', 'info');
     
     $.ajax({
         url: '/pos/scan-product',
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ barcode: barcode }),
+        data: JSON.stringify({ barcode: barcode.trim() }),
         success: function(response) {
             if (response.success) {
                 addToCart(response.product.id);
+                playSound('success');
+                showToast('Product added to cart!', 'success');
             } else {
-                alert(response.message);
+                showToast(response.message || 'Product not found', 'warning');
+                playSound('error');
             }
+        },
+        error: function() {
+            showToast('Network error. Please try again.', 'error');
         }
     });
 }
@@ -248,13 +586,41 @@ function addToCart(productId) {
         url: '/pos/add-to-cart',
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ product_id: productId, quantity: 1 }),
+        data: JSON.stringify({ 
+            product_id: productId, 
+            quantity: 1,
+            source: 'touch'
+        }),
         success: function(response) {
             if (response.success) {
                 cart = response.cart;
                 updateCartDisplay();
+                vibrate(50); // Haptic feedback on mobile
             } else {
-                alert(response.message);
+                showToast(response.message, 'error');
+            }
+        }
+    });
+}
+
+function updateCartItem(productId, quantity) {
+    if (quantity < 1) {
+        removeFromCart(productId);
+        return;
+    }
+    
+    $.ajax({
+        url: '/pos/update-cart',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            product_id: productId,
+            quantity: quantity 
+        }),
+        success: function(response) {
+            if (response.success) {
+                cart = response.cart;
+                updateCartDisplay();
             }
         }
     });
@@ -264,11 +630,22 @@ function loadCart() {
     $.get('/pos/get-cart', function(response) {
         cart = response.cart || {};
         updateCartDisplay();
+    }).fail(function() {
+        showToast('Failed to load cart', 'error');
     });
 }
 
 function updateCartDisplay() {
     const cartItems = $('#cartItems');
+    const emptyCart = $('#emptyCart');
+    
+    if (Object.keys(cart).length === 0) {
+        emptyCart.show();
+        cartItems.html('');
+        return;
+    }
+    
+    emptyCart.hide();
     cartItems.empty();
     
     let itemCount = 0;
@@ -281,15 +658,32 @@ function updateCartDisplay() {
         
         const cartItem = `
             <div class="cart-item">
-                <div>
-                    <h6 class="mb-1">${item.name}</h6>
-                    <small>₹${item.price.toFixed(2)} x ${item.quantity}</small>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1 text-truncate">${item.name}</h6>
+                    <small class="text-muted">₹${item.price.toFixed(2)} each</small>
                 </div>
-                <div class="text-end">
-                    <div class="mb-1">₹${(item.price * item.quantity).toFixed(2)}</div>
-                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
-                        <i class="fas fa-times"></i>
-                    </button>
+                <div class="cart-item-controls">
+                    <div class="quantity-control">
+                        <button class="btn btn-sm btn-outline-secondary quantity-btn" 
+                                onclick="updateCartItem(${item.id}, ${item.quantity - 1})"
+                                aria-label="Decrease quantity">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="quantity-display px-2">${item.quantity}</span>
+                        <button class="btn btn-sm btn-outline-secondary quantity-btn" 
+                                onclick="updateCartItem(${item.id}, ${item.quantity + 1})"
+                                aria-label="Increase quantity">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="text-end ms-2" style="min-width: 70px;">
+                        <div class="fw-bold">₹${(item.price * item.quantity).toFixed(2)}</div>
+                        <button class="btn btn-sm btn-link text-danger p-0" 
+                                onclick="removeFromCart(${item.id})"
+                                aria-label="Remove item">
+                            <small><i class="fas fa-trash"></i> Remove</small>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -297,25 +691,38 @@ function updateCartDisplay() {
     }
     
     const tax = subtotal * 0.15;
-    const total = subtotal + tax;
+    const discount = 0; // You can implement discount logic here
+    const total = subtotal + tax - discount;
     
     $('#cartCount').text(itemCount);
     $('#cartSubtotal').text('₹' + subtotal.toFixed(2));
     $('#cartTax').text('₹' + tax.toFixed(2));
+    $('#cartDiscount').text('₹' + discount.toFixed(2));
     $('#cartTotal').text('₹' + total.toFixed(2));
+    
+    // Update tab title with cart count
+    document.title = `(${itemCount}) POS Terminal - Mobile Shop ERP`;
 }
 
 function removeFromCart(productId) {
-    $.ajax({
-        url: `/pos/remove-from-cart/${productId}`,
-        method: 'POST',
-        success: function() {
-            loadCart();
-        }
-    });
+    if (confirm('Remove this item from cart?')) {
+        $.ajax({
+            url: `/pos/remove-from-cart/${productId}`,
+            method: 'POST',
+            success: function() {
+                loadCart();
+                showToast('Item removed', 'info');
+            }
+        });
+    }
 }
 
 function clearCart() {
+    if (Object.keys(cart).length === 0) {
+        showToast('Cart is already empty', 'info');
+        return;
+    }
+    
     if (confirm('Clear all items from cart?')) {
         $.ajax({
             url: '/pos/clear-cart',
@@ -323,14 +730,18 @@ function clearCart() {
             success: function() {
                 cart = {};
                 updateCartDisplay();
+                showToast('Cart cleared', 'success');
             }
         });
     }
 }
 
 function findCustomer() {
-    const phone = $('#customerPhone').val();
-    if (!phone) return;
+    const phone = $('#customerPhone').val().trim();
+    if (!phone || phone.length < 10) {
+        showToast('Please enter a valid phone number', 'warning');
+        return;
+    }
     
     $.ajax({
         url: '/pos/find-customer',
@@ -341,7 +752,9 @@ function findCustomer() {
             if (response.success) {
                 customer = response.customer;
                 $('#customerName').text(customer.name);
+                $('#customerPhoneDisplay').text(customer.phone);
                 $('#customerInfo').show();
+                showToast('Customer found!', 'success');
             } else {
                 $('#customerInfo').hide();
                 if (confirm('Customer not found. Create new customer?')) {
@@ -373,8 +786,10 @@ function createCustomer(phone) {
             if (response.success) {
                 customer = response.customer;
                 $('#customerName').text(customer.name);
+                $('#customerPhoneDisplay').text(customer.phone);
                 $('#customerInfo').show();
                 $('#customerPhone').val(phone);
+                showToast('Customer created!', 'success');
             }
         }
     });
@@ -382,14 +797,25 @@ function createCustomer(phone) {
 
 function openCheckoutModal() {
     if (Object.keys(cart).length === 0) {
-        alert('Cart is empty');
+        showToast('Cart is empty', 'warning');
         return;
     }
     
-    // Load checkout form via AJAX
+    // Show loading
+    $('#checkoutModalBody').html(`
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading checkout...</p>
+        </div>
+    `);
+    
+    $('#checkoutModal').modal('show');
+    
+    // Load checkout form
     $.get('/pos/checkout-form', function(html) {
-        $('#checkoutModal .modal-body').html(html);
-        $('#checkoutModal').modal('show');
+        $('#checkoutModalBody').html(html);
         
         // Set customer data if available
         if (customer) {
@@ -397,6 +823,12 @@ function openCheckoutModal() {
             $('#customerNameInput').val(customer.name);
             $('#customerPhoneInput').val(customer.phone);
         }
+    }).fail(function() {
+        $('#checkoutModalBody').html(`
+            <div class="alert alert-danger">
+                Failed to load checkout form. Please try again.
+            </div>
+        `);
     });
 }
 
@@ -408,5 +840,91 @@ function filterProducts(categoryId) {
         $(`.product-card[data-category="${categoryId}"]`).show();
     }
 }
+
+// Utility functions
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toast = `
+        <div id="${toastId}" class="toast align-items-center text-bg-${type} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    // Add to toast container
+    if ($('#toastContainer').length === 0) {
+        $('body').append('<div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>');
+    }
+    
+    $('#toastContainer').append(toast);
+    
+    // Show toast
+    const bsToast = new bootstrap.Toast(document.getElementById(toastId), {
+        autohide: true,
+        delay: 3000
+    });
+    bsToast.show();
+    
+    // Remove after hide
+    $(`#${toastId}`).on('hidden.bs.toast', function () {
+        $(this).remove();
+    });
+}
+
+function playSound(type) {
+    // You can add sound files for feedback
+    if (type === 'success') {
+        // Play success sound if available
+        console.log('Play success sound');
+    } else if (type === 'error') {
+        // Play error sound if available
+        console.log('Play error sound');
+    }
+}
+
+function vibrate(duration) {
+    // Haptic feedback for mobile devices
+    if (navigator.vibrate) {
+        navigator.vibrate(duration);
+    }
+}
+
+// Handle page visibility change
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        loadCart(); // Refresh cart when page becomes visible again
+    }
+});
+
+// Prevent accidental refresh
+window.addEventListener('beforeunload', function(e) {
+    if (Object.keys(cart).length > 0) {
+        e.preventDefault();
+        e.returnValue = 'You have items in your cart. Are you sure you want to leave?';
+        return e.returnValue;
+    }
+});
 </script>
+
+<!-- Add CSS for toast and touch feedback -->
+<style>
+.toast {
+    max-width: 350px;
+}
+.touch-active {
+    background-color: #f8f9fa !important;
+    transform: scale(0.98) !important;
+}
+@media (max-width: 576px) {
+    .toast {
+        max-width: 100%;
+        margin: 0 10px 10px 10px;
+    }
+}
+</style>
 {% endblock %}

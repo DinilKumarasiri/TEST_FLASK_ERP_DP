@@ -20,19 +20,23 @@ def inventory_dashboard():
     # Calculate total stock value
     total_value = 0
     for product in Product.query.filter_by(is_active=True).all():
-        stock_count = StockItem.query.filter_by(
-            product_id=product.id,
-            status='available'
-        ).count()
+        # Use raw SQL to avoid column issues
+        from sqlalchemy import text
+        stock_count_result = db.session.execute(
+            text("SELECT COUNT(*) FROM stock_items WHERE product_id = :product_id AND status = :status"),
+            {'product_id': product.id, 'status': 'available'}
+        ).scalar()
+        stock_count = stock_count_result or 0
         total_value += stock_count * product.purchase_price
     
     # Low stock products
     low_stock_products = []
     for product in Product.query.filter_by(is_active=True).all():
-        stock_count = StockItem.query.filter_by(
-            product_id=product.id,
-            status='available'
-        ).count()
+        stock_count_result = db.session.execute(
+            text("SELECT COUNT(*) FROM stock_items WHERE product_id = :product_id AND status = :status"),
+            {'product_id': product.id, 'status': 'available'}
+        ).scalar()
+        stock_count = stock_count_result or 0
         
         if stock_count <= product.min_stock_level:
             low_stock_products.append({
@@ -115,47 +119,103 @@ def product_detail(product_id):
 @login_required
 def stock_in():
     if request.method == 'POST':
-        product_id = request.form.get('product_id', type=int)
-        quantity = request.form.get('quantity', type=int, default=1)
-        purchase_price = request.form.get('purchase_price', type=float)
-        selling_price = request.form.get('selling_price', type=float)
-        supplier_id = request.form.get('supplier_id', type=int)
-        batch_number = request.form.get('batch_number', '')
-        location = request.form.get('location', '')
-        notes = request.form.get('notes', '')
-        
-        product = Product.query.get(product_id)
-        if not product:
-            flash('Product not found', 'danger')
-            return redirect(url_for('inventory.stock_in'))
-        
-        for i in range(quantity):
-            stock_item = StockItem(
-                product_id=product_id,
-                stock_type='in',
-                quantity=1,
-                purchase_price=purchase_price,
-                selling_price=selling_price or product.selling_price,
-                supplier_id=supplier_id if supplier_id else None,
-                batch_number=batch_number,
-                location=location,
-                status='available',
-                notes=notes
-            )
+        try:
+            print("DEBUG: POST request received for stock-in")  # Debug
+            print(f"DEBUG: Form data: {dict(request.form)}")  # Debug
             
-            # If product has IMEI, get from form array
+            product_id = request.form.get('product_id', type=int)
+            quantity = request.form.get('quantity', type=int, default=1)
+            purchase_price = request.form.get('purchase_price', type=float)
+            selling_price = request.form.get('selling_price', type=float)
+            supplier_id = request.form.get('supplier_id', type=int)
+            batch_number = request.form.get('batch_number', '')
+            location = request.form.get('location', '')
+            notes = request.form.get('notes', '')
+            
+            print(f"DEBUG: product_id={product_id}, quantity={quantity}, purchase_price={purchase_price}")  # Debug
+            
+            # Validation
+            if not product_id:
+                flash('Please select a product', 'danger')
+                print("DEBUG: No product selected")  # Debug
+                return redirect(url_for('inventory.stock_in'))
+            
+            if not purchase_price or purchase_price <= 0:
+                flash('Please enter a valid purchase price', 'danger')
+                print(f"DEBUG: Invalid purchase price: {purchase_price}")  # Debug
+                return redirect(url_for('inventory.stock_in'))
+            
+            if not selling_price or selling_price <= 0:
+                flash('Please enter a valid selling price', 'danger')
+                print(f"DEBUG: Invalid selling price: {selling_price}")  # Debug
+                return redirect(url_for('inventory.stock_in'))
+            
+            product = Product.query.get(product_id)
+            if not product:
+                flash('Product not found', 'danger')
+                print(f"DEBUG: Product not found: {product_id}")  # Debug
+                return redirect(url_for('inventory.stock_in'))
+            
+            print(f"DEBUG: Product found: {product.name}, has_imei={product.has_imei}")  # Debug
+            
+            # Check for IMEI validation if product requires it
             if product.has_imei:
-                imei_field = f'imei_{i}'
-                if imei_field in request.form:
-                    stock_item.imei = request.form[imei_field]
+                print("DEBUG: Product requires IMEI, validating...")  # Debug
+                # Validate all IMEI numbers are provided
+                for i in range(quantity):
+                    imei = request.form.get(f'imei_{i}', '').strip()
+                    print(f"DEBUG: IMEI {i}: {imei}")  # Debug
+                    if not imei:
+                        flash(f'IMEI #{i+1} is required for this product', 'danger')
+                        print(f"DEBUG: Missing IMEI #{i}")  # Debug
+                        return redirect(url_for('inventory.stock_in'))
+                    
+                    # Check for duplicate IMEI in database
+                    existing = StockItem.query.filter_by(imei=imei).first()
+                    if existing:
+                        flash(f'IMEI {imei} already exists in database', 'danger')
+                        print(f"DEBUG: Duplicate IMEI: {imei}")  # Debug
+                        return redirect(url_for('inventory.stock_in'))
             
-            db.session.add(stock_item)
-        
-        db.session.commit()
-        flash(f'{quantity} items added to stock', 'success')
-        return redirect(url_for('inventory.product_detail', product_id=product_id))
+            print(f"DEBUG: Adding {quantity} stock items...")  # Debug
+            
+            # Add stock items
+            for i in range(quantity):
+                stock_item = StockItem(
+                    product_id=product_id,
+                    stock_type='in',
+                    quantity=1,
+                    purchase_price=purchase_price,
+                    selling_price=selling_price,
+                    supplier_id=supplier_id if supplier_id else None,
+                    batch_number=batch_number,
+                    location=location,
+                    status='available',
+                    notes=notes
+                )
+                
+                # Add IMEI if product has it
+                if product.has_imei:
+                    imei = request.form.get(f'imei_{i}', '').strip()
+                    stock_item.imei = imei
+                    print(f"DEBUG: Added IMEI {imei} to stock item")  # Debug
+                
+                db.session.add(stock_item)
+            
+            db.session.commit()
+            print("DEBUG: Database commit successful")  # Debug
+            flash(f'{quantity} items added to stock successfully', 'success')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"DEBUG: Error occurred: {str(e)}")  # Debug
+            import traceback
+            traceback.print_exc()  # Print full traceback
+            flash(f'Error adding stock: {str(e)}', 'danger')
+            return redirect(url_for('inventory.stock_in'))
     
-    # GET request - show the form
+    # GET request
     products = Product.query.filter_by(is_active=True).all()
     suppliers = Supplier.query.all()
     categories = ProductCategory.query.all()
@@ -668,3 +728,34 @@ def create_test_data():
     except Exception as e:
         flash(f'Error creating test data: {str(e)}', 'danger')
         return redirect(url_for('inventory.inventory_dashboard'))
+    
+@inventory_bp.route('/product/<int:product_id>/info')
+@login_required
+def product_info(product_id):
+    """Get product information for AJAX requests"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        # Get current stock count
+        stock_count = StockItem.query.filter_by(
+            product_id=product.id,
+            status='available'
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'product': {
+                'id': product.id,
+                'name': product.name,
+                'sku': product.sku,
+                'category_name': product.category.name if product.category else None,
+                'stock_count': stock_count,
+                'min_stock_level': product.min_stock_level,
+                'has_imei': product.has_imei,
+                'purchase_price': float(product.purchase_price),
+                'selling_price': float(product.selling_price),
+                'wholesale_price': float(product.wholesale_price)
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
