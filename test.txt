@@ -1,0 +1,6 @@
+testing git environment completed
+status , 
+working in mac air
+
+
+trying , gitignore file 
