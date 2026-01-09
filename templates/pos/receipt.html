@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .receipt-container, .receipt-container * {
+            visibility: visible;
+        }
+        .receipt-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        .no-print {
+            display: none !important;
+        }
+    }
+    
+    .receipt-container {
+        max-width: 400px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border: 1px solid #ddd;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .receipt-header {
+        text-align: center;
+        border-bottom: 2px dashed #333;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .receipt-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px dotted #ddd;
+    }
+    
+    .receipt-total {
+        border-top: 2px solid #333;
+        margin-top: 10px;
+        padding-top: 10px;
+        font-weight: bold;
+    }
+    
+    .receipt-footer {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 1px dashed #333;
+        font-size: 0.9em;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+                <h2><i class="fas fa-receipt me-2"></i>Receipt</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Print Receipt
+                    </button>
+                    <a href="{{ url_for('pos.invoice_details', invoice_id=invoice.id) }}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-file-invoice me-1"></i>View Invoice
+                    </a>
+                    <a href="{{ url_for('pos.pos_home') }}" 
+                       class="btn btn-success">
+                        <i class="fas fa-cash-register me-1"></i>New Sale
+                    </a>
+                </div>
+            </div>
+            
+            <div class="receipt-container">
+                <!-- Receipt Header -->
+                <div class="receipt-header">
+                    <h3>Mobile Shop</h3>
+                    <p>123 Shop Street, City<br>
+                    Phone: (123) 456-7890<br>
+                    GSTIN: 12ABCDE1234F1Z5</p>
+                </div>
+                
+                <!-- Invoice Info -->
+                <div class="text-center mb-3">
+                    <h4>INVOICE</h4>
+                    <p>
+                        <strong>Invoice #:</strong> {{ invoice.invoice_number }}<br>
+                        <strong>Date:</strong> {{ invoice.date.strftime('%d/%m/%Y %I:%M %p') }}<br>
+                        <strong>Cashier:</strong> {{ invoice.created_by_user.username }}
+                    </p>
+                </div>
+                
+                <!-- Customer Info -->
+                {% if invoice.customer_name %}
+                <div class="mb-3">
+                    <p><strong>Customer:</strong> {{ invoice.customer_name }}</p>
+                    {% if invoice.customer_phone %}
+                    <p><strong>Phone:</strong> {{ invoice.customer_phone }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Items -->
+                <h5>ITEMS</h5>
+                {% for item in invoice.items %}
+                <div class="receipt-item">
+                    <div>
+                        {{ item.product_name }}<br>
+                        <small>{{ item.product_sku }}</small>
+                    </div>
+                    <div class="text-end">
+                        ₹{{ "%.2f"|format(item.unit_price) }}<br>
+                        <small>Qty: {{ item.quantity }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <!-- Totals -->
+                <div class="receipt-total">
+                    <div class="receipt-item">
+                        <span>Subtotal:</span>
+                        <span>₹{{ "%.2f"|format(invoice.subtotal) }}</span>
+                    </div>
+                    <div class="receipt-item">
+                        <span>Tax (15%):</span>
+                        <span>₹{{ "%.2f"|format(invoice.tax) }}</span>
+                    </div>
+                    {% if invoice.discount > 0 %}
+                    <div class="receipt-item">
+                        <span>Discount:</span>
+                        <span>-₹{{ "%.2f"|format(invoice.discount) }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="receipt-item" style="font-size: 1.2em;">
+                        <strong>TOTAL:</strong>
+                        <strong>₹{{ "%.2f"|format(invoice.total) }}</strong>
+                    </div>
+                </div>
+                
+                <!-- Payment Info -->
+                <div class="mt-3">
+                    <p><strong>Payment Method:</strong> {{ invoice.payment_method|upper }}</p>
+                    {% if invoice.payment_reference %}
+                    <p><strong>Reference:</strong> {{ invoice.payment_reference }}</p>
+                    {% endif %}
+                    <p><strong>Payment Status:</strong> {{ invoice.payment_status|upper }}</p>
+                </div>
+                
+                <!-- Footer -->
+                <div class="receipt-footer">
+                    <p>Thank you for your purchase!</p>
+                    <p>*** Items can be returned within 7 days with receipt ***</p>
+                    <p>*** Warranty: 1 Year Manufacturing ***</p>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-center no-print">
+                <a href="{{ url_for('pos.pos_home') }}" class="btn btn-lg btn-success">
+                    <i class="fas fa-plus-circle me-2"></i>Start New Sale
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

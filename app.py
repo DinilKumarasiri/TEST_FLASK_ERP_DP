@@ -439,6 +439,15 @@ def create_app(config_class=Config):
     def health_check():
         return {'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()}
     
+    # Add this route in your app.py after the csrf.init_app(app) line
+    @app.route('/csrf-token')
+    def csrf_token_endpoint():
+        from flask_wtf.csrf import generate_csrf
+        return {
+            'csrf_token': generate_csrf(),
+            'message': 'CSRF token generated'
+        }
+    
     # API endpoint for system info
     @app.route('/api/system-info')
     @login_required

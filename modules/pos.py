@@ -14,6 +14,7 @@ pos_bp = Blueprint('pos', __name__)
 @pos_bp.route('/')
 @login_required
 def pos_home():
+    """Main POS page"""
     # Clear any existing cart in session
     if 'cart' in session:
         session.pop('cart')
@@ -29,6 +30,7 @@ def pos_home():
 @pos_bp.route('/dashboard')
 @login_required
 def dashboard():
+    """POS Dashboard"""
     # Get today's sales summary
     today = datetime.utcnow().date()
     
@@ -71,6 +73,7 @@ def dashboard():
 @pos_bp.route('/scan-product', methods=['POST'])
 @login_required
 def scan_product():
+    """Scan barcode and find product"""
     data = request.get_json()
     barcode = data.get('barcode', '').strip()
     
@@ -112,96 +115,374 @@ def scan_product():
 @pos_bp.route('/add-to-cart', methods=['POST'])
 @login_required
 def add_to_cart():
-    data = request.get_json()
-    product_id = data.get('product_id')
-    quantity = int(data.get('quantity', 1))
+    """
+    Add product to cart - handles both JSON and FormData
+    """
+    print("=" * 50)
+    print("DEBUG: /pos/add-to-cart route called")
+    print(f"DEBUG: Request method: {request.method}")
+    print(f"DEBUG: Content-Type: {request.content_type}")
+    print(f"DEBUG: Current user: {current_user.username}")
     
-    product = Product.query.get(product_id)
-    if not product:
-        return jsonify({'success': False, 'message': 'Product not found'})
-    
-    # Check stock
-    available_stock = StockItem.query.filter_by(
-        product_id=product.id,
-        status='available'
-    ).count()
-    
-    if quantity > available_stock:
-        return jsonify({'success': False, 'message': f'Only {available_stock} items available'})
-    
-    # Initialize cart if not exists
-    if 'cart' not in session:
-        session['cart'] = {}
-    
-    cart = session['cart']
-    
-    # Add or update item in cart
-    if str(product_id) in cart:
-        cart[str(product_id)]['quantity'] += quantity
-    else:
-        cart[str(product_id)] = {
-            'id': product.id,
-            'name': product.name,
-            'price': float(product.selling_price),
-            'quantity': quantity,
-            'has_imei': product.has_imei
-        }
-    
-    session['cart'] = cart
-    session.modified = True
-    
-    return jsonify({'success': True, 'cart': cart})
-
-@pos_bp.route('/remove-from-cart/<int:product_id>', methods=['POST'])
-@login_required
-def remove_from_cart(product_id):
-    if 'cart' in session and str(product_id) in session['cart']:
-        del session['cart'][str(product_id)]
-        session.modified = True
-    
-    return jsonify({'success': True})
-
-@pos_bp.route('/update-cart', methods=['POST'])
-@login_required
-def update_cart():
-    data = request.get_json()
-    product_id = data.get('product_id')
-    quantity = int(data.get('quantity', 1))
-    
-    if 'cart' in session and str(product_id) in session['cart']:
-        product = Product.query.get(product_id)
+    try:
+        # Handle both JSON and form data
+        if request.is_json:
+            print("DEBUG: Processing as JSON request")
+            data = request.get_json()
+            if not data:
+                print("DEBUG: No JSON data received")
+                return jsonify({
+                    'success': False, 
+                    'message': 'No data provided',
+                    'error_type': 'no_data'
+                }), 400
+            
+            print(f"DEBUG: JSON data: {data}")
+            product_id = data.get('product_id')
+            quantity_str = data.get('quantity', '1')
+            
+        else:
+            print("DEBUG: Processing as FormData request")
+            data = request.form
+            print(f"DEBUG: Form data keys: {list(data.keys())}")
+            
+            product_id = data.get('product_id')
+            quantity_str = data.get('quantity', '1')
         
-        # Check stock
+        # Convert quantity to int
+        try:
+            quantity = int(quantity_str)
+        except ValueError:
+            print(f"DEBUG: Invalid quantity value: {quantity_str}")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid quantity value',
+                'error_type': 'invalid_quantity'
+            }), 400
+        
+        # Validate required fields
+        if not product_id:
+            print("DEBUG: No product_id provided")
+            return jsonify({
+                'success': False,
+                'message': 'Product ID is required',
+                'error_type': 'missing_product_id'
+            }), 400
+        
+        print(f"DEBUG: product_id={product_id}, quantity={quantity}")
+        
+        # Check if product exists
+        product = Product.query.get(product_id)
+        if not product:
+            print(f"DEBUG: Product {product_id} not found")
+            return jsonify({
+                'success': False,
+                'message': 'Product not found',
+                'error_type': 'product_not_found',
+                'product_id': product_id
+            }), 404
+        
+        print(f"DEBUG: Found product: {product.name} (ID: {product.id}, SKU: {product.sku})")
+        
+        # Check stock availability
         available_stock = StockItem.query.filter_by(
             product_id=product.id,
             status='available'
         ).count()
         
-        if quantity <= available_stock:
-            session['cart'][str(product_id)]['quantity'] = quantity
-            session.modified = True
-            return jsonify({'success': True})
+        print(f"DEBUG: Available stock for {product.name}: {available_stock}")
+        
+        if available_stock <= 0:
+            print(f"DEBUG: Product {product.name} is out of stock")
+            return jsonify({
+                'success': False,
+                'message': f'{product.name} is out of stock',
+                'error_type': 'out_of_stock',
+                'product_name': product.name
+            }), 400
+        
+        if quantity > available_stock:
+            print(f"DEBUG: Not enough stock. Requested: {quantity}, Available: {available_stock}")
+            return jsonify({
+                'success': False,
+                'message': f'Only {available_stock} items of {product.name} available',
+                'error_type': 'insufficient_stock',
+                'available_stock': available_stock,
+                'requested_quantity': quantity,
+                'product_name': product.name
+            }), 400
+        
+        # Initialize cart if not exists
+        if 'cart' not in session:
+            print("DEBUG: Initializing new cart in session")
+            session['cart'] = {}
+        
+        cart = session['cart']
+        print(f"DEBUG: Current cart before update (items: {len(cart)}): {cart}")
+        
+        # Generate product key
+        product_key = str(product_id)
+        
+        # Check if product is already in cart
+        if product_key in cart:
+            # Update existing item
+            current_quantity = cart[product_key]['quantity']
+            new_quantity = current_quantity + quantity
+            
+            # Check if new quantity exceeds stock
+            if new_quantity > available_stock:
+                max_allowed = available_stock
+                cart[product_key]['quantity'] = max_allowed
+                print(f"DEBUG: Updated existing item quantity to max allowed: {max_allowed}")
+            else:
+                cart[product_key]['quantity'] = new_quantity
+                print(f"DEBUG: Updated existing item quantity: {current_quantity} -> {new_quantity}")
+                
         else:
-            return jsonify({'success': False, 'message': f'Only {available_stock} items available'})
+            # Add new item to cart
+            cart[product_key] = {
+                'id': product.id,
+                'name': product.name,
+                'sku': product.sku,
+                'price': float(product.selling_price),
+                'purchase_price': float(product.purchase_price),
+                'quantity': quantity,
+                'has_imei': product.has_imei,
+                'category_id': product.category_id,
+                'stock_available': available_stock
+            }
+            print(f"DEBUG: Added new item to cart: {product.name}")
+        
+        # Update session
+        session['cart'] = cart
+        session.modified = True
+        
+        print(f"DEBUG: Cart after update (items: {len(cart)}): {cart}")
+        print(f"DEBUG: Session modified flag: {session.modified}")
+        print(f"DEBUG: Session keys: {list(session.keys())}")
+        
+        # Calculate cart totals
+        item_count = sum(item['quantity'] for item in cart.values())
+        subtotal = sum(item['price'] * item['quantity'] for item in cart.values())
+        tax = subtotal * 0.15
+        total = subtotal + tax
+        
+        response_data = {
+            'success': True,
+            'cart': cart,
+            'cart_summary': {
+                'item_count': item_count,
+                'subtotal': subtotal,
+                'tax': tax,
+                'total': total,
+                'tax_rate': 0.15
+            },
+            'product_added': {
+                'id': product.id,
+                'name': product.name,
+                'quantity': quantity,
+                'price': float(product.selling_price),
+                'total_price': float(product.selling_price) * quantity
+            },
+            'message': f'Added {quantity} × {product.name} to cart'
+        }
+        
+        print(f"DEBUG: Sending successful response")
+        
+        return jsonify(response_data)
     
-    return jsonify({'success': False, 'message': 'Item not found in cart'})
+    except ValueError as e:
+        print(f"DEBUG: ValueError: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Invalid input data format',
+            'error_type': 'value_error',
+            'error_details': str(e)
+        }), 400
+    
+    except Exception as e:
+        print(f"DEBUG: Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'message': 'An unexpected error occurred',
+            'error_type': 'server_error',
+            'error_details': str(e)
+        }), 500
 
 @pos_bp.route('/get-cart', methods=['GET'])
 @login_required
 def get_cart():
-    cart = session.get('cart', {})
-    return jsonify({'cart': cart})
+    """Get current cart contents"""
+    print("DEBUG: /pos/get-cart route called")
+    
+    try:
+        cart = session.get('cart', {})
+        
+        # Calculate totals
+        item_count = sum(item.get('quantity', 0) for item in cart.values())
+        subtotal = sum(item.get('price', 0) * item.get('quantity', 0) for item in cart.values())
+        tax = subtotal * 0.15
+        total = subtotal + tax
+        
+        response_data = {
+            'success': True,
+            'cart': cart,
+            'cart_summary': {
+                'item_count': item_count,
+                'subtotal': subtotal,
+                'tax': tax,
+                'total': total,
+                'tax_rate': 0.15
+            }
+        }
+        
+        print(f"DEBUG: Cart contains {item_count} items")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"Error getting cart: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'cart': {}
+        }), 500
+
+@pos_bp.route('/remove-from-cart/<int:product_id>', methods=['POST'])
+@login_required
+def remove_from_cart(product_id):
+    """Remove item from cart"""
+    print(f"DEBUG: /pos/remove-from-cart/{product_id} route called")
+    
+    try:
+        if 'cart' in session and str(product_id) in session['cart']:
+            # Get product name before removing (for response message)
+            product_name = session['cart'][str(product_id)].get('name', 'Product')
+            
+            # Remove item
+            del session['cart'][str(product_id)]
+            session.modified = True
+            
+            print(f"DEBUG: Removed {product_name} from cart")
+            
+            return jsonify({
+                'success': True, 
+                'cart': session.get('cart', {}),
+                'message': f'Removed {product_name} from cart'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Item not found in cart'}), 404
+            
+    except Exception as e:
+        print(f"Error removing from cart: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@pos_bp.route('/update-cart', methods=['POST'])
+@login_required
+def update_cart():
+    """Update cart item quantity"""
+    print("DEBUG: /pos/update-cart route called")
+    
+    try:
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+        
+        product_id = data.get('product_id')
+        quantity_str = data.get('quantity', '1')
+        
+        # Validate input
+        if not product_id:
+            return jsonify({'success': False, 'message': 'Product ID is required'}), 400
+        
+        try:
+            quantity = int(quantity_str)
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Invalid quantity value'}), 400
+        
+        if quantity < 0:
+            return jsonify({'success': False, 'message': 'Quantity cannot be negative'}), 400
+        
+        # Check if cart exists
+        if 'cart' not in session or str(product_id) not in session['cart']:
+            return jsonify({'success': False, 'message': 'Item not found in cart'}), 404
+        
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'success': False, 'message': 'Product not found'}), 404
+        
+        # Check stock availability
+        available_stock = StockItem.query.filter_by(
+            product_id=product.id,
+            status='available'
+        ).count()
+        
+        # If quantity is 0, remove from cart
+        if quantity == 0:
+            del session['cart'][str(product_id)]
+            session.modified = True
+            return jsonify({'success': True, 'cart': session.get('cart', {})})
+        
+        # Check if requested quantity exceeds available stock
+        if quantity > available_stock:
+            return jsonify({
+                'success': False, 
+                'message': f'Only {available_stock} items available',
+                'available_stock': available_stock
+            }), 400
+        
+        # Update cart
+        session['cart'][str(product_id)]['quantity'] = quantity
+        session.modified = True
+        
+        return jsonify({'success': True, 'cart': session['cart']})
+        
+    except Exception as e:
+        print(f"Error updating cart: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @pos_bp.route('/clear-cart', methods=['POST'])
 @login_required
 def clear_cart():
-    if 'cart' in session:
-        session.pop('cart')
-    return jsonify({'success': True})
+    """Clear all items from cart"""
+    print("DEBUG: /pos/clear-cart route called")
+    
+    try:
+        if 'cart' in session:
+            # Get cart info before clearing
+            cart_items = len(session['cart'])
+            
+            # Clear cart
+            session.pop('cart')
+            session.modified = True
+            
+            print(f"DEBUG: Cleared {cart_items} items from cart")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Cleared {cart_items} items from cart',
+                'cart': {}
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'Cart was already empty',
+                'cart': {}
+            })
+            
+    except Exception as e:
+        print(f"Error clearing cart: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @pos_bp.route('/find-customer', methods=['POST'])
 @login_required
 def find_customer():
+    """Find customer by phone"""
     phone = request.json.get('phone', '').strip()
     
     if not phone:
@@ -224,6 +505,7 @@ def find_customer():
 @pos_bp.route('/create-customer', methods=['POST'])
 @login_required
 def create_customer():
+    """Create new customer"""
     data = request.get_json()
     
     # Check if customer with same phone exists
@@ -253,118 +535,221 @@ def create_customer():
 @pos_bp.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
-    data = request.get_json()
+    """Process checkout and create invoice"""
+    print("=" * 50)
+    print("DEBUG: /pos/checkout route called")
+    print(f"DEBUG: Request method: {request.method}")
+    print(f"DEBUG: Content-Type: {request.content_type}")
+    print(f"DEBUG: Current user: {current_user.username}")
     
-    cart = session.get('cart', {})
-    if not cart:
-        return jsonify({'success': False, 'message': 'Cart is empty'})
-    
-    customer_id = data.get('customer_id')
-    payment_method = data.get('payment_method', 'cash')
-    discount = float(data.get('discount', 0))
-    tax_rate = float(data.get('tax_rate', 0.15))
-    notes = data.get('notes', '')
-    
-    # Calculate totals
-    subtotal = 0
-    for item in cart.values():
-        subtotal += item['price'] * item['quantity']
-    
-    tax = subtotal * tax_rate
-    total = subtotal + tax - discount
-    
-    # Generate invoice number
-    invoice_number = generate_invoice_number()
-    
-    # Create invoice
-    invoice = Invoice(
-        invoice_number=invoice_number,
-        customer_id=customer_id,
-        customer_name=data.get('customer_name', 'Walk-in Customer'),
-        customer_phone=data.get('customer_phone', ''),
-        subtotal=subtotal,
-        discount=discount,
-        tax=tax,
-        total=total,
-        payment_status='paid' if payment_method != 'due' else 'pending',
-        payment_method=payment_method,
-        notes=notes,
-        created_by=current_user.id
-    )
-    
-    db.session.add(invoice)
-    db.session.flush()  # Get invoice ID
-    
-    # Process each item in cart
-    for product_id, item in cart.items():
-        product = Product.query.get(item['id'])
+    try:
+        # Check if request is JSON
+        if not request.is_json:
+            print("DEBUG: Request is not JSON")
+            print(f"DEBUG: Content-Type header: {request.content_type}")
+            return jsonify({
+                'success': False, 
+                'message': 'Request must be JSON',
+                'error': 'Content-Type must be application/json'
+            }), 415
         
-        for _ in range(item['quantity']):
-            # Find available stock item
-            stock_item = None
-            if product.has_imei:
-                # For products with IMEI, need to assign specific stock item
-                stock_item = StockItem.query.filter_by(
-                    product_id=product.id,
-                    status='available'
-                ).first()
-                
-                if stock_item:
-                    stock_item.status = 'sold'
-            else:
-                # For non-IMEI products, just reduce stock
-                pass
-            
-            # Create invoice item
-            invoice_item = InvoiceItem(
-                invoice_id=invoice.id,
-                product_id=product.id,
-                stock_item_id=stock_item.id if stock_item else None,
-                quantity=1,
-                unit_price=item['price'],
-                total=item['price']
+        data = request.get_json()
+        print(f"DEBUG: Received data: {data}")
+        
+        cart = session.get('cart', {})
+        if not cart:
+            print("DEBUG: Cart is empty")
+            return jsonify({'success': False, 'message': 'Cart is empty'}), 400
+        
+        customer_id = data.get('customer_id')
+        customer_name = data.get('customer_name', '')
+        customer_phone = data.get('customer_phone', '')
+        payment_method = data.get('payment_method', 'cash')
+        discount = float(data.get('discount', 0))
+        tax_rate = float(data.get('tax_rate', 0.15))
+        notes = data.get('notes', '')
+        payment_reference = data.get('payment_reference', '')
+        
+        print(f"DEBUG: Customer Name: {customer_name}")
+        print(f"DEBUG: Payment Method: {payment_method}")
+        print(f"DEBUG: Discount: {discount}")
+        
+        # Calculate totals
+        subtotal = 0
+        for item in cart.values():
+            subtotal += item['price'] * item['quantity']
+        
+        tax = subtotal * tax_rate
+        total = subtotal + tax - discount
+        
+        print(f"DEBUG: Subtotal: {subtotal}, Tax: {tax}, Total: {total}")
+        
+        # Generate invoice number
+        invoice_number = generate_invoice_number()
+        print(f"DEBUG: Generated invoice number: {invoice_number}")
+        
+        # Start transaction
+        try:
+            # Create invoice
+            invoice = Invoice(
+                invoice_number=invoice_number,
+                customer_id=customer_id if customer_id else None,
+                customer_name=customer_name or 'Walk-in Customer',
+                customer_phone=customer_phone,
+                subtotal=subtotal,
+                discount=discount,
+                tax=tax,
+                total=total,
+                payment_status='paid' if payment_method != 'due' else 'pending',
+                payment_method=payment_method,
+                notes=notes,
+                payment_reference=payment_reference,
+                created_by=current_user.id
             )
             
-            db.session.add(invoice_item)
+            print(f"DEBUG: Created invoice object: {invoice}")
+            
+            db.session.add(invoice)
+            db.session.flush()  # Get invoice ID
+            
+            print(f"DEBUG: Invoice ID: {invoice.id}")
+            
+            # Process each item in cart
+            for product_id, item in cart.items():
+                product = Product.query.get(item['id'])
+                print(f"DEBUG: Processing product: {product.name}, Quantity: {item['quantity']}")
+                
+                for _ in range(item['quantity']):
+                    # Find available stock item
+                    stock_item = None
+                    if product.has_imei:
+                        # For products with IMEI, need to assign specific stock item
+                        stock_item = StockItem.query.filter_by(
+                            product_id=product.id,
+                            status='available'
+                        ).first()
+                        
+                        if stock_item:
+                            stock_item.status = 'sold'
+                            stock_item.sale_date = datetime.utcnow()
+                            print(f"DEBUG: Marked stock item {stock_item.id} as sold")
+                    else:
+                        # For non-IMEI products, create a stock record
+                        stock_item = StockItem(
+                            product_id=product.id,
+                            status='sold',
+                            sale_date=datetime.utcnow(),
+                            notes=f"Sold in invoice {invoice_number}"
+                        )
+                        db.session.add(stock_item)
+                        db.session.flush()
+                        print(f"DEBUG: Created stock record for non-IMEI product")
+                    
+                    # Create invoice item
+                    invoice_item = InvoiceItem(
+                        invoice_id=invoice.id,
+                        product_id=product.id,
+                        stock_item_id=stock_item.id if stock_item else None,
+                        quantity=1,
+                        unit_price=item['price'],
+                        total=item['price'],
+                        product_name=product.name,
+                        product_sku=product.sku
+                    )
+                    
+                    db.session.add(invoice_item)
+                    print(f"DEBUG: Created invoice item for {product.name}")
+            
+            # Create payment record
+            if payment_method != 'due':
+                payment = Payment(
+                    invoice_id=invoice.id,
+                    amount=total,
+                    payment_method=payment_method,
+                    received_by=current_user.id,
+                    reference=payment_reference,
+                    notes=f"POS sale - {invoice_number}"
+                )
+                db.session.add(payment)
+                print(f"DEBUG: Created payment record")
+            
+            db.session.commit()
+            print(f"DEBUG: Database commit successful")
+            
+            # Clear cart
+            session.pop('cart', None)
+            session.modified = True
+            
+            print(f"DEBUG: Cleared cart from session")
+            
+            return jsonify({
+                'success': True,
+                'invoice_id': invoice.id,
+                'invoice_number': invoice_number,
+                'total': total,
+                'message': f'Sale completed successfully! Invoice #{invoice_number}'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"DEBUG: Database error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'message': f'Error processing sale: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        print(f"DEBUG: General error in checkout: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error in checkout process: {str(e)}'
+        }), 500
+        
+@pos_bp.route('/invoice/<int:invoice_id>/receipt')
+@login_required
+def invoice_receipt(invoice_id):
+    """Generate receipt for invoice"""
+    invoice = Invoice.query.get_or_404(invoice_id)
     
-    # Create payment record
-    if payment_method != 'due':
-        payment = Payment(
-            invoice_id=invoice.id,
-            amount=total,
-            payment_method=payment_method,
-            received_by=current_user.id
-        )
-        db.session.add(payment)
+    # Verify the invoice belongs to current user or has permission
+    if invoice.created_by != current_user.id and not current_user.is_admin:
+        flash('You do not have permission to view this receipt', 'error')
+        return redirect(url_for('pos.pos_home'))
     
-    db.session.commit()
-    
-    # Clear cart
-    session.pop('cart', None)
-    
-    return jsonify({
-        'success': True,
-        'invoice_id': invoice.id,
-        'invoice_number': invoice_number,
-        'total': total
-    })
+    return render_template('pos/receipt.html',
+                         invoice=invoice,
+                         title=f'Receipt {invoice.invoice_number}')
 
-def generate_invoice_number():
-    """Generate unique invoice number"""
-    date_str = datetime.now().strftime('%Y%m%d')
-    random_str = ''.join(random.choices(string.digits, k=4))
-    invoice_number = f'INV-{date_str}-{random_str}'
+# KEEP ONLY ONE print_receipt FUNCTION - REMOVE THE DUPLICATE!
+@pos_bp.route('/invoice/<int:invoice_id>/print')
+@login_required
+def print_receipt(invoice_id):
+    """Print receipt for invoice"""
+    invoice = Invoice.query.get_or_404(invoice_id)
     
-    # Check if exists
-    while Invoice.query.filter_by(invoice_number=invoice_number).first():
-        random_str = ''.join(random.choices(string.digits, k=4))
-        invoice_number = f'INV-{date_str}-{random_str}'
+    # Verify permission
+    if invoice.created_by != current_user.id and not current_user.is_admin:
+        flash('You do not have permission to print this receipt', 'error')
+        return redirect(url_for('pos.pos_home'))
     
-    return invoice_number
+    return render_template('pos/print_receipt.html',
+                         invoice=invoice,
+                         title=f'Print Receipt {invoice.invoice_number}')
+
+@pos_bp.route('/checkout-form')
+@login_required
+def checkout_form():
+    """Return checkout form HTML"""
+    return render_template('pos/checkout_modal.html')
 
 @pos_bp.route('/daily-sales')
 @login_required
 def daily_sales():
+    """Daily sales report"""
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     
     try:
@@ -400,6 +785,7 @@ def daily_sales():
 @pos_bp.route('/invoices')
 @login_required
 def invoices_list():
+    """List all invoices"""
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
@@ -413,108 +799,38 @@ def invoices_list():
 
 @pos_bp.route('/invoice/<int:invoice_id>')
 @login_required
-def invoice_details(invoice_id):
+def invoice_detail(invoice_id):  # Changed from invoice_details to invoice_detail
+    """View invoice details"""
     invoice = Invoice.query.get_or_404(invoice_id)
     return render_template('pos/invoice_detail.html',
                          invoice=invoice,
                          title=f'Invoice {invoice.invoice_number}')
 
-@pos_bp.route('/test/create-invoice')
+@pos_bp.route('/debug-cart', methods=['GET'])
 @login_required
-def create_test_invoice():
-    """Create a test invoice for debugging"""
-    try:
-        # Check if we have a customer
-        customer = Customer.query.first()
-        if not customer:
-            # Create a test customer
-            customer = Customer(
-                name='Test Customer',
-                phone='1234567890',
-                email='test@example.com'
-            )
-            db.session.add(customer)
-            db.session.flush()
-        
-        # Generate invoice number
-        invoice_number = generate_invoice_number()
-        
-        # Create test invoice
-        invoice = Invoice(
-            invoice_number=invoice_number,
-            customer_id=customer.id,
-            customer_name=customer.name,
-            customer_phone=customer.phone,
-            subtotal=1000.00,
-            tax=150.00,
-            total=1150.00,
-            payment_status='paid',
-            payment_method='cash',
-            created_by=current_user.id
-        )
-        
-        db.session.add(invoice)
-        db.session.flush()  # Get invoice ID
-        
-        # Add some test items
-        products = Product.query.limit(3).all()
-        for i, product in enumerate(products):
-            item = InvoiceItem(
-                invoice_id=invoice.id,
-                product_id=product.id,
-                quantity=1,
-                unit_price=product.selling_price,
-                total=product.selling_price
-            )
-            db.session.add(item)
-        
-        # Add payment record
-        payment = Payment(
-            invoice_id=invoice.id,
-            amount=1150.00,
-            payment_method='cash',
-            received_by=current_user.id
-        )
-        db.session.add(payment)
-        
-        db.session.commit()
-        
-        flash(f'Test invoice created: {invoice_number} (ID: {invoice.id})', 'success')
-        return redirect(url_for('pos.invoice_details', invoice_id=invoice.id))
-    except Exception as e:
-        flash(f'Error creating test invoice: {str(e)}', 'danger')
-        return redirect(url_for('pos.dashboard'))
+def debug_cart():
+    """Debug endpoint to check cart and session state"""
+    debug_info = {
+        'user': current_user.username,
+        'has_cart': 'cart' in session,
+        'cart_size': len(session.get('cart', {})),
+        'cart_contents': session.get('cart', {}),
+        'session_modified': session.modified,
+        'session_keys': list(session.keys()),
+        'csrf_token': 'Check via /csrf-token endpoint'
+    }
+    
+    return jsonify(debug_info)
 
-@pos_bp.route('/add-payment/<int:invoice_id>', methods=['POST'])
-@login_required
-def add_payment(invoice_id):
-    try:
-        data = request.get_json()
-        invoice = Invoice.query.get_or_404(invoice_id)
-        
-        amount = data.get('amount', 0)
-        method = data.get('method', 'cash')
-        reference = data.get('reference', '')
-        
-        # Create payment
-        payment = Payment(
-            invoice_id=invoice_id,
-            amount=amount,
-            payment_method=method,
-            reference_number=reference,
-            received_by=current_user.id
-        )
-        
-        db.session.add(payment)
-        
-        # Update invoice status
-        if amount >= invoice.total:
-            invoice.payment_status = 'paid'
-        elif amount > 0:
-            invoice.payment_status = 'partial'
-        
-        db.session.commit()
-        
-        return jsonify({'success': True, 'message': 'Payment added successfully'})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+def generate_invoice_number():
+    """Generate unique invoice number"""
+    date_str = datetime.now().strftime('%Y%m%d')
+    random_str = ''.join(random.choices(string.digits, k=4))
+    invoice_number = f'INV-{date_str}-{random_str}'
+    
+    # Check if exists
+    while Invoice.query.filter_by(invoice_number=invoice_number).first():
+        random_str = ''.join(random.choices(string.digits, k=4))
+        invoice_number = f'INV-{date_str}-{random_str}'
+    
+    return invoice_number
