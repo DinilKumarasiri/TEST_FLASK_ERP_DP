@@ -1,0 +1,231 @@
+<div class="checkout-form">
+    <form id="checkoutForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <!-- Customer Information -->
+    <div class="mb-4">
+        <h5 class="mb-3">Customer Information</h5>
+        <input type="hidden" id="customerId" name="customer_id">
+        
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Name *</label>
+                <input type="text" class="form-control" id="customerNameInput" name="customer_name" 
+                       placeholder="Walk-in Customer" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input type="tel" class="form-control" id="customerPhoneInput" name="customer_phone">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Summary -->
+    <div class="mb-4">
+        <h5 class="mb-3">Order Summary</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Price</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody id="checkoutItems">
+                    <!-- Items will be populated by JavaScript -->
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Subtotal:</td>
+                        <td id="checkoutSubtotal">₹0.00</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Tax (15%):</td>
+                        <td id="checkoutTax">₹0.00</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Discount:</td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm" 
+                                   id="discount" name="discount" value="0" min="0" step="0.01"
+                                   onchange="calculateCheckoutTotal()">
+                        </td>
+                    </tr>
+                    <tr class="table-primary">
+                        <td colspan="3" class="text-end fw-bold fs-5">Total:</td>
+                        <td id="checkoutTotal" class="fw-bold fs-5">₹0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Payment Method -->
+    <div class="mb-4">
+        <h5 class="mb-3">Payment Method *</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <select class="form-select" id="paymentMethod" name="payment_method" required>
+                    <option value="cash" selected>Cash</option>
+                    <option value="card">Card</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="digital_wallet">Digital Wallet</option>
+                    <option value="due">Due (Credit)</option>
+                </select>
+            </div>
+            <div class="col-md-6" id="paymentReferenceField" style="display: none;">
+                <input type="text" class="form-control" id="paymentReference" name="payment_reference" 
+                       placeholder="Reference Number">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notes -->
+    <div class="mb-4">
+        <label class="form-label">Notes (Optional)</label>
+        <textarea class="form-control" id="notes" name="notes" rows="2" 
+                  placeholder="Any special instructions..."></textarea>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Cancel
+        </button>
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="fas fa-check-circle me-1"></i>Complete Sale
+        </button>
+    </div>
+</form>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Load cart items into checkout form
+    loadCheckoutItems();
+    
+    // Show/hide payment reference field
+    $('#paymentMethod').on('change', function() {
+        if (this.value === 'card' || this.value === 'bank_transfer' || this.value === 'digital_wallet') {
+            $('#paymentReferenceField').show();
+            $('#paymentReference').prop('required', true);
+        } else {
+            $('#paymentReferenceField').hide();
+            $('#paymentReference').prop('required', false);
+        }
+    });
+    
+    // Handle form submission
+    // Handle form submission
+// Handle form submission - FormData version
+$('#checkoutForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    // Create FormData from the form
+    const formData = new FormData(this);
+    
+    // Add tax rate
+    formData.append('tax_rate', 0.15);
+    
+    // Disable submit button
+    const submitBtn = $('button[type="submit"]');
+    submitBtn.prop('disabled', true).html(
+        '<i class="fas fa-spinner fa-spin me-1"></i>Processing...'
+    );
+    
+    // Convert FormData to object for JSON
+    const formDataObj = {};
+    for (let [key, value] of formData.entries()) {
+        formDataObj[key] = value;
+    }
+    
+    console.log('Checkout form data:', formDataObj);
+    
+    $.ajax({
+        url: '/pos/checkout',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formDataObj),
+        headers: {
+            'X-CSRFToken': $('input[name="csrf_token"]').val(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            console.log('Checkout success response:', response);
+            
+            if (response.success) {
+                // Close modal
+                $('#checkoutModal').modal('hide');
+                
+                // Show success message
+                showAlert(`Sale completed! Invoice: ${response.invoice_number}`, 'success');
+                
+                // Clear cart
+                cart = {};
+                updateCartDisplay();
+                
+                // Open receipt for printing
+                setTimeout(() => {
+                    const printWindow = window.open(`/pos/invoice/${response.invoice_id}/print`, '_blank');
+                    
+                    if (!printWindow || printWindow.closed || typeof printWindow.closed == 'undefined') {
+                        window.location.href = `/pos/invoice/${response.invoice_id}/receipt`;
+                    }
+                    
+                    $('#barcodeInput').focus();
+                }, 500);
+                
+            } else {
+                showAlert(response.message || 'Checkout failed', 'error');
+                submitBtn.prop('disabled', false).html(
+                    '<i class="fas fa-check-circle me-1"></i>Complete Sale'
+                );
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error during checkout:', error, xhr.responseText);
+            showAlert('Error completing sale. Please try again.', 'error');
+            submitBtn.prop('disabled', false).html(
+                '<i class="fas fa-check-circle me-1"></i>Complete Sale'
+            );
+        }
+    });
+});
+
+function loadCheckoutItems() {
+    const itemsContainer = $('#checkoutItems');
+    itemsContainer.empty();
+    
+    let subtotal = 0;
+    
+    for (const productId in cart) {
+        const item = cart[productId];
+        const itemTotal = item.price * item.quantity;
+        subtotal += itemTotal;
+        
+        const row = `
+            <tr>
+                <td>${item.name}</td>
+                <td>₹${item.price.toFixed(2)}</td>
+                <td>${item.quantity}</td>
+                <td>₹${itemTotal.toFixed(2)}</td>
+            </tr>
+        `;
+        itemsContainer.append(row);
+    }
+    
+    const tax = subtotal * 0.15;
+    const discount = parseFloat($('#discount').val()) || 0;
+    const total = subtotal + tax - discount;
+    
+    $('#checkoutSubtotal').text('₹' + subtotal.toFixed(2));
+    $('#checkoutTax').text('₹' + tax.toFixed(2));
+    $('#checkoutTotal').text('₹' + total.toFixed(2));
+}
+
+function calculateCheckoutTotal() {
+    loadCheckoutItems();
+}
+</script>
