@@ -1,6 +1,6 @@
 # reset_database.py
 from app import create_app, db
-from modules.models import *
+from app.models import *
 import os
 
 app = create_app()

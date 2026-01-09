@@ -112,7 +112,7 @@ class DevelopmentConfig(Config):
     Development configuration - for local development
     """
     DEBUG = True
-    SQLALCHEMY_ECHO = True  # Show SQL queries in console
+    SQLALCHEMY_ECHO = False  # Show SQL queries in console - set to True for debugging
     TEMPLATES_AUTO_RELOAD = True
     MAIL_SUPPRESS_SEND = True  # Don't send emails in development
     
