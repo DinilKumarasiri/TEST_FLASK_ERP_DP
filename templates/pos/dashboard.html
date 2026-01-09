@@ -1,5 +1,8 @@
-{% extends "base.html" %} {% block title %}Dashboard - Mobile Shop ERP{%
-endblock %} {% block content %}
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Mobile Shop ERP{% endblock %}
+
+{% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
   <div class="text-end">
@@ -13,7 +16,7 @@ endblock %} {% block content %}
     <div class="stat-card bg-primary text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h3 class="mb-1">LKR {{ "%.2f"|format(today_sales) }}</h3>
+          <h3 class="mb-1">₹ {{ "%.2f"|format(today_sales) }}</h3>
           <p class="mb-0">Today's Sales</p>
         </div>
         <i class="fas fa-rupee-sign"></i>
@@ -37,7 +40,7 @@ endblock %} {% block content %}
     <div class="stat-card bg-info text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h3 class="mb-1">LKR {{ "%.2f"|format(today_cash) }}</h3>
+          <h3 class="mb-1">₹ {{ "%.2f"|format(today_cash) }}</h3>
           <p class="mb-0">Cash Sales</p>
         </div>
         <i class="fas fa-money-bill-wave"></i>
@@ -80,33 +83,30 @@ endblock %} {% block content %}
               </tr>
             </thead>
             <tbody>
-              {% if recent_invoices %} {% for invoice in recent_invoices %}
-              <tr>
-                <td>
-                  <a
-                    href="{{ url_for('pos.invoice_details', invoice_id=invoice.id) }}"
-                    >{{ invoice.invoice_number }}</a
-                  >
-                </td>
-                <td>{{ invoice.customer_name or 'Walk-in' }}</td>
-                <td>{{ invoice.date.strftime('%H:%M') }}</td>
-                <td class="text-end">₹{{ "%.2f"|format(invoice.total) }}</td>
-                <td>
-                  <span
-                    class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' }}"
-                  >
-                    {{ invoice.payment_status|title }}
-                  </span>
-                </td>
-              </tr>
-              {% endfor %} {% else %}
+              {% if recent_invoices %}
+                {% for invoice in recent_invoices %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('pos.invoice_detail', invoice_id=invoice.id) }}">
+                      {{ invoice.invoice_number }}
+                    </a>
+                  </td>
+                  <td>{{ invoice.customer_name or 'Walk-in' }}</td>
+                  <td>{{ invoice.date.strftime('%H:%M') }}</td>
+                  <td class="text-end">₹{{ "%.2f"|format(invoice.total) }}</td>
+                  <td>
+                    <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' }}">
+                      {{ invoice.payment_status|title }}
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
               <tr>
                 <td colspan="5" class="text-center py-4">
                   <i class="fas fa-receipt fa-2x text-muted mb-2"></i>
                   <p class="mb-0 text-muted">No recent transactions</p>
-                  <small class="text-muted"
-                    >Create a sale to see transactions here</small
-                  >
+                  <small class="text-muted">Create a sale to see transactions here</small>
                 </td>
               </tr>
               {% endif %}
@@ -115,10 +115,7 @@ endblock %} {% block content %}
         </div>
       </div>
       <div class="card-footer text-end">
-        <a
-          href="{{ url_for('pos.invoices_list') }}"
-          class="btn btn-sm btn-outline-primary"
-        >
+        <a href="{{ url_for('pos.invoices_list') }}" class="btn btn-sm btn-outline-primary">
           View All Invoices <i class="fas fa-arrow-right ms-1"></i>
         </a>
       </div>
@@ -135,22 +132,21 @@ endblock %} {% block content %}
       </div>
       <div class="card-body p-0">
         <div class="list-group list-group-flush">
-          {% for item in low_stock_products %}
-          <a
-            href="{{ url_for('inventory.product_detail', product_id=item.product.id) }}"
-            class="list-group-item list-group-item-action"
-          >
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1">{{ item.product.name }}</h6>
-                <small class="text-muted">{{ item.product.sku }}</small>
-              </div>
-              <div class="text-end">
-                <span class="badge bg-danger">{{ item.stock_count }}</span>
-                <small class="d-block text-muted">in stock</small>
+          {% if low_stock_products %}
+            {% for item in low_stock_products %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-1">{{ item.product.name }}</h6>
+                  <small class="text-muted">{{ item.product.sku }}</small>
+                </div>
+                <div class="text-end">
+                  <span class="badge bg-danger">{{ item.stock_count }}</span>
+                  <small class="d-block text-muted">in stock</small>
+                </div>
               </div>
             </div>
-          </a>
+            {% endfor %}
           {% else %}
           <div class="list-group-item">
             <div class="text-center text-muted py-3">
@@ -158,15 +154,12 @@ endblock %} {% block content %}
               <p class="mb-0">All items are sufficiently stocked</p>
             </div>
           </div>
-          {% endfor %}
+          {% endif %}
         </div>
       </div>
       <div class="card-footer text-end">
-        <a
-          href="{{ url_for('inventory.stock_report') }}"
-          class="btn btn-sm btn-outline-primary"
-        >
-          View Stock Report <i class="fas fa-arrow-right ms-1"></i>
+        <a href="{{ url_for('pos.pos_home') }}" class="btn btn-sm btn-outline-primary">
+          Manage Products <i class="fas fa-arrow-right ms-1"></i>
         </a>
       </div>
     </div>
@@ -183,37 +176,25 @@ endblock %} {% block content %}
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-3">
-            <a
-              href="{{ url_for('pos.pos_home') }}"
-              class="btn btn-primary w-100"
-            >
+            <a href="{{ url_for('pos.pos_home') }}" class="btn btn-primary w-100">
               <i class="fas fa-cash-register fa-2x mb-2"></i><br />
               New Sale
             </a>
           </div>
           <div class="col-md-3">
-            <a
-              href="{{ url_for('pos.daily_sales') }}"
-              class="btn btn-info w-100"
-            >
+            <a href="{{ url_for('pos.daily_sales') }}" class="btn btn-info w-100">
               <i class="fas fa-chart-bar fa-2x mb-2"></i><br />
               Daily Sales
             </a>
           </div>
           <div class="col-md-3">
-            <a
-              href="{{ url_for('repair.device_intake') }}"
-              class="btn btn-success w-100"
-            >
+            <a href="{{ url_for('pos.pos_home') }}" class="btn btn-success w-100">
               <i class="fas fa-tools fa-2x mb-2"></i><br />
               New Repair
             </a>
           </div>
           <div class="col-md-3">
-            <a
-              href="{{ url_for('inventory.stock_in') }}"
-              class="btn btn-warning w-100"
-            >
+            <a href="{{ url_for('pos.pos_home') }}" class="btn btn-warning w-100">
               <i class="fas fa-box-open fa-2x mb-2"></i><br />
               Stock In
             </a>
