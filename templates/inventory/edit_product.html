@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .price-input .input-group-text {
+        min-width: 100px;
+    }
+    
+    .form-switch .form-check-input {
+        width: 3em;
+        height: 1.5em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-edit me-2"></i>{{ title }}</h2>
+    <div>
+        <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+           class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-1"></i> Back to Product
+        </a>
+        <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-list me-1"></i> All Products
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="POST" action="{{ url_for('inventory.edit_product', product_id=product.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h5><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Product Name *</label>
+                        <input type="text" name="name" class="form-control" 
+                               value="{{ product.name }}" required>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">SKU (Stock Keeping Unit) *</label>
+                        <input type="text" name="sku" class="form-control" 
+                               value="{{ product.sku }}" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3">{{ product.description or '' }}</textarea>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Category</label>
+                        <select name="category_id" class="form-select">
+                            <option value="">-- Select Category --</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" 
+                                    {% if product.category_id == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Minimum Stock Level</label>
+                        <input type="number" name="min_stock_level" class="form-control" 
+                               value="{{ product.min_stock_level }}" min="0">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="has_imei" id="hasImei"
+                               {% if product.has_imei %}checked{% endif %}>
+                        <label class="form-check-label" for="hasImei">
+                            <strong>IMEI/Serial Number Tracking</strong>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                               {% if product.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="isActive">
+                            <strong>Active Product</strong>
+                        </label>
+                        <small class="text-muted d-block">Deactivate to hide from POS and inventory</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pricing Information -->
+            <div class="form-section">
+                <h5><i class="fas fa-money-bill-wave me-2"></i>Pricing Information</h5>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Purchase Price *</label>
+                        <div class="input-group price-input">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" name="purchase_price" class="form-control" 
+                                   step="0.01" min="0" value="{{ "%.2f"|format(product.purchase_price) }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Selling Price *</label>
+                        <div class="input-group price-input">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" name="selling_price" class="form-control" 
+                                   step="0.01" min="0" value="{{ "%.2f"|format(product.selling_price) }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Wholesale Price</label>
+                        <div class="input-group price-input">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" name="wholesale_price" class="form-control" 
+                                   step="0.01" min="0" value="{{ "%.2f"|format(product.wholesale_price) if product.wholesale_price else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product Stats -->
+            <div class="form-section">
+                <h5><i class="fas fa-chart-bar me-2"></i>Product Statistics</h5>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">Created</h6>
+                            <p class="mb-0">{{ product.created_at.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">Last Updated</h6>
+                            <p class="mb-0">
+                                {% if product.updated_at %}
+                                    {{ product.updated_at.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">Stock Items</h6>
+                            <p class="mb-0">{{ product.stock_items|length }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">Available</h6>
+                            <p class="mb-0">
+                                {{ product.stock_items|selectattr('status', 'equalto', 'available')|list|length }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="form-section">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+                       class="btn btn-outline-secondary me-md-2">
+                        <i class="fas fa-times me-1"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg me-md-2">
+                        <i class="fas fa-save me-1"></i> Update Product
+                    </button>
+                    {% if current_user.role == 'admin' and product.stock_items|length == 0 %}
+                    <button type="button" class="btn btn-danger" 
+                            onclick="confirmDelete({{ product.id }})">
+                        <i class="fas fa-trash me-1"></i> Delete
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('inventory.stock_in') }}?product_id={{ product.id }}" 
+                       class="btn btn-outline-success">
+                        <i class="fas fa-plus me-1"></i> Add Stock
+                    </a>
+                    <a href="{{ url_for('inventory.product_purchase_history', product_id=product.id) }}" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-history me-1"></i> Purchase History
+                    </a>
+                    <button class="btn btn-outline-warning" 
+                            onclick="showStockOutModal({{ product.id }})">
+                        <i class="fas fa-minus me-1"></i> Stock Out
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stock Summary -->
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Stock Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-success">{{ product.stock_items|selectattr('status', 'equalto', 'available')|list|length }}</h4>
+                        <small class="text-muted">Available</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-danger">{{ product.stock_items|selectattr('status', 'equalto', 'sold')|list|length }}</h4>
+                        <small class="text-muted">Sold</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <small class="text-muted">Total Value:</small>
+                    <h5 class="mb-0">
+                        ₹{{ "%.2f"|format((product.stock_items|selectattr('status', 'equalto', 'available')|list|length) * product.purchase_price) }}
+                    </h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this product?</p>
+                <p class="text-danger"><strong>Warning:</strong> This action cannot be undone!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('inventory.delete_product', product_id=product.id) }}" id="deleteForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Delete Product</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(productId) {
+    $('#deleteModal').modal('show');
+}
+
+$(document).ready(function() {
+    // Form validation
+    $('form').on('submit', function(e) {
+        var purchasePrice = parseFloat($('input[name="purchase_price"]').val()) || 0;
+        var sellingPrice = parseFloat($('input[name="selling_price"]').val()) || 0;
+        
+        if (sellingPrice <= purchasePrice) {
+            alert('Selling price should be higher than purchase price');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Show loading
+        $('button[type="submit"]').html('<i class="fas fa-spinner fa-spin me-1"></i> Saving...');
+        $('button[type="submit"]').prop('disabled', true);
+    });
+});
+</script>
+{% endblock %}

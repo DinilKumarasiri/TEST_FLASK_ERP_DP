@@ -43,6 +43,7 @@
 </div>
 
 <form method="POST" action="{{ url_for('inventory.create_purchase_order') }}" id="poForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Supplier Information -->
     <div class="form-section">
         <h5><i class="fas fa-truck me-2"></i>Supplier Information</h5>

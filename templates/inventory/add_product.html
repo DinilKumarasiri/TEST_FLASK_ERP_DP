@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Product - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .price-input .input-group-text {
+        min-width: 100px;
+    }
+    
+    .form-switch .form-check-input {
+        width: 3em;
+        height: 1.5em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-plus-circle me-2"></i>Add New Product</h2>
+    <div>
+        <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Products
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="POST" action="{{ url_for('inventory.add_new_product') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h5><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Product Name *</label>
+                        <input type="text" name="name" class="form-control" 
+                               placeholder="e.g., iPhone 14 Pro 128GB" required>
+                        <small class="text-muted">Enter the product name</small>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">SKU (Stock Keeping Unit) *</label>
+                        <input type="text" name="sku" class="form-control" 
+                               placeholder="e.g., IP14P-128-BLK" required>
+                        <small class="text-muted">Unique identifier for the product</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3" 
+                              placeholder="Product description, features, specifications..."></textarea>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Category</label>
+                        <select name="category_id" class="form-select">
+                            <option value="">-- Select Category --</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Minimum Stock Level</label>
+                        <input type="number" name="min_stock_level" class="form-control" 
+                               value="5" min="0">
+                        <small class="text-muted">Low stock alert threshold</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="has_imei" id="hasImei">
+                        <label class="form-check-label" for="hasImei">
+                            <strong>IMEI/Serial Number Tracking</strong>
+                        </label>
+                        <small class="text-muted d-block">Enable for mobile phones and devices with unique serial numbers</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pricing Information -->
+            <div class="form-section">
+                <h5><i class="fas fa-money-bill-wave me-2"></i>Pricing Information</h5>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Purchase Price *</label>
+                        <div class="input-group price-input">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" name="purchase_price" class="form-control" 
+                                   step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                        <small class="text-muted">Cost price from supplier</small>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Selling Price *</label>
+                        <div class="input-group price-input">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" name="selling_price" class="form-control" 
+                                   step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                        <small class="text-muted">Retail price for customers</small>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Wholesale Price</label>
+                        <div class="input-group price-input">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" name="wholesale_price" class="form-control" 
+                                   step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <small class="text-muted">Price for bulk/business customers</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="form-section">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="reset" class="btn btn-outline-secondary me-md-2">
+                        <i class="fas fa-redo me-1"></i> Reset Form
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-1"></i> Add Product
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Quick Tips -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Quick Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li class="mb-2"><strong>SKU Format:</strong> Use consistent format like BRAND-MODEL-COLOR</li>
+                    <li class="mb-2"><strong>IMEI Tracking:</strong> Enable for mobile phones and tablets</li>
+                    <li class="mb-2"><strong>Min Stock Level:</strong> Set based on sales velocity</li>
+                    <li class="mb-0"><strong>Pricing:</strong> Selling price should be higher than purchase price</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Recent Products -->
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-history me-2"></i>Recently Added</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% set recent_products = products|default([]) %}
+                    {% if recent_products %}
+                        {% for product in recent_products[:5] %}
+                        <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ product.name|truncate(30) }}</h6>
+                                <small>₹{{ "%.2f"|format(product.selling_price) }}</small>
+                            </div>
+                            <small class="text-muted">SKU: {{ product.sku }}</small>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No products yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-calculate selling price with markup
+    $('input[name="purchase_price"]').on('blur', function() {
+        var purchasePrice = parseFloat($(this).val()) || 0;
+        var sellingPriceInput = $('input[name="selling_price"]');
+        
+        if (purchasePrice > 0 && (sellingPriceInput.val() === '' || sellingPriceInput.val() === '0')) {
+            // Add 20% markup as default
+            var suggestedPrice = purchasePrice * 1.2;
+            sellingPriceInput.val(suggestedPrice.toFixed(2));
+        }
+    });
+    
+    // Auto-calculate wholesale price
+    $('input[name="selling_price"]').on('blur', function() {
+        var sellingPrice = parseFloat($(this).val()) || 0;
+        var wholesaleInput = $('input[name="wholesale_price"]');
+        
+        if (sellingPrice > 0 && (wholesaleInput.val() === '' || wholesaleInput.val() === '0')) {
+            // Wholesale price is 15% less than selling price
+            var suggestedWholesale = sellingPrice * 0.85;
+            wholesaleInput.val(suggestedWholesale.toFixed(2));
+        }
+    });
+    
+    // Form validation
+    $('form').on('submit', function(e) {
+        var purchasePrice = parseFloat($('input[name="purchase_price"]').val()) || 0;
+        var sellingPrice = parseFloat($('input[name="selling_price"]').val()) || 0;
+        
+        if (sellingPrice <= purchasePrice) {
+            alert('Selling price should be higher than purchase price');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Show loading
+        $('button[type="submit"]').html('<i class="fas fa-spinner fa-spin me-1"></i> Saving...');
+        $('button[type="submit"]').prop('disabled', true);
+    });
+});
+</script>
+{% endblock %}

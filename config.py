@@ -27,7 +27,7 @@ class Config:
     REMEMBER_COOKIE_HTTPONLY = True
     
     # CSRF Protection
-    WTF_CSRF_ENABLED = True
+    WTF_CSRF_ENABLED = False
     WTF_CSRF_SECRET_KEY = os.environ.get('CSRF_SECRET_KEY') or 'csrf-secret-key-here-67890'
     
     # ==================== Application Settings ====================

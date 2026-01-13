@@ -93,6 +93,11 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_now():
         return {'now': datetime.utcnow(), 'timedelta': timedelta}
+    
+    @app.context_processor
+    def inject_csrf_token():
+        from flask_wtf.csrf import generate_csrf
+        return dict(csrf_token=generate_csrf)
 
     @app.route('/')
     def index():

@@ -47,7 +47,11 @@
     </div>
 </div>
 
+<!-- ADD CSRF TOKEN HERE -->
 <form method="POST" action="{{ url_for('inventory.stock_in') }}" id="stockInForm">
+    {{ csrf_token() }}
+    {% include 'includes/csrf.html' %}
+    
     <!-- Product Selection -->
     <div class="form-section">
         <h5><i class="fas fa-box me-2"></i>Select Product</h5>
