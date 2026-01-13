@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from ... import db
 from ...models import Product, ProductCategory, StockItem
 from . import inventory_bp
+from ... import db, csrf 
 
 @inventory_bp.route('/products')
 @login_required
@@ -444,3 +445,178 @@ def test_product_detail(product_id):
         """
     except Exception as e:
         return f"Error: {str(e)}", 500
+    
+@inventory_bp.route('/add-new-product', methods=['GET', 'POST'])
+@login_required
+def add_new_product():
+    """Add new product form"""
+    from ...models import ProductCategory
+    
+    # GET recent products for the sidebar
+    recent_products = Product.query.filter_by(is_active=True)\
+        .order_by(Product.created_at.desc())\
+        .limit(5).all()
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            name = request.form.get('name', '').strip()
+            sku = request.form.get('sku', '').strip()
+            description = request.form.get('description', '').strip()
+            category_id = request.form.get('category_id', type=int)
+            purchase_price = request.form.get('purchase_price', type=float)
+            selling_price = request.form.get('selling_price', type=float)
+            wholesale_price = request.form.get('wholesale_price', type=float)
+            min_stock_level = request.form.get('min_stock_level', type=int, default=5)
+            has_imei = request.form.get('has_imei') == 'on'
+            
+            # Validation
+            if not name:
+                flash('Product name is required', 'danger')
+                return redirect(url_for('inventory.add_new_product'))
+            
+            if not sku:
+                flash('SKU is required', 'danger')
+                return redirect(url_for('inventory.add_new_product'))
+            
+            # Check if SKU already exists
+            existing_product = Product.query.filter_by(sku=sku).first()
+            if existing_product:
+                flash(f'Product with SKU "{sku}" already exists', 'danger')
+                return redirect(url_for('inventory.add_new_product'))
+            
+            if not purchase_price or purchase_price <= 0:
+                flash('Valid purchase price is required', 'danger')
+                return redirect(url_for('inventory.add_new_product'))
+            
+            if not selling_price or selling_price <= 0:
+                flash('Valid selling price is required', 'danger')
+                return redirect(url_for('inventory.add_new_product'))
+            
+            # Create new product
+            product = Product(
+                name=name,
+                sku=sku,
+                description=description,
+                category_id=category_id if category_id else None,
+                purchase_price=purchase_price,
+                selling_price=selling_price,
+                wholesale_price=wholesale_price,
+                min_stock_level=min_stock_level,
+                has_imei=has_imei,
+                is_active=True
+            )
+            
+            db.session.add(product)
+            db.session.commit()
+            
+            flash(f'Product "{name}" added successfully!', 'success')
+            return redirect(url_for('inventory.product_detail', product_id=product.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding product: {str(e)}', 'danger')
+            return redirect(url_for('inventory.add_new_product'))
+    
+    # GET request - show form
+    categories = ProductCategory.query.all()
+    return render_template('inventory/add_product.html',
+                         categories=categories,
+                         products=recent_products, 
+                         title='Add New Product')
+
+
+@inventory_bp.route('/product/<int:product_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    """Edit existing product"""
+    from ...models import ProductCategory
+    
+    product = Product.query.get_or_404(product_id)
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            product.name = request.form.get('name', '').strip()
+            product.sku = request.form.get('sku', '').strip()
+            product.description = request.form.get('description', '').strip()
+            product.category_id = request.form.get('category_id', type=int)
+            product.purchase_price = request.form.get('purchase_price', type=float)
+            product.selling_price = request.form.get('selling_price', type=float)
+            product.wholesale_price = request.form.get('wholesale_price', type=float)
+            product.min_stock_level = request.form.get('min_stock_level', type=int, default=5)
+            product.has_imei = request.form.get('has_imei') == 'on'
+            product.is_active = request.form.get('is_active') == 'on'
+            
+            # Validation
+            if not product.name:
+                flash('Product name is required', 'danger')
+                return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
+            if not product.sku:
+                flash('SKU is required', 'danger')
+                return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
+            # Check if SKU already exists (excluding current product)
+            existing_product = Product.query.filter(
+                Product.sku == product.sku,
+                Product.id != product_id
+            ).first()
+            
+            if existing_product:
+                flash(f'Product with SKU "{product.sku}" already exists', 'danger')
+                return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
+            if not product.purchase_price or product.purchase_price <= 0:
+                flash('Valid purchase price is required', 'danger')
+                return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
+            if not product.selling_price or product.selling_price <= 0:
+                flash('Valid selling price is required', 'danger')
+                return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
+            db.session.commit()
+            flash(f'Product "{product.name}" updated successfully!', 'success')
+            return redirect(url_for('inventory.product_detail', product_id=product.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating product: {str(e)}', 'danger')
+            return redirect(url_for('inventory.edit_product', product_id=product_id))
+    
+    # GET request - show form
+    categories = ProductCategory.query.all()
+    return render_template('inventory/edit_product.html',
+                         product=product,
+                         categories=categories,
+                         title=f'Edit {product.name}')
+
+
+@inventory_bp.route('/product/<int:product_id>/delete', methods=['POST'])
+@login_required
+def delete_product(product_id):
+    """Delete a product (soft delete)"""
+    if current_user.role != 'admin':
+        flash('Only admin can delete products', 'danger')
+        return redirect(request.referrer or url_for('inventory.product_list'))
+    
+    product = Product.query.get_or_404(product_id)
+    
+    try:
+        # Check if product has stock items
+        has_stock = StockItem.query.filter_by(product_id=product_id).first() is not None
+        
+        if has_stock:
+            flash('Cannot delete product with existing stock items. Deactivate instead.', 'danger')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        db.session.delete(product)
+        db.session.commit()
+        
+        flash(f'Product "{product.name}" deleted successfully!', 'success')
+        return redirect(url_for('inventory.product_list'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting product: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
