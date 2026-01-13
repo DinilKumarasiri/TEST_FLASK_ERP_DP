@@ -42,26 +42,42 @@ def product_list():
                          categories=categories,
                          title='Products')
 
-@inventory_bp.route('/product/<int:product_id>')
+@inventory_bp.route('/product/<int:product_id>', methods=['GET'])
 @login_required
 def product_detail(product_id):
-    product = Product.query.get_or_404(product_id)
-    
-    # Get stock items
-    stock_items = StockItem.query.filter_by(
-        product_id=product_id
-    ).order_by(StockItem.created_at.desc()).all()
-    
-    # Get stock history
-    stock_history = StockItem.query.filter_by(
-        product_id=product_id
-    ).order_by(StockItem.created_at.desc()).limit(50).all()
-    
-    return render_template('inventory/product_detail.html',
-                         product=product,
-                         stock_items=stock_items,
-                         stock_history=stock_history,
-                         title=product.name)
+    """Product detail page"""
+    try:
+        print(f"DEBUG: Accessing product_detail for ID: {product_id}")
+        
+        # Get product
+        product = Product.query.get(product_id)
+        if not product:
+            flash('Product not found', 'danger')
+            return redirect(url_for('inventory.product_list'))
+        
+        # Get stock items
+        stock_items = StockItem.query.filter_by(
+            product_id=product_id
+        ).order_by(StockItem.created_at.desc()).all()
+        
+        # Get available stock count
+        available_stock = StockItem.query.filter_by(
+            product_id=product_id,
+            status='available'
+        ).count()
+        
+        return render_template('inventory/product_detail.html',
+                             product=product,
+                             stock_items=stock_items,
+                             available_stock=available_stock,
+                             title=f'{product.name} - Details')
+        
+    except Exception as e:
+        print(f"ERROR in product_detail: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error loading product details: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_list'))
 
 @inventory_bp.route('/stock-in', methods=['GET', 'POST'])
 @login_required
@@ -340,3 +356,91 @@ def product_info(product_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+    
+@inventory_bp.route('/products/export')
+@login_required
+def export_products():
+    try:
+        import csv
+        from io import StringIO
+        from flask import Response
+        
+        # Create CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers
+        writer.writerow(['ID', 'Name', 'SKU', 'Category', 'Purchase Price', 
+                         'Selling Price', 'Current Stock', 'Min Stock', 'Status'])
+        
+        # Get all active products (or filtered if needed)
+        query = Product.query.filter_by(is_active=True)
+        
+        # Apply filters if any
+        search = request.args.get('search', '')
+        if search:
+            query = query.filter(
+                db.or_(
+                    Product.name.ilike(f'%{search}%'),
+                    Product.sku.ilike(f'%{search}%'),
+                    Product.description.ilike(f'%{search}%')
+                )
+            )
+        
+        category_id = request.args.get('category_id', type=int)
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+        
+        products = query.order_by(Product.name).all()
+        
+        for product in products:
+            # Get current stock count
+            stock_count = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+            
+            writer.writerow([
+                product.id,
+                product.name,
+                product.sku,
+                product.category.name if product.category else '',
+                product.purchase_price,
+                product.selling_price,
+                stock_count,
+                product.min_stock_level,
+                'Active' if product.is_active else 'Inactive'
+            ])
+        
+        # Return CSV file
+        output.seek(0)
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={
+                "Content-disposition": "attachment; filename=products_export.csv",
+                "Content-type": "text/csv; charset=utf-8"
+            }
+        )
+    except Exception as e:
+        flash(f'Error exporting products: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_list'))
+    
+@inventory_bp.route('/test/<int:product_id>')
+@login_required
+def test_product_detail(product_id):
+    try:
+        product = Product.query.get(product_id)
+        if not product:
+            return f"Product {product_id} not found", 404
+        
+        return f"""
+        <h1>Test Product Page</h1>
+        <p>Product ID: {product_id}</p>
+        <p>Product Name: {product.name}</p>
+        <p>SKU: {product.sku}</p>
+        <p>Exists: Yes</p>
+        <a href="/inventory/products">Back to Products</a>
+        """
+    except Exception as e:
+        return f"Error: {str(e)}", 500
