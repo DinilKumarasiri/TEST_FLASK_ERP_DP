@@ -39,7 +39,7 @@ class PurchaseOrderItem(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships - Define the relationship here
-    product = db.relationship('Product', backref='purchase_order_items')
+    product = db.relationship('Product', back_populates='purchase_order_items')
     
     def __repr__(self):
         return f'<PurchaseOrderItem {self.id}>'

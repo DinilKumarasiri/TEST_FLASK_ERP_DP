@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Item Barcodes - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Stock Items Added Successfully!</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-success">
+                <i class="fas fa-check me-2"></i>
+                <strong>{{ quantity }} items</strong> have been added to stock for 
+                <strong>{{ product.name }}</strong>.
+            </div>
+            
+            <div class="mb-4">
+                <h5>Generated Barcodes:</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Unique Barcode</th>
+                                <th>Barcode Image</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for barcode in barcodes %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <code class="fs-5">{{ barcode }}</code>
+                                    <br>
+                                    <small class="text-muted">Scan this barcode to identify the individual item</small>
+                                </td>
+                                <td>
+                                    <img src="https://barcode.tec-it.com/barcode.ashx?data={{ barcode }}&code=Code128&dpi=96" 
+                                         alt="Barcode {{ barcode }}" 
+                                         style="height: 50px; width: auto;">
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="printSingleBarcode('{{ barcode }}')">
+                                        <i class="fas fa-print me-1"></i> Print
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Important:</strong> Each barcode is unique to a specific item. 
+                Use these barcodes for individual item tracking.
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-eye me-1"></i> View Product Details
+                </a>
+                <button class="btn btn-success" onclick="printAllBarcodes()">
+                    <i class="fas fa-print me-1"></i> Print All Barcodes
+                </button>
+                <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-secondary">
+                    <i class="fas fa-plus me-1"></i> Add More Stock
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function printSingleBarcode(barcode) {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Print Barcode</title>
+            <style>
+                body { margin: 0; padding: 10px; }
+                .barcode-label { text-align: center; }
+                .product-name { font-size: 12px; font-weight: bold; }
+                .barcode-img { width: 150px; height: auto; }
+                .barcode-number { font-family: monospace; font-size: 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="barcode-label">
+                <div class="product-name">{{ product.name|truncate(20) }}</div>
+                <img src="https://barcode.tec-it.com/barcode.ashx?data=${barcode}&code=Code128&dpi=150" 
+                     alt="Barcode" class="barcode-img">
+                <div class="barcode-number">${barcode}</div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+function printAllBarcodes() {
+    const printWindow = window.open('', '_blank');
+    let content = `
+        <html>
+        <head>
+            <title>Print Barcodes - {{ product.name }}</title>
+            <style>
+                body { margin: 0; padding: 10px; font-family: Arial, sans-serif; }
+                .barcode-container { display: flex; flex-wrap: wrap; gap: 10px; }
+                .barcode-label { 
+                    width: 2in; 
+                    height: 1in; 
+                    border: 1px solid #ccc; 
+                    padding: 5px; 
+                    text-align: center;
+                    page-break-inside: avoid;
+                }
+                .product-name { font-size: 9px; font-weight: bold; }
+                .barcode-img { width: 100%; height: 40px; object-fit: contain; }
+                .barcode-number { font-family: monospace; font-size: 8px; }
+            </style>
+        </head>
+        <body>
+            <h4 style="margin-bottom: 15px;">{{ product.name }}</h4>
+            <div class="barcode-container">
+    `;
+    
+    {% for barcode in barcodes %}
+    content += `
+        <div class="barcode-label">
+            <div class="product-name">{{ product.name|truncate(25) }}</div>
+            <img src="https://barcode.tec-it.com/barcode.ashx?data={{ barcode }}&code=Code128&dpi=96" 
+                 alt="Barcode" class="barcode-img">
+            <div class="barcode-number">{{ barcode }}</div>
+        </div>
+    `;
+    {% endfor %}
+    
+    content += `
+            </div>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.print();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Mobile Shop ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-barcode me-2"></i>Serialized Items - {{ product.name }}</h2>
+    <div>
+        <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Product
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Item Barcode Management</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Serialized Items:</strong> These are individual items with unique barcodes.
+            {% if non_serialized_count > 0 %}
+            <br>
+            <strong>{{ non_serialized_count }} items</strong> are not serialized (no individual barcodes).
+            {% endif %}
+        </div>
+        
+        {% if serialized_items %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th width="80">Item ID</th>
+                        <th>Unique Barcode</th>
+                        <th>IMEI/Serial</th>
+                        <th>Batch</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                        <th>Created</th>
+                        <th width="150">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in serialized_items %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>
+                            {% if item.item_barcode %}
+                            <code>{{ item.item_barcode }}</code>
+                            <br>
+                            <small class="text-muted">
+                                <a href="#" onclick="showBarcodeImage('{{ item.item_barcode }}')">
+                                    <i class="fas fa-image me-1"></i>View Barcode
+                                </a>
+                            </small>
+                            {% else %}
+                            <span class="badge bg-warning">No barcode</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.imei or '-' }}</td>
+                        <td>{{ item.batch_number or '-' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if item.status == 'available' else 'secondary' }}">
+                                {{ item.status }}
+                            </span>
+                        </td>
+                        <td>{{ item.location or '-' }}</td>
+                        <td>{{ item.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if not item.item_barcode %}
+                                <form method="POST" 
+                                      action="{{ url_for('inventory.generate_stock_item_barcode', item_id=item.id) }}"
+                                      style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-barcode"></i> Generate
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button class="btn btn-outline-success btn-sm" 
+                                        onclick="printItemBarcode('{{ item.item_barcode }}', '{{ product.name }}')">
+                                    <i class="fas fa-print"></i> Print
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-barcode fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Serialized Items</h5>
+            <p class="text-muted">This product doesn't have any items with individual barcodes.</p>
+            <a href="{{ url_for('inventory.stock_in') }}?product_id={{ product.id }}" 
+               class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Add Stock with Barcodes
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Barcode Image Modal -->
+<div class="modal fade" id="barcodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Barcode Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="barcodeImageContainer"></div>
+                <div class="mt-3">
+                    <code id="barcodeNumber"></code>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printCurrentBarcode()">
+                    <i class="fas fa-print me-1"></i> Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentBarcode = '';
+
+function showBarcodeImage(barcode) {
+    currentBarcode = barcode;
+    const imageUrl = `https://barcode.tec-it.com/barcode.ashx?data=${barcode}&code=Code128&dpi=150`;
+    
+    document.getElementById('barcodeImageContainer').innerHTML = `
+        <img src="${imageUrl}" alt="Barcode ${barcode}" class="img-fluid" style="max-width: 300px;">
+    `;
+    document.getElementById('barcodeNumber').textContent = barcode;
+    
+    $('#barcodeModal').modal('show');
+}
+
+function printItemBarcode(barcode, productName) {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Print Barcode</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .barcode-label { text-align: center; padding: 10px; }
+                .product-name { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+                .barcode-img { width: 200px; height: auto; }
+                .barcode-number { font-family: monospace; font-size: 12px; margin-top: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="barcode-label">
+                <div class="product-name">${productName.substring(0, 30)}</div>
+                <img src="https://barcode.tec-it.com/barcode.ashx?data=${barcode}&code=Code128&dpi=150" 
+                     alt="Barcode" class="barcode-img">
+                <div class="barcode-number">${barcode}</div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+function printCurrentBarcode() {
+    if (currentBarcode) {
+        printItemBarcode(currentBarcode, '{{ product.name }}');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Print Barcode - {{ product.name }}</title>
+    <style>
+        @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+            .barcode-label {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+        }
+        
+        .barcode-label {
+            width: 2in;
+            height: 1in;
+            border: 1px solid #ccc;
+            padding: 5px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            display: inline-block;
+            margin: 5px;
+            box-sizing: border-box;
+        }
+        
+        .product-name {
+            font-size: 9px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .barcode-img {
+            width: 100%;
+            height: 30px;
+            object-fit: contain;
+        }
+        
+        .barcode-number {
+            font-size: 8px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+        
+        .price {
+            font-size: 9px;
+            font-weight: bold;
+            margin-top: 1px;
+        }
+        
+        .sku {
+            font-size: 7px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- Controls (hidden when printing) -->
+    <div class="container mt-3 no-print">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4><i class="fas fa-print me-2"></i>Print Barcode Labels</h4>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary me-2">
+                    <i class="fas fa-print me-1"></i> Print Labels
+                </button>
+                <a href="/inventory/product/{{ product.id }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Product
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Product:</strong> {{ product.name }}</p>
+                        <p><strong>SKU:</strong> {{ product.sku }}</p>
+                        <p><strong>Barcode:</strong> {{ product.barcode }}</p>
+                        <p><strong>Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Number of Labels</label>
+                            <input type="number" id="labelCount" class="form-control" value="1" min="1" max="100">
+                        </div>
+                        <button onclick="generateLabels()" class="btn btn-success me-2">
+                            <i class="fas fa-plus me-1"></i> Generate Labels
+                        </button>
+                        <button onclick="printLabels()" class="btn btn-primary">
+                            <i class="fas fa-print me-1"></i> Print Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Printing Instructions:</strong> Click "Generate Labels" to create multiple copies, then click "Print Now" or use Ctrl+P.
+        </div>
+    </div>
+    
+    <!-- Labels Container -->
+    <div id="labelsContainer" class="text-center">
+        <!-- Single label template -->
+        <div class="barcode-label">
+            <div class="product-name">{{ product.name|truncate(25) }}</div>
+            <div class="sku">{{ product.sku|truncate(15) }}</div>
+            {% if product.get_barcode_image_url() %}
+            <img src="{{ product.get_barcode_image_url() }}" 
+                 alt="Barcode {{ product.barcode }}" 
+                 class="barcode-img">
+            {% else %}
+            <div style="height: 30px; line-height: 30px; font-family: monospace;">
+                {{ product.barcode }}
+            </div>
+            {% endif %}
+            <div class="barcode-number">{{ product.barcode }}</div>
+            <div class="price">₹{{ "%.2f"|format(product.selling_price) }}</div>
+        </div>
+    </div>
+    
+    <script>
+    function generateLabels() {
+        const count = parseInt(document.getElementById('labelCount').value) || 1;
+        const container = document.getElementById('labelsContainer');
+        const template = container.innerHTML;
+        
+        if (count <= 0) {
+            alert('Please enter a valid number of labels');
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        for (let i = 0; i < count; i++) {
+            container.innerHTML += template;
+        }
+    }
+    
+    function printLabels() {
+        window.print();
+    }
+    
+    // Auto-generate 1 label on load
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const count = urlParams.get('count');
+        
+        if (count && !isNaN(count)) {
+            document.getElementById('labelCount').value = count;
+            generateLabels();
+        }
+    });
+    
+    // Auto-print if parameter is set
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('autoPrint') === 'true') {
+        setTimeout(() => {
+            window.print();
+        }, 1000);
+    }
+    </script>
+</body>
+</html>

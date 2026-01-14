@@ -1,9 +1,81 @@
-from flask import render_template, request, flash, redirect, url_for, jsonify
+from flask import render_template, request, flash, redirect, url_for, jsonify, current_app
 from flask_login import login_required, current_user
 from ... import db
 from ...models import Product, ProductCategory, StockItem
 from . import inventory_bp
 from ... import db, csrf 
+import sys
+import os
+import re
+
+# Import barcode generator
+try:
+    from app.utils.barcode_generator import BarcodeGenerator
+    print("✓ BarcodeGenerator imported successfully")
+    BARCODE_AVAILABLE = True
+except ImportError as e:
+    print(f"✗ Error importing BarcodeGenerator: {e}")
+    BARCODE_AVAILABLE = False
+    
+    # Fallback BarcodeGenerator class
+    class BarcodeGenerator:
+        @staticmethod
+        def generate_barcode_number(product):
+            """Generate barcode number from product SKU or ID"""
+            try:
+                if product.sku:
+                    # Clean SKU to create barcode (remove special characters)
+                    barcode = re.sub(r'[^A-Za-z0-9]', '', product.sku)
+                    if len(barcode) < 8:
+                        barcode = barcode.zfill(12)
+                    return barcode[:12]  # Standard barcode length
+                else:
+                    # Use product ID padded to 12 digits
+                    return str(product.id).zfill(12)
+            except Exception as e:
+                print(f"Error generating barcode number: {e}")
+                return str(product.id).zfill(12)
+        
+        @staticmethod
+        def generate_online_barcode_url(barcode_number, barcode_type='Code128'):
+            """Get barcode image from online generator service"""
+            return f"https://barcode.tec-it.com/barcode.ashx?data={barcode_number}&code={barcode_type}&dpi=96&dataseparator="
+        
+        @staticmethod
+        def save_barcode_locally(barcode_number, product_id):
+            """Save barcode image locally (simplified version)"""
+            try:
+                # Create barcode directory
+                barcode_dir = os.path.join(current_app.static_folder, 'barcodes')
+                if not os.path.exists(barcode_dir):
+                    os.makedirs(barcode_dir)
+                
+                # Create a simple text file for now
+                filename = f"product_{product_id}.txt"
+                filepath = os.path.join(barcode_dir, filename)
+                
+                with open(filepath, 'w') as f:
+                    f.write(f"Barcode: {barcode_number}\n")
+                    f.write(f"Product ID: {product_id}\n")
+                
+                return f"barcodes/{filename}"
+                
+            except Exception as e:
+                print(f"Error saving barcode locally: {e}")
+                return None
+        
+        @staticmethod
+        def validate_barcode(barcode_number):
+            """Validate barcode format"""
+            if not barcode_number:
+                return False
+            
+            # Check if it's alphanumeric and reasonable length
+            if len(barcode_number) < 8 or len(barcode_number) > 20:
+                return False
+            
+            # Basic validation - can be enhanced
+            return True
 
 @inventory_bp.route('/products')
 @login_required
@@ -13,6 +85,7 @@ def product_list():
     
     search = request.args.get('search', '')
     category_id = request.args.get('category_id', type=int)
+    barcode_status = request.args.get('barcode_status', '')
     
     query = Product.query.filter_by(is_active=True)
     
@@ -21,12 +94,19 @@ def product_list():
             db.or_(
                 Product.name.ilike(f'%{search}%'),
                 Product.sku.ilike(f'%{search}%'),
-                Product.description.ilike(f'%{search}%')
+                Product.description.ilike(f'%{search}%'),
+                Product.barcode.ilike(f'%{search}%')
             )
         )
     
     if category_id:
         query = query.filter_by(category_id=category_id)
+    
+    # Filter by barcode status
+    if barcode_status == 'with_barcode':
+        query = query.filter(Product.barcode != None, Product.barcode != '')
+    elif barcode_status == 'without_barcode':
+        query = query.filter((Product.barcode == None) | (Product.barcode == ''))
     
     products = query.order_by(Product.name).paginate(page=page, per_page=per_page)
     categories = ProductCategory.query.all()
@@ -41,15 +121,14 @@ def product_list():
     return render_template('inventory/products.html',
                          products=products,
                          categories=categories,
-                         title='Products')
+                         title='Products',
+                         barcode_status=barcode_status)
 
 @inventory_bp.route('/product/<int:product_id>', methods=['GET'])
 @login_required
 def product_detail(product_id):
     """Product detail page"""
     try:
-        print(f"DEBUG: Accessing product_detail for ID: {product_id}")
-        
         # Get product
         product = Product.query.get(product_id)
         if not product:
@@ -80,14 +159,16 @@ def product_detail(product_id):
         flash(f'Error loading product details: {str(e)}', 'danger')
         return redirect(url_for('inventory.product_list'))
 
+# In products.py - Update the stock_in function
+
 @inventory_bp.route('/stock-in', methods=['GET', 'POST'])
 @login_required
 def stock_in():
     from ...models import Supplier
     if request.method == 'POST':
         try:
-            print("DEBUG: POST request received for stock-in")  # Debug
-            print(f"DEBUG: Form data: {dict(request.form)}")  # Debug
+            print("DEBUG: POST request received for stock-in")
+            print(f"DEBUG: Form data: {dict(request.form)}")
             
             product_id = request.form.get('product_id', type=int)
             quantity = request.form.get('quantity', type=int, default=1)
@@ -97,53 +178,54 @@ def stock_in():
             batch_number = request.form.get('batch_number', '')
             location = request.form.get('location', '')
             notes = request.form.get('notes', '')
+            generate_individual_barcodes = request.form.get('generate_individual_barcodes') == 'on'
             
-            print(f"DEBUG: product_id={product_id}, quantity={quantity}, purchase_price={purchase_price}")  # Debug
+            print(f"DEBUG: product_id={product_id}, quantity={quantity}, generate_barcodes={generate_individual_barcodes}")
             
             # Validation
             if not product_id:
                 flash('Please select a product', 'danger')
-                print("DEBUG: No product selected")  # Debug
+                print("DEBUG: No product selected")
                 return redirect(url_for('inventory.stock_in'))
             
             if not purchase_price or purchase_price <= 0:
                 flash('Please enter a valid purchase price', 'danger')
-                print(f"DEBUG: Invalid purchase price: {purchase_price}")  # Debug
-                return redirect(url_for('inventory.stock_in'))
-            
-            if not selling_price or selling_price <= 0:
-                flash('Please enter a valid selling price', 'danger')
-                print(f"DEBUG: Invalid selling price: {selling_price}")  # Debug
+                print(f"DEBUG: Invalid purchase price: {purchase_price}")
                 return redirect(url_for('inventory.stock_in'))
             
             product = Product.query.get(product_id)
             if not product:
                 flash('Product not found', 'danger')
-                print(f"DEBUG: Product not found: {product_id}")  # Debug
+                print(f"DEBUG: Product not found: {product_id}")
                 return redirect(url_for('inventory.stock_in'))
             
-            print(f"DEBUG: Product found: {product.name}, has_imei={product.has_imei}")  # Debug
+            print(f"DEBUG: Product found: {product.name}, has_imei={product.has_imei}")
+            
+            # Generate batch barcodes if requested
+            individual_barcodes = []
+            if generate_individual_barcodes:
+                individual_barcodes = BarcodeGenerator.generate_batch_barcodes(product, quantity)
             
             # Check for IMEI validation if product requires it
             if product.has_imei:
-                print("DEBUG: Product requires IMEI, validating...")  # Debug
+                print("DEBUG: Product requires IMEI, validating...")
                 # Validate all IMEI numbers are provided
                 for i in range(quantity):
                     imei = request.form.get(f'imei_{i}', '').strip()
-                    print(f"DEBUG: IMEI {i}: {imei}")  # Debug
+                    print(f"DEBUG: IMEI {i}: {imei}")
                     if not imei:
                         flash(f'IMEI #{i+1} is required for this product', 'danger')
-                        print(f"DEBUG: Missing IMEI #{i}")  # Debug
+                        print(f"DEBUG: Missing IMEI #{i}")
                         return redirect(url_for('inventory.stock_in'))
                     
                     # Check for duplicate IMEI in database
                     existing = StockItem.query.filter_by(imei=imei).first()
                     if existing:
                         flash(f'IMEI {imei} already exists in database', 'danger')
-                        print(f"DEBUG: Duplicate IMEI: {imei}")  # Debug
+                        print(f"DEBUG: Duplicate IMEI: {imei}")
                         return redirect(url_for('inventory.stock_in'))
             
-            print(f"DEBUG: Adding {quantity} stock items...")  # Debug
+            print(f"DEBUG: Adding {quantity} stock items...")
             
             # Add stock items
             for i in range(quantity):
@@ -157,27 +239,48 @@ def stock_in():
                     batch_number=batch_number,
                     location=location,
                     status='available',
-                    notes=notes
+                    notes=notes,
+                    is_serialized=generate_individual_barcodes  # Mark as serialized
                 )
                 
                 # Add IMEI if product has it
                 if product.has_imei:
                     imei = request.form.get(f'imei_{i}', '').strip()
                     stock_item.imei = imei
-                    print(f"DEBUG: Added IMEI {imei} to stock item")  # Debug
+                    print(f"DEBUG: Added IMEI {imei} to stock item")
+                
+                # Generate unique barcode if requested
+                if generate_individual_barcodes and i < len(individual_barcodes):
+                    stock_item.item_barcode = individual_barcodes[i]
+                    print(f"DEBUG: Added unique barcode {individual_barcodes[i]} to stock item")
                 
                 db.session.add(stock_item)
             
             db.session.commit()
-            print("DEBUG: Database commit successful")  # Debug
+            
+            # Update product barcode if not exists
+            if not product.barcode:
+                product.barcode = BarcodeGenerator.generate_product_barcode(product)
+                product.barcode_image = BarcodeGenerator.generate_online_barcode_url(product.barcode)
+                db.session.commit()
+            
+            print("DEBUG: Database commit successful")
             flash(f'{quantity} items added to stock successfully', 'success')
+            
+            # If individual barcodes were generated, show them
+            if generate_individual_barcodes:
+                return render_template('inventory/stock_item_barcode.html',
+                                    product=product,
+                                    barcodes=individual_barcodes,
+                                    quantity=quantity)
+            
             return redirect(url_for('inventory.product_detail', product_id=product_id))
             
         except Exception as e:
             db.session.rollback()
-            print(f"DEBUG: Error occurred: {str(e)}")  # Debug
+            print(f"DEBUG: Error occurred: {str(e)}")
             import traceback
-            traceback.print_exc()  # Print full traceback
+            traceback.print_exc()
             flash(f'Error adding stock: {str(e)}', 'danger')
             return redirect(url_for('inventory.stock_in'))
     
@@ -296,6 +399,7 @@ def api_search_products():
                 'id': product.id,
                 'name': product.name,
                 'sku': product.sku,
+                'barcode': product.barcode,
                 'purchase_price': product.purchase_price,
                 'selling_price': product.selling_price,
                 'stock_count': stock_count,
@@ -346,6 +450,7 @@ def product_info(product_id):
                 'id': product.id,
                 'name': product.name,
                 'sku': product.sku,
+                'barcode': product.barcode,
                 'category_name': product.category.name if product.category else None,
                 'stock_count': stock_count,
                 'min_stock_level': product.min_stock_level,
@@ -357,7 +462,7 @@ def product_info(product_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-    
+
 @inventory_bp.route('/products/export')
 @login_required
 def export_products():
@@ -371,7 +476,7 @@ def export_products():
         writer = csv.writer(output)
         
         # Write headers
-        writer.writerow(['ID', 'Name', 'SKU', 'Category', 'Purchase Price', 
+        writer.writerow(['ID', 'Name', 'SKU', 'Barcode', 'Category', 'Purchase Price', 
                          'Selling Price', 'Current Stock', 'Min Stock', 'Status'])
         
         # Get all active products (or filtered if needed)
@@ -405,6 +510,7 @@ def export_products():
                 product.id,
                 product.name,
                 product.sku,
+                product.barcode or '',
                 product.category.name if product.category else '',
                 product.purchase_price,
                 product.selling_price,
@@ -426,7 +532,7 @@ def export_products():
     except Exception as e:
         flash(f'Error exporting products: {str(e)}', 'danger')
         return redirect(url_for('inventory.product_list'))
-    
+
 @inventory_bp.route('/test/<int:product_id>')
 @login_required
 def test_product_detail(product_id):
@@ -440,12 +546,13 @@ def test_product_detail(product_id):
         <p>Product ID: {product_id}</p>
         <p>Product Name: {product.name}</p>
         <p>SKU: {product.sku}</p>
+        <p>Barcode: {product.barcode or 'No barcode'}</p>
         <p>Exists: Yes</p>
         <a href="/inventory/products">Back to Products</a>
         """
     except Exception as e:
         return f"Error: {str(e)}", 500
-    
+
 @inventory_bp.route('/add-new-product', methods=['GET', 'POST'])
 @login_required
 def add_new_product():
@@ -462,6 +569,7 @@ def add_new_product():
             # Get form data
             name = request.form.get('name', '').strip()
             sku = request.form.get('sku', '').strip()
+            barcode = request.form.get('barcode', '').strip()
             description = request.form.get('description', '').strip()
             category_id = request.form.get('category_id', type=int)
             purchase_price = request.form.get('purchase_price', type=float)
@@ -485,6 +593,13 @@ def add_new_product():
                 flash(f'Product with SKU "{sku}" already exists', 'danger')
                 return redirect(url_for('inventory.add_new_product'))
             
+            # Check if barcode already exists
+            if barcode:
+                existing_barcode = Product.query.filter_by(barcode=barcode).first()
+                if existing_barcode:
+                    flash(f'Product with barcode "{barcode}" already exists', 'danger')
+                    return redirect(url_for('inventory.add_new_product'))
+            
             if not purchase_price or purchase_price <= 0:
                 flash('Valid purchase price is required', 'danger')
                 return redirect(url_for('inventory.add_new_product'))
@@ -497,6 +612,7 @@ def add_new_product():
             product = Product(
                 name=name,
                 sku=sku,
+                barcode=barcode if barcode else None,
                 description=description,
                 category_id=category_id if category_id else None,
                 purchase_price=purchase_price,
@@ -509,6 +625,15 @@ def add_new_product():
             
             db.session.add(product)
             db.session.commit()
+            
+            # Generate barcode if not provided
+            if not barcode:
+                try:
+                    product.barcode = BarcodeGenerator.generate_barcode_number(product)
+                    product.barcode_image = BarcodeGenerator.generate_online_barcode_url(product.barcode)
+                    db.session.commit()
+                except Exception as e:
+                    print(f"Warning: Could not generate barcode: {e}")
             
             flash(f'Product "{name}" added successfully!', 'success')
             return redirect(url_for('inventory.product_detail', product_id=product.id))
@@ -525,7 +650,6 @@ def add_new_product():
                          products=recent_products, 
                          title='Add New Product')
 
-
 @inventory_bp.route('/product/<int:product_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_product(product_id):
@@ -539,6 +663,7 @@ def edit_product(product_id):
             # Get form data
             product.name = request.form.get('name', '').strip()
             product.sku = request.form.get('sku', '').strip()
+            product.barcode = request.form.get('barcode', '').strip()
             product.description = request.form.get('description', '').strip()
             product.category_id = request.form.get('category_id', type=int)
             product.purchase_price = request.form.get('purchase_price', type=float)
@@ -567,6 +692,17 @@ def edit_product(product_id):
                 flash(f'Product with SKU "{product.sku}" already exists', 'danger')
                 return redirect(url_for('inventory.edit_product', product_id=product_id))
             
+            # Check if barcode already exists (excluding current product)
+            if product.barcode:
+                existing_barcode = Product.query.filter(
+                    Product.barcode == product.barcode,
+                    Product.id != product_id
+                ).first()
+                
+                if existing_barcode:
+                    flash(f'Product with barcode "{product.barcode}" already exists', 'danger')
+                    return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
             if not product.purchase_price or product.purchase_price <= 0:
                 flash('Valid purchase price is required', 'danger')
                 return redirect(url_for('inventory.edit_product', product_id=product_id))
@@ -574,6 +710,10 @@ def edit_product(product_id):
             if not product.selling_price or product.selling_price <= 0:
                 flash('Valid selling price is required', 'danger')
                 return redirect(url_for('inventory.edit_product', product_id=product_id))
+            
+            # Update barcode image if barcode changed
+            if product.barcode:
+                product.barcode_image = BarcodeGenerator.generate_online_barcode_url(product.barcode)
             
             db.session.commit()
             flash(f'Product "{product.name}" updated successfully!', 'success')
@@ -590,7 +730,6 @@ def edit_product(product_id):
                          product=product,
                          categories=categories,
                          title=f'Edit {product.name}')
-
 
 @inventory_bp.route('/product/<int:product_id>/delete', methods=['POST'])
 @login_required
@@ -620,3 +759,256 @@ def delete_product(product_id):
         db.session.rollback()
         flash(f'Error deleting product: {str(e)}', 'danger')
         return redirect(url_for('inventory.product_detail', product_id=product_id))
+
+# ============ BARCODE ROUTES ============
+
+@inventory_bp.route('/product/<int:product_id>/generate-barcode', methods=['POST'])
+@login_required
+def generate_product_barcode(product_id):
+    """Generate barcode for a product"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        print(f"Generating barcode for product: {product.name} (ID: {product.id})")
+        
+        # Generate barcode number
+        barcode_number = BarcodeGenerator.generate_barcode_number(product)
+        
+        # Generate online barcode URL
+        barcode_url = BarcodeGenerator.generate_online_barcode_url(barcode_number)
+        
+        # Save to product
+        product.barcode = barcode_number
+        product.barcode_image = barcode_url
+        
+        db.session.commit()
+        
+        flash(f'✅ Barcode generated successfully: {barcode_number}', 'success')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR in generate_product_barcode: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generating barcode: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+
+@inventory_bp.route('/product/<int:product_id>/print-barcode')
+@login_required
+def print_product_barcode(product_id):
+    """Print barcode label"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        if not product.barcode:
+            flash('Product does not have a barcode. Generate one first.', 'warning')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        return render_template('inventory/print_barcode.html',
+                             product=product,
+                             title=f'Print Barcode - {product.name}')
+        
+    except Exception as e:
+        flash(f'Error printing barcode: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+
+@inventory_bp.route('/api/products/barcode-scan', methods=['POST'])
+@login_required
+def api_barcode_scan():
+    """API endpoint for barcode scanning"""
+    try:
+        data = request.get_json()
+        barcode = data.get('barcode', '').strip()
+        
+        if not barcode:
+            return jsonify({'success': False, 'message': 'No barcode provided'})
+        
+        print(f"DEBUG: Scanning barcode: {barcode}")
+        
+        # Search product by barcode
+        product = Product.query.filter_by(barcode=barcode, is_active=True).first()
+        
+        if not product:
+            # Try searching by SKU
+            product = Product.query.filter_by(sku=barcode, is_active=True).first()
+            if product:
+                print(f"DEBUG: Found product by SKU: {product.name}")
+        
+        if product:
+            # Get current stock
+            stock_count = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+            
+            return jsonify({
+                'success': True,
+                'product': {
+                    'id': product.id,
+                    'name': product.name,
+                    'sku': product.sku,
+                    'barcode': product.barcode,
+                    'selling_price': float(product.selling_price),
+                    'stock_count': stock_count,
+                    'has_imei': product.has_imei,
+                    'category': product.category.name if product.category else None
+                }
+            })
+        else:
+            print(f"DEBUG: Product not found for barcode: {barcode}")
+            return jsonify({
+                'success': False, 
+                'message': 'Product not found'
+            })
+            
+    except Exception as e:
+        print(f"ERROR in api_barcode_scan: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+@inventory_bp.route('/product/<int:product_id>/edit-barcode', methods=['POST'])
+@login_required
+def edit_product_barcode(product_id):
+    """Manually edit product barcode"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        new_barcode = request.form.get('barcode', '').strip()
+        
+        if not new_barcode:
+            flash('Barcode cannot be empty', 'danger')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        # Check if barcode already exists for another product
+        existing = Product.query.filter(
+            Product.barcode == new_barcode,
+            Product.id != product_id
+        ).first()
+        
+        if existing:
+            flash(f'Barcode {new_barcode} already exists for product: {existing.name}', 'danger')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        # Update barcode
+        product.barcode = new_barcode
+        product.barcode_image = BarcodeGenerator.generate_online_barcode_url(new_barcode)
+        
+        db.session.commit()
+        
+        flash(f'Barcode updated to: {new_barcode}', 'success')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating barcode: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+
+@inventory_bp.route('/bulk-generate-barcodes', methods=['POST'])
+@login_required
+def bulk_generate_barcodes():
+    """Generate barcodes for all products without barcodes"""
+    if current_user.role != 'admin':
+        flash('Only admin can generate barcodes in bulk', 'danger')
+        return redirect(url_for('inventory.product_list'))
+    
+    try:
+        products_without_barcode = Product.query.filter(
+            (Product.barcode == None) | (Product.barcode == ''),
+            Product.is_active == True
+        ).all()
+        
+        count = 0
+        for product in products_without_barcode:
+            barcode_number = BarcodeGenerator.generate_barcode_number(product)
+            barcode_url = BarcodeGenerator.generate_online_barcode_url(barcode_number)
+            
+            product.barcode = barcode_number
+            product.barcode_image = barcode_url
+            count += 1
+        
+        db.session.commit()
+        
+        flash(f'Generated barcodes for {count} products', 'success')
+        return redirect(url_for('inventory.product_list'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error generating barcodes in bulk: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_list'))
+
+@inventory_bp.route('/product/<int:product_id>/barcode-info')
+@login_required
+def product_barcode_info(product_id):
+    """Get barcode information for a product"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        return jsonify({
+            'success': True,
+            'product': {
+                'id': product.id,
+                'name': product.name,
+                'sku': product.sku,
+                'barcode': product.barcode,
+                'barcode_image': product.get_barcode_image_url() if hasattr(product, 'get_barcode_image_url') else None
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+    
+# Add to products.py
+
+@inventory_bp.route('/product/<int:product_id>/serialized-items')
+@login_required
+def serialized_items(product_id):
+    """View all serialized stock items for a product"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        
+        # Get serialized items (items with individual barcodes)
+        serialized_items = StockItem.query.filter_by(
+            product_id=product_id,
+            is_serialized=True
+        ).order_by(StockItem.created_at.desc()).all()
+        
+        # Get non-serialized items count
+        non_serialized_count = StockItem.query.filter_by(
+            product_id=product_id,
+            is_serialized=False,
+            status='available'
+        ).count()
+        
+        return render_template('inventory/serialized_items.html',
+                             product=product,
+                             serialized_items=serialized_items,
+                             non_serialized_count=non_serialized_count,
+                             title=f'Serialized Items - {product.name}')
+        
+    except Exception as e:
+        flash(f'Error loading serialized items: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+
+@inventory_bp.route('/stock-item/<int:item_id>/generate-barcode', methods=['POST'])
+@login_required
+def generate_stock_item_barcode(item_id):
+    """Generate unique barcode for individual stock item"""
+    try:
+        stock_item = StockItem.query.get_or_404(item_id)
+        
+        if stock_item.item_barcode:
+            flash('This item already has a barcode', 'warning')
+            return redirect(request.referrer or url_for('inventory.product_detail', product_id=stock_item.product_id))
+        
+        # Generate unique barcode
+        stock_item.item_barcode = stock_item.generate_unique_barcode()
+        stock_item.is_serialized = True
+        
+        db.session.commit()
+        
+        flash(f'✅ Unique barcode generated: {stock_item.item_barcode}', 'success')
+        return redirect(request.referrer or url_for('inventory.product_detail', product_id=stock_item.product_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error generating barcode: {str(e)}', 'danger')
+        return redirect(request.referrer)

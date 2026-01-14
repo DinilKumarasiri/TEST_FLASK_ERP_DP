@@ -3,44 +3,191 @@
 <head>
     <title>{{ product.name }} - Product Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .barcode-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .barcode-image {
+            max-width: 300px;
+            height: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: white;
+        }
+        .action-buttons {
+            margin-top: 15px;
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-4">
-        <h1>{{ product.name }}</h1>
+        <!-- Navigation -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-box me-2"></i>{{ product.name }}</h1>
+            <div>
+                <a href="/inventory/products" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Products
+                </a>
+                <a href="/inventory/stock-in?product_id={{ product.id }}" class="btn btn-success">
+                    <i class="fas fa-plus me-1"></i> Stock In
+                </a>
+            </div>
+        </div>
+        
+        <!-- Product Information Card -->
         <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Product Information</h5>
+            </div>
             <div class="card-body">
-                <h5 class="card-title">Product Information</h5>
-                <p><strong>ID:</strong> {{ product.id }}</p>
-                <p><strong>SKU:</strong> {{ product.sku }}</p>
-                <p><strong>Category:</strong> 
-                    {% if product.category %}
-                        {{ product.category.name }}
-                    {% else %}
-                        No Category
-                    {% endif %}
-                </p>
-                <p><strong>Purchase Price:</strong> ₹{{ "%.2f"|format(product.purchase_price) }}</p>
-                <p><strong>Selling Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}</p>
-                <p><strong>Available Stock:</strong> {{ available_stock }}</p>
-                <p><strong>Total Stock Items:</strong> {{ stock_items|length }}</p>
-                <p><strong>Status:</strong> 
-                    <span class="badge bg-{% if product.is_active %}success{% else %}danger{% endif %}">
-                        {% if product.is_active %}Active{% else %}Inactive{% endif %}
-                    </span>
-                </p>
-                
-                <div class="mt-3">
-                    <a href="/inventory/products" class="btn btn-primary">Back to Products</a>
-                    <a href="/inventory/stock-in?product_id={{ product.id }}" class="btn btn-success">Stock In</a>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>ID:</strong> {{ product.id }}</p>
+                        <p><strong>SKU:</strong> <code>{{ product.sku }}</code></p>
+                        <p><strong>Barcode:</strong> 
+                            {% if product.barcode %}
+                                <span class="badge bg-info">{{ product.barcode }}</span>
+                            {% else %}
+                                <span class="badge bg-warning">No barcode</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Category:</strong> 
+                            {% if product.category %}
+                                {{ product.category.name }}
+                            {% else %}
+                                <span class="text-muted">No Category</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Purchase Price:</strong> ₹{{ "%.2f"|format(product.purchase_price) }}</p>
+                        <p><strong>Selling Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Available Stock:</strong> 
+                            <span class="badge bg-{{ 'success' if available_stock > product.min_stock_level else 'danger' }}">
+                                {{ available_stock }}
+                            </span>
+                        </p>
+                        <p><strong>Min Stock Level:</strong> {{ product.min_stock_level }}</p>
+                        <p><strong>IMEI Tracking:</strong> 
+                            <span class="badge bg-{{ 'info' if product.has_imei else 'secondary' }}">
+                                {{ 'Yes' if product.has_imei else 'No' }}
+                            </span>
+                        </p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-{{ 'success' if product.is_active else 'danger' }}">
+                                {{ 'Active' if product.is_active else 'Inactive' }}
+                            </span>
+                        </p>
+                        <p><strong>Created:</strong> {{ product.created_at.strftime('%Y-%m-%d') }}</p>
+                    </div>
                 </div>
+                
+                {% if product.description %}
+                <div class="mt-3">
+                    <strong>Description:</strong>
+                    <p class="mb-0">{{ product.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Barcode Section -->
+        <div class="card mt-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-barcode me-2"></i>Barcode Management</h5>
+                <div>
+                    {% if product.barcode %}
+                    <a href="/inventory/product/{{ product.id }}/print-barcode" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-print me-1"></i> Print Label
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if product.barcode %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Barcode Information</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Barcode Number</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" value="{{ product.barcode }}" id="barcodeText" readonly>
+                                <button class="btn btn-outline-secondary" onclick="copyBarcode()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Use this barcode for scanning</small>
+                        </div>
+                        
+                        <!-- Manual Edit Form -->
+                        <form method="POST" action="/inventory/product/{{ product.id }}/edit-barcode" class="mt-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="mb-3">
+                                <label class="form-label">Edit Barcode Manually</label>
+                                <div class="input-group">
+                                    <input type="text" name="barcode" class="form-control" 
+                                           value="{{ product.barcode }}" placeholder="Enter new barcode">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-save"></i> Update
+                                    </button>
+                                </div>
+                                <small class="text-muted">Change the barcode number if needed</small>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="col-md-6 text-center">
+                        <h6>Barcode Image</h6>
+                        {% if product.get_barcode_image_url() %}
+                        <div class="mb-3">
+                            <img src="{{ product.get_barcode_image_url() }}" 
+                                 alt="Barcode" 
+                                 class="img-fluid barcode-image">
+                            <div class="mt-2">
+                                <small class="text-muted">{{ product.barcode }}</small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Barcode image will be generated from online service
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Regenerate Button -->
+                        <form method="POST" action="/inventory/product/{{ product.id }}/generate-barcode" class="mt-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sync-alt me-1"></i> Regenerate Barcode
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-barcode fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Barcode Generated</h5>
+                    <p class="text-muted">Generate a barcode to enable barcode scanning in POS</p>
+                    <form method="POST" action="/inventory/product/{{ product.id }}/generate-barcode">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-barcode me-1"></i> Generate Barcode
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
         </div>
         
         <!-- Stock Items Table -->
         {% if stock_items %}
         <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0">Stock Items ({{ stock_items|length }})</h5>
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Stock Items ({{ stock_items|length }})</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -51,6 +198,7 @@
                                 <th>Status</th>
                                 <th>Batch</th>
                                 <th>IMEI</th>
+                                <th>Location</th>
                                 <th>Created</th>
                             </tr>
                         </thead>
@@ -65,6 +213,7 @@
                                 </td>
                                 <td>{{ item.batch_number or '-' }}</td>
                                 <td>{{ item.imei or '-' }}</td>
+                                <td>{{ item.location or '-' }}</td>
                                 <td>{{ item.created_at.strftime('%Y-%m-%d') }}</td>
                             </tr>
                             {% endfor %}
@@ -74,6 +223,58 @@
             </div>
         </div>
         {% endif %}
+        
+        <!-- Quick Actions -->
+        <div class="card mt-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="/inventory/edit-product/{{ product.id }}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-edit me-1"></i> Edit Product
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="/inventory/stock-in?product_id={{ product.id }}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-plus me-1"></i> Add Stock
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-info w-100" onclick="showStockOutModal({{ product.id }})">
+                            <i class="fas fa-minus me-1"></i> Stock Out
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="/inventory/product/{{ product.id }}/print-barcode" 
+                           class="btn btn-outline-primary w-100" 
+                           {% if not product.barcode %}disabled{% endif %}>
+                            <i class="fas fa-print me-1"></i> Print Barcode
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function copyBarcode() {
+        const barcodeText = document.getElementById('barcodeText');
+        barcodeText.select();
+        barcodeText.setSelectionRange(0, 99999); // For mobile devices
+        document.execCommand('copy');
+        
+        // Show feedback
+        alert('Barcode copied to clipboard: ' + barcodeText.value);
+    }
+    
+    function showStockOutModal(productId) {
+        // Implement stock out modal
+        alert('Stock out functionality for product ID: ' + productId);
+    }
+    </script>
 </body>
 </html>
