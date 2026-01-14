@@ -22,6 +22,14 @@
     .received-progress {
         height: 20px;
     }
+    
+    .info-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: #f8f9fa;
+    }
 </style>
 {% endblock %}
 
@@ -42,8 +50,20 @@
             <div class="row">
                 <div class="col-md-6">
                     <h3 class="mb-2">{{ purchase_order.po_number }}</h3>
-                    <p class="mb-1"><strong>Supplier:</strong> {{ purchase_order.supplier.name }}</p>
-                    <p class="mb-1"><strong>Order Date:</strong> {{ purchase_order.order_date.strftime('%B %d, %Y') }}</p>
+                    <p class="mb-1"><strong>Supplier:</strong> 
+                        {% if purchase_order.supplier %}
+                            {{ purchase_order.supplier.name }}
+                        {% else %}
+                            <span class="text-danger">No supplier assigned</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-1"><strong>Order Date:</strong> 
+                        {% if purchase_order.order_date %}
+                            {{ purchase_order.order_date.strftime('%B %d, %Y') }}
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </p>
                     {% if purchase_order.expected_date %}
                     <p class="mb-1"><strong>Expected Date:</strong> {{ purchase_order.expected_date.strftime('%B %d, %Y') }}</p>
                     {% endif %}
@@ -56,24 +76,22 @@
                         {% elif purchase_order.status == 'cancelled' %}bg-danger
                         {% else %}bg-secondary{% endif %}
                         status-badge">
-                        {{ purchase_order.status|title }}
+                        {{ purchase_order.status|title if purchase_order.status else 'Pending' }}
                     </span>
                     <div class="mt-2">
-                        <h4>₹{{ "%.2f"|format(purchase_order.total_amount) }}</h4>
+                        <h4>₹{{ "%.2f"|format(purchase_order.total_amount) if purchase_order.total_amount else '0.00' }}</h4>
                         <small class="text-muted">Total Amount</small>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Supplier Info -->
+        <!-- Supplier and PO Info -->
         <div class="row mb-4">
             <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-light">
-                        <h6 class="mb-0">Supplier Information</h6>
-                    </div>
-                    <div class="card-body">
+                <div class="info-card">
+                    <h6 class="mb-3">Supplier Information</h6>
+                    {% if purchase_order.supplier %}
                         <p class="mb-1"><strong>Name:</strong> {{ purchase_order.supplier.name }}</p>
                         {% if purchase_order.supplier.contact_person %}
                         <p class="mb-1"><strong>Contact:</strong> {{ purchase_order.supplier.contact_person }}</p>
@@ -87,23 +105,33 @@
                         {% if purchase_order.supplier.address %}
                         <p class="mb-0"><strong>Address:</strong> {{ purchase_order.supplier.address }}</p>
                         {% endif %}
-                    </div>
+                    {% else %}
+                        <p class="text-danger">No supplier information available</p>
+                    {% endif %}
                 </div>
             </div>
             
             <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-light">
-                        <h6 class="mb-0">PO Information</h6>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-1"><strong>Created By:</strong> {{ purchase_order.creator.username if purchase_order.creator else 'System' }}</p>
-                        <p class="mb-1"><strong>Created On:</strong> {{ purchase_order.created_at.strftime('%B %d, %Y %H:%M') }}</p>
-                        <p class="mb-1"><strong>Items:</strong> {{ purchase_order.po_items|length }}</p>
-                        {% if purchase_order.notes %}
-                        <p class="mb-0"><strong>Notes:</strong> {{ purchase_order.notes }}</p>
+                <div class="info-card">
+                    <h6 class="mb-3">PO Information</h6>
+                    <p class="mb-1"><strong>Created By:</strong> 
+                        {% if purchase_order.creator %}
+                            {{ purchase_order.creator.username }}
+                        {% else %}
+                            System
                         {% endif %}
-                    </div>
+                    </p>
+                    <p class="mb-1"><strong>Created On:</strong> 
+                        {% if purchase_order.created_at %}
+                            {{ purchase_order.created_at.strftime('%B %d, %Y %H:%M') }}
+                        {% else %}
+                            Not available
+                        {% endif %}
+                    </p>
+                    <p class="mb-1"><strong>Items:</strong> {{ purchase_order.po_items|length if purchase_order.po_items else 0 }}</p>
+                    {% if purchase_order.notes %}
+                    <p class="mb-0"><strong>Notes:</strong> {{ purchase_order.notes }}</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -111,6 +139,7 @@
         <!-- Items Table -->
         <div class="mb-4">
             <h5>Order Items</h5>
+            {% if purchase_order.po_items and purchase_order.po_items|length > 0 %}
             <div class="table-responsive">
                 <table class="table table-bordered item-table">
                     <thead>
@@ -130,17 +159,32 @@
                         {% for item in purchase_order.po_items %}
                         <tr>
                             <td>{{ loop.index }}</td>
-                            <td>{{ item.product.name }}</td>
-                            <td>{{ item.product.sku }}</td>
+                            <td>
+                                {% if item.product %}
+                                    <a href="{{ url_for('inventory.product_detail', product_id=item.product.id) }}">
+                                        {{ item.product.name }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-danger">Product not found (ID: {{ item.product_id }})</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.product %}
+                                    {{ item.product.sku }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
                             <td class="text-center">{{ item.quantity }}</td>
-                            <td class="text-center">{{ item.received_quantity }}</td>
-                            <td class="text-center">{{ item.quantity - item.received_quantity }}</td>
+                            <td class="text-center">{{ item.received_quantity or 0 }}</td>
+                            <td class="text-center">{{ item.quantity - (item.received_quantity or 0) }}</td>
                             <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
                             <td class="text-end">₹{{ "%.2f"|format(item.total_price) }}</td>
                             <td class="text-center">
-                                {% if item.received_quantity == 0 %}
+                                {% set received = item.received_quantity or 0 %}
+                                {% if received == 0 %}
                                 <span class="badge bg-danger">Pending</span>
-                                {% elif item.received_quantity < item.quantity %}
+                                {% elif received < item.quantity %}
                                 <span class="badge bg-warning">Partial</span>
                                 {% else %}
                                 <span class="badge bg-success">Received</span>
@@ -153,22 +197,48 @@
                         <tr class="table-active">
                             <td colspan="6" class="text-end"><strong>Total:</strong></td>
                             <td colspan="3" class="text-end">
-                                <strong>₹{{ "%.2f"|format(purchase_order.total_amount) }}</strong>
+                                <strong>₹{{ "%.2f"|format(purchase_order.total_amount) if purchase_order.total_amount else '0.00' }}</strong>
                             </td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No items found in this purchase order.
+            </div>
+            {% endif %}
         </div>
         
-        <!-- Receiving Progress -->
+        <!-- Receiving Progress (only if there are items) -->
+        {% if purchase_order.po_items and purchase_order.po_items|length > 0 %}
         <div class="mb-4">
             <h5>Receiving Progress</h5>
             <div class="card">
                 <div class="card-body">
+                    <!-- Calculate statistics -->
                     {% set total_items = purchase_order.po_items|length %}
-                    {% set received_items = purchase_order.po_items|selectattr('received_quantity', '>', 0)|list|length %}
-                    {% set fully_received = purchase_order.po_items|selectattr('received_quantity', '>=', attr('quantity'))|list|length %}
+                    {% set received_items = 0 %}
+                    {% set fully_received = 0 %}
+                    {% set total_qty = 0 %}
+                    {% set received_qty = 0 %}
+                    
+                    {% for item in purchase_order.po_items %}
+                        {% set item_received = item.received_quantity or 0 %}
+                        {% set item_qty = item.quantity or 0 %}
+                        
+                        {% if item_received > 0 %}
+                            {% set received_items = received_items + 1 %}
+                        {% endif %}
+                        
+                        {% if item_received >= item_qty %}
+                            {% set fully_received = fully_received + 1 %}
+                        {% endif %}
+                        
+                        {% set total_qty = total_qty + item_qty %}
+                        {% set received_qty = received_qty + item_received %}
+                    {% endfor %}
                     
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
@@ -185,11 +255,7 @@
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
                             <span>Quantity Received</span>
-                            <span>
-                                {% set total_qty = purchase_order.po_items|sum(attribute='quantity') %}
-                                {% set received_qty = purchase_order.po_items|sum(attribute='received_quantity') %}
-                                {{ received_qty }}/{{ total_qty }}
-                            </span>
+                            <span>{{ received_qty }}/{{ total_qty }}</span>
                         </div>
                         <div class="progress received-progress">
                             <div class="progress-bar bg-info" 
@@ -200,6 +266,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         
         <!-- Action Buttons -->
         <div class="row mt-4">
@@ -244,7 +311,8 @@
                 <h5 class="modal-title">Update PO Status</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="statusForm" method="POST" action="">
+            <form id="statusForm" method="POST" action="{{ url_for('inventory.update_po_status', po_id=purchase_order.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <p id="statusMessage"></p>
                 </div>
@@ -267,7 +335,6 @@ function updateStatus(status) {
     };
     
     document.getElementById('statusMessage').textContent = messages[status] || 'Update status?';
-    document.getElementById('statusForm').action = `/inventory/po/{{ purchase_order.id }}/update-status`;
     
     // Add status input
     const form = document.getElementById('statusForm');

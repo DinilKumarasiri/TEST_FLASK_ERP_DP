@@ -27,9 +27,13 @@ class Product(db.Model):
     has_imei = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     stock_items = db.relationship('StockItem', backref='product', lazy=True)
     invoice_items = db.relationship('InvoiceItem', backref='product', lazy=True)
-    po_items = db.relationship('PurchaseOrderItem', backref='product', lazy=True)
+    # REMOVE the po_items relationship from here - it's defined in PurchaseOrderItem
     repair_items = db.relationship('RepairItem', backref='product', lazy=True)
+    
+    def __repr__(self):
+        return f'<Product {self.sku}: {self.name}>'

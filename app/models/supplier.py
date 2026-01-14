@@ -14,5 +14,5 @@ class Supplier(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    purchase_orders = db.relationship('PurchaseOrder', backref='supplier', lazy=True)
+    purchase_orders = db.relationship('PurchaseOrder', back_populates='supplier', lazy=True)
     stock_items = db.relationship('StockItem', lazy=True)

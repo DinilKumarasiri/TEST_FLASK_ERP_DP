@@ -36,7 +36,7 @@ class Config:
     DEFAULT_VAT_RATE = 0.15  # 15% VAT
     DEFAULT_TAX_RATE = 0.15  # 15% Tax
     DEFAULT_CURRENCY = 'LKR'
-    DEFAULT_CURRENCY_SYMBOL = '₹'
+    DEFAULT_CURRENCY_SYMBOL = 'Rs.'
     
     # Employee Settings
     DEFAULT_COMMISSION_RATE = 5.0  # 5% commission
