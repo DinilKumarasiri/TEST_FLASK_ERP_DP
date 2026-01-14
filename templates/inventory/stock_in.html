@@ -34,6 +34,26 @@
         border-radius: 4px;
         margin-bottom: 15px;
     }
+    
+    .preview-barcode {
+        background: white;
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 5px;
+        display: inline-block;
+        text-align: center;
+        border-radius: 4px;
+    }
+    
+    .barcode-preview-container {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+        background: white;
+    }
 </style>
 {% endblock %}
 
@@ -47,9 +67,7 @@
     </div>
 </div>
 
-<!-- ADD CSRF TOKEN HERE -->
 <form method="POST" action="{{ url_for('inventory.stock_in') }}" id="stockInForm">
-    {{ csrf_token() }}
     {% include 'includes/csrf.html' %}
     
     <!-- Product Selection -->
@@ -67,12 +85,14 @@
                     </option>
                     {% endfor %}
                 </select>
+                <small class="text-muted">Search or select a product</small>
             </div>
             
             <div class="col-md-3">
                 <label class="form-label">Quantity *</label>
                 <input type="number" name="quantity" id="quantity" class="form-control" 
-                       min="1" value="1" required onchange="updateImeiFields()">
+                       min="1" value="1" required onchange="updateImeiFields(); updateBarcodePreview();">
+                <small class="text-muted">Number of items to add</small>
             </div>
             
             <div class="col-md-3">
@@ -83,6 +103,7 @@
                     <option value="{{ supplier.id }}">{{ supplier.name }}</option>
                     {% endfor %}
                 </select>
+                <small class="text-muted">Optional - supplier for this stock</small>
             </div>
         </div>
         
@@ -97,7 +118,7 @@
                 <div class="col-md-4">
                     <strong>Current Stock:</strong> <span id="currentStock"></span><br>
                     <strong>Min Stock Level:</strong> <span id="minStock"></span><br>
-                    <strong>Has IMEI:</strong> <span id="hasImei"></span>
+                    <strong>IMEI Tracking:</strong> <span id="hasImei"></span>
                 </div>
                 <div class="col-md-4">
                     <strong>Purchase Price:</strong> ₹<span id="purchasePrice"></span><br>
@@ -118,9 +139,10 @@
                 <div class="input-group">
                     <span class="input-group-text">₹</span>
                     <input type="number" name="purchase_price" id="purchasePriceInput" 
-                           class="form-control" step="0.01" min="0" required>
+                           class="form-control" step="0.01" min="0" required
+                           oninput="calculateTotalValue()">
                 </div>
-                <small class="text-muted">Cost price of the product</small>
+                <small class="text-muted">Cost price from supplier</small>
             </div>
             
             <div class="col-md-4">
@@ -140,6 +162,69 @@
                     <input type="text" id="totalValue" class="form-control" readonly>
                 </div>
                 <small class="text-muted">Quantity × Purchase Price</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barcode Generation -->
+    <div class="form-section">
+        <h5><i class="fas fa-barcode me-2"></i>Barcode Generation</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="generate_individual_barcodes" 
+                               id="generateBarcodes" checked onchange="updateBarcodePreview()">
+                        <label class="form-check-label" for="generateBarcodes">
+                            <strong>Generate unique barcodes for each item</strong>
+                        </label>
+                        <small class="text-muted d-block">
+                            Each item will get its own unique barcode for individual tracking.
+                            Recommended for serialized items like mobile phones.
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Barcode Format Options -->
+                <div id="barcodeFormatOptions" style="display: none;">
+                    <label class="form-label">Barcode Format</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="barcode_format" 
+                               id="formatStandard" value="standard" checked>
+                        <label class="form-check-label" for="formatStandard">
+                            Standard (Product SKU + Sequence)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="barcode_format" 
+                               id="formatCustom" value="custom">
+                        <label class="form-check-label" for="formatCustom">
+                            Custom Prefix
+                        </label>
+                    </div>
+                    
+                    <div id="customPrefixDiv" style="display: none; margin-top: 10px;">
+                        <input type="text" name="custom_prefix" id="customPrefix" 
+                               class="form-control form-control-sm" placeholder="e.g., HUAWEI"
+                               oninput="updateBarcodePreview()">
+                        <small class="text-muted">Custom prefix for barcodes</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <!-- Barcode Preview -->
+                <div id="barcodePreview">
+                    <label class="form-label">Generated Barcodes Preview</label>
+                    <div id="barcodePreviewContainer" class="barcode-preview-container">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-barcode fa-2x mb-2"></i>
+                            <p>Select a product and quantity to preview barcodes</p>
+                        </div>
+                    </div>
+                    <small class="text-muted">Unique barcodes will be generated for each item</small>
+                </div>
             </div>
         </div>
     </div>
@@ -168,10 +253,20 @@
     <!-- IMEI/Serial Numbers -->
     <div class="form-section" id="imeiSection" style="display: none;">
         <h5><i class="fas fa-hashtag me-2"></i>IMEI/Serial Numbers</h5>
-        <p class="text-muted">Enter IMEI or serial numbers for each unit ({{ quantity }} required)</p>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>IMEI Required:</strong> This product requires IMEI/serial numbers for each unit.
+            Please enter valid 15-digit IMEI numbers below.
+        </div>
         
         <div id="imeiFields">
             <!-- IMEI fields will be dynamically added here -->
+        </div>
+        
+        <div class="mt-3">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="validateImeiNumbers()">
+                <i class="fas fa-check me-1"></i> Validate IMEI Numbers
+            </button>
         </div>
     </div>
     
@@ -199,11 +294,11 @@
     <!-- Submit Section -->
     <div class="form-section">
         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-            <button type="reset" class="btn btn-outline-secondary me-md-2">
+            <button type="reset" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
                 <i class="fas fa-redo me-1"></i> Reset Form
             </button>
             <button type="submit" class="btn btn-primary btn-lg">
-                <i class="fas fa-check-circle me-1"></i> Add Stock
+                <i class="fas fa-check-circle me-1"></i> Add Stock with Barcodes
             </button>
         </div>
     </div>
@@ -229,11 +324,14 @@
                                     <strong>SKU:</strong> {{ product.sku }}<br>
                                     <strong>Category:</strong> {{ product.category.name if product.category else 'N/A' }}<br>
                                     <strong>Current Stock:</strong> 
-                                    {% set stock_count = stock_items|selectattr('product_id', 'equalto', product.id)|selectattr('status', 'equalto', 'available')|list|length %}
-                                    <span class="badge bg-{{ 'danger' if stock_count <= product.min_stock_level else 'success' }}">
-                                        {{ stock_count }}
+                                    <span class="badge bg-{{ 'success' if product.stock_count > product.min_stock_level else 'danger' }}">
+                                        {{ product.stock_count }}
                                     </span><br>
-                                    <strong>Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}
+                                    <strong>Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}<br>
+                                    <strong>IMEI:</strong> 
+                                    <span class="badge bg-{{ 'info' if product.has_imei else 'secondary' }}">
+                                        {{ 'Required' if product.has_imei else 'Not Required' }}
+                                    </span>
                                 </p>
                             </div>
                         </div>
@@ -249,6 +347,7 @@
 {% block extra_js %}
 <script>
 let selectedProduct = null;
+let generatedBarcodes = [];
 
 // Product selection
 $('#productSelect').on('change', function() {
@@ -256,9 +355,11 @@ $('#productSelect').on('change', function() {
     if (productId) {
         loadProductInfo(productId);
         updateImeiFields();
+        updateBarcodePreview();
     } else {
         $('#productInfo').hide();
         $('#imeiSection').hide();
+        $('#barcodeFormatOptions').hide();
     }
 });
 
@@ -273,7 +374,9 @@ function loadProductInfo(productId) {
             $('#productCategory').text(selectedProduct.category_name || 'N/A');
             $('#currentStock').text(selectedProduct.stock_count);
             $('#minStock').text(selectedProduct.min_stock_level);
-            $('#hasImei').text(selectedProduct.has_imei ? 'Yes' : 'No');
+            $('#hasImei').html(selectedProduct.has_imei ? 
+                '<span class="badge bg-info">Yes</span>' : 
+                '<span class="badge bg-secondary">No</span>');
             $('#purchasePrice').text(selectedProduct.purchase_price);
             $('#sellingPrice').text(selectedProduct.selling_price);
             $('#wholesalePrice').text(selectedProduct.wholesale_price);
@@ -290,6 +393,9 @@ function loadProductInfo(productId) {
             } else {
                 $('#imeiSection').hide();
             }
+            
+            // Show barcode format options
+            $('#barcodeFormatOptions').show();
             
             calculateTotalValue();
         }
@@ -309,9 +415,19 @@ function updateImeiFields() {
         for (let i = 0; i < quantity; i++) {
             $('#imeiFields').append(`
                 <div class="imei-input-group">
-                    <label class="form-label">IMEI/Serial #${i + 1} *</label>
-                    <input type="text" name="imei_${i}" class="form-control imei-input" 
-                           placeholder="Enter 15-digit IMEI or serial number" required>
+                    <div class="input-group">
+                        <span class="input-group-text">#${i + 1}</span>
+                        <input type="text" name="imei_${i}" class="form-control imei-input" 
+                               placeholder="Enter 15-digit IMEI" 
+                               pattern="[0-9]{15}" 
+                               maxlength="15"
+                               required>
+                        <button type="button" class="btn btn-outline-secondary" 
+                                onclick="generateRandomImei(${i})">
+                            <i class="fas fa-random"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">15-digit IMEI number for item ${i + 1}</small>
                 </div>
             `);
         }
@@ -320,6 +436,116 @@ function updateImeiFields() {
     } else {
         $('#imeiSection').hide();
     }
+}
+
+// Generate random IMEI for testing
+function generateRandomImei(index) {
+    // Generate 15 random digits
+    let imei = '';
+    for (let i = 0; i < 15; i++) {
+        imei += Math.floor(Math.random() * 10);
+    }
+    $(`input[name="imei_${index}"]`).val(imei);
+}
+
+// Validate IMEI numbers
+function validateImeiNumbers() {
+    const imeiInputs = $('.imei-input');
+    let isValid = true;
+    let message = '';
+    
+    imeiInputs.each(function(index) {
+        const imei = $(this).val().trim();
+        
+        if (!imei) {
+            message += `IMEI #${index + 1} is empty\n`;
+            isValid = false;
+        } else if (imei.length !== 15) {
+            message += `IMEI #${index + 1} should be 15 digits (currently ${imei.length})\n`;
+            isValid = false;
+        } else if (!/^\d+$/.test(imei)) {
+            message += `IMEI #${index + 1} should contain only digits\n`;
+            isValid = false;
+        }
+    });
+    
+    if (isValid) {
+        alert('✅ All IMEI numbers are valid!');
+    } else {
+        alert('⚠️ Please fix the following issues:\n\n' + message);
+    }
+}
+
+// Update barcode preview
+function updateBarcodePreview() {
+    const generateBarcodes = $('#generateBarcodes').is(':checked');
+    const quantity = parseInt($('#quantity').val()) || 1;
+    const container = $('#barcodePreviewContainer');
+    
+    if (!selectedProduct || !generateBarcodes) {
+        container.html(`
+            <div class="text-center text-muted">
+                <i class="fas fa-barcode fa-2x mb-2"></i>
+                <p>Individual barcodes will not be generated</p>
+            </div>
+        `);
+        generatedBarcodes = [];
+        return;
+    }
+    
+    // Generate preview barcodes
+    generatedBarcodes = [];
+    const sku = selectedProduct.sku.replace(/[^A-Za-z0-9]/g, '').substring(0, 6);
+    const prefix = $('#customPrefix').val() || sku || 'ITEM';
+    const format = $('input[name="barcode_format"]:checked').val();
+    
+    let html = '<div class="row">';
+    
+    for (let i = 0; i < quantity; i++) {
+        let barcodeNumber;
+        
+        if (format === 'custom' && $('#customPrefix').val()) {
+            barcodeNumber = `${prefix}${(i + 1).toString().padStart(4, '0')}`;
+        } else {
+            // Standard format: Product SKU + timestamp + sequence
+            const timestamp = Date.now().toString().slice(-6);
+            const seq = (i + 1).toString().padStart(3, '0');
+            barcodeNumber = `${sku}${timestamp}${seq}`;
+        }
+        
+        generatedBarcodes.push(barcodeNumber);
+        
+        // Limit display to 12 barcodes
+        if (i < 12) {
+            html += `
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="preview-barcode">
+                        <small class="text-muted d-block mb-1">Item ${i + 1}</small>
+                        <img src="https://barcode.tec-it.com/barcode.ashx?data=${barcodeNumber}&code=Code128&dpi=60&dataseparator=" 
+                             alt="Barcode" 
+                             style="width: 100px; height: 30px;">
+                        <div class="mt-1">
+                            <small class="text-muted">${barcodeNumber.substring(0, 12)}...</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    html += '</div>';
+    
+    // Show message if more than 12 items
+    if (quantity > 12) {
+        html += `
+            <div class="alert alert-info mt-2">
+                <i class="fas fa-info-circle me-2"></i>
+                Showing first 12 of ${quantity} barcodes. All ${quantity} unique barcodes will be generated.
+            </div>
+        `;
+    }
+    
+    container.html(html);
 }
 
 // Calculate total value
@@ -331,95 +557,144 @@ function calculateTotalValue() {
     $('#totalValue').val(total.toFixed(2));
 }
 
-// Event listeners for calculations
-$('#quantity, #purchasePriceInput').on('input', calculateTotalValue);
-
 // Quick product selection from modal
 function selectProduct(productId) {
     $('#productSelect').val(productId).trigger('change');
     $('#productModal').modal('hide');
 }
 
+// Reset form
+function resetForm() {
+    selectedProduct = null;
+    generatedBarcodes = [];
+    $('#productInfo').hide();
+    $('#imeiSection').hide();
+    $('#barcodeFormatOptions').hide();
+    $('#barcodePreviewContainer').html(`
+        <div class="text-center text-muted">
+            <i class="fas fa-barcode fa-2x mb-2"></i>
+            <p>Select a product and quantity to preview barcodes</p>
+        </div>
+    `);
+}
+
 // Form validation
 $('#stockInForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    // Validate basic fields
+    if (!$('#productSelect').val()) {
+        alert('Please select a product');
+        return;
+    }
+    
+    const quantity = parseInt($('#quantity').val()) || 0;
+    if (quantity <= 0) {
+        alert('Please enter a valid quantity');
+        return;
+    }
+    
+    const purchasePrice = parseFloat($('#purchasePriceInput').val()) || 0;
+    if (purchasePrice <= 0) {
+        alert('Please enter a valid purchase price');
+        return;
+    }
+    
+    const sellingPrice = parseFloat($('#sellingPriceInput').val()) || 0;
+    if (sellingPrice <= 0) {
+        alert('Please enter a valid selling price');
+        return;
+    }
+    
     // Validate IMEI numbers if required
     if (selectedProduct && selectedProduct.has_imei) {
         const imeiInputs = $('.imei-input');
-        const quantity = parseInt($('#quantity').val()) || 1;
         
         if (imeiInputs.length !== quantity) {
             alert(`Please enter exactly ${quantity} IMEI/serial numbers`);
-            e.preventDefault();
             return;
         }
         
         // Check for duplicate IMEIs
         const imeis = [];
+        let hasError = false;
+        
         imeiInputs.each(function() {
             const imei = $(this).val().trim();
             if (imei) {
                 if (imeis.includes(imei)) {
                     alert('Duplicate IMEI/serial numbers found. Each unit must have a unique IMEI.');
-                    e.preventDefault();
+                    hasError = true;
                     return false;
                 }
                 imeis.push(imei);
                 
-                // Basic IMEI validation (15 digits for mobile phones)
-                if (imei.length !== 15 && imei.length !== 0) {
-                    alert(`IMEI #${imeis.length} should be 15 digits. Current: ${imei.length} digits.`);
-                    e.preventDefault();
+                // IMEI validation
+                if (imei.length !== 15) {
+                    alert(`IMEI should be 15 digits. Found: ${imei.length} digits.`);
+                    hasError = true;
                     return false;
                 }
+            } else {
+                alert('Please enter IMEI for all items');
+                hasError = true;
+                return false;
             }
         });
+        
+        if (hasError) return;
     }
     
     // Show loading
-    $('button[type="submit"]').html('<i class="fas fa-spinner fa-spin me-1"></i> Processing...');
-    $('button[type="submit"]').prop('disabled', true);
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i> Adding Stock...');
+    submitBtn.prop('disabled', true);
+    
+    // Submit form
+    this.submit();
 });
 
-// Add product info API endpoint if not exists
-if (!window.productInfoEndpoint) {
-    // This would be implemented in the backend
-    console.log('Product info endpoint not defined');
-}
-</script>
+// Show/hide custom prefix input
+$('input[name="barcode_format"]').on('change', function() {
+    if ($(this).val() === 'custom') {
+        $('#customPrefixDiv').show();
+    } else {
+        $('#customPrefixDiv').hide();
+    }
+    updateBarcodePreview();
+});
 
-<!-- Add this to your modules/inventory.py for the product info endpoint -->
-<script>
-// Add this route to modules/inventory.py:
-/*
-@inventory_bp.route('/product/<int:product_id>/info')
-@login_required
-def product_info(product_id):
-    try:
-        product = Product.query.get_or_404(product_id)
-        
-        # Get current stock count
-        stock_count = StockItem.query.filter_by(
-            product_id=product.id,
-            status='available'
-        ).count()
-        
-        return jsonify({
-            'success': True,
-            'product': {
-                'id': product.id,
-                'name': product.name,
-                'sku': product.sku,
-                'category_name': product.category.name if product.category else None,
-                'stock_count': stock_count,
-                'min_stock_level': product.min_stock_level,
-                'has_imei': product.has_imei,
-                'purchase_price': float(product.purchase_price),
-                'selling_price': float(product.selling_price),
-                'wholesale_price': float(product.wholesale_price)
-            }
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
-*/
+// Event listeners for calculations
+$('#quantity, #purchasePriceInput').on('input', function() {
+    calculateTotalValue();
+    if ($(this).attr('id') === 'quantity') {
+        updateImeiFields();
+        updateBarcodePreview();
+    }
+});
+
+// Auto-generate selling price based on purchase price
+$('#purchasePriceInput').on('blur', function() {
+    const purchasePrice = parseFloat($(this).val()) || 0;
+    const sellingPriceInput = $('#sellingPriceInput');
+    
+    if (purchasePrice > 0 && (sellingPriceInput.val() === '' || parseFloat(sellingPriceInput.val()) === 0)) {
+        // Add 20% markup as default
+        const suggestedPrice = purchasePrice * 1.2;
+        sellingPriceInput.val(suggestedPrice.toFixed(2));
+    }
+});
+
+// Initialize
+$(document).ready(function() {
+    // Set default barcode format to show
+    $('#barcodeFormatOptions').hide();
+    
+    // Auto-preview barcodes when custom prefix changes
+    $('#customPrefix').on('input', function() {
+        updateBarcodePreview();
+    });
+});
 </script>
 {% endblock %}

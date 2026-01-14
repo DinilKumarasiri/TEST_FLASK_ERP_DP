@@ -10,6 +10,9 @@ class ProductCategory(db.Model):
     
     # Relationships
     products = db.relationship('Product', backref='category', lazy=True)
+    
+    def __repr__(self):
+        return f'<ProductCategory {self.name}>'
 
 
 class Product(db.Model):
@@ -17,6 +20,8 @@ class Product(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     sku = db.Column(db.String(50), unique=True, nullable=False)
+    barcode = db.Column(db.String(100), unique=True, nullable=True)
+    barcode_image = db.Column(db.String(200), nullable=True)
     name = db.Column(db.String(200), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'))
     description = db.Column(db.Text)
@@ -32,8 +37,16 @@ class Product(db.Model):
     # Relationships
     stock_items = db.relationship('StockItem', backref='product', lazy=True)
     invoice_items = db.relationship('InvoiceItem', backref='product', lazy=True)
-    # REMOVE the po_items relationship from here - it's defined in PurchaseOrderItem
     repair_items = db.relationship('RepairItem', backref='product', lazy=True)
+    purchase_order_items = db.relationship('PurchaseOrderItem', back_populates='product', lazy=True)
+    
+    def get_barcode_image_url(self):
+        """Get URL for barcode image"""
+        if self.barcode_image:
+            if self.barcode_image.startswith('http'):
+                return self.barcode_image
+            return f"/static/{self.barcode_image}"
+        return None
     
     def __repr__(self):
         return f'<Product {self.sku}: {self.name}>'

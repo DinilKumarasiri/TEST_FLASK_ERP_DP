@@ -6,6 +6,8 @@ from sqlalchemy import text, func
 from datetime import datetime, timedelta
 from . import inventory_bp
 
+# app/blueprints/inventory/dashboard.py - Temporary fix
+
 @inventory_bp.route('/')
 @login_required
 def inventory_dashboard():
@@ -19,19 +21,38 @@ def inventory_dashboard():
         # Calculate total stock value
         total_value = 0
         for product in Product.query.filter_by(is_active=True).all():
-            stock_count = StockItem.query.filter_by(
-                product_id=product.id,
-                status='available'
-            ).count()
+            # TEMPORARY FIX: Use raw SQL to avoid column issues
+            try:
+                stock_count = StockItem.query.filter_by(
+                    product_id=product.id,
+                    status='available'
+                ).count()
+            except:
+                # Fallback if columns don't exist yet
+                from sqlalchemy import text
+                result = db.session.execute(
+                    text("SELECT COUNT(*) FROM stock_items WHERE product_id = :pid AND status = 'available'"),
+                    {"pid": product.id}
+                ).scalar()
+                stock_count = result or 0
+            
             total_value += stock_count * product.purchase_price
         
         # Low stock products
         low_stock_products = []
         for product in Product.query.filter_by(is_active=True).all():
-            stock_count = StockItem.query.filter_by(
-                product_id=product.id,
-                status='available'
-            ).count()
+            try:
+                stock_count = StockItem.query.filter_by(
+                    product_id=product.id,
+                    status='available'
+                ).count()
+            except:
+                from sqlalchemy import text
+                result = db.session.execute(
+                    text("SELECT COUNT(*) FROM stock_items WHERE product_id = :pid AND status = 'available'"),
+                    {"pid": product.id}
+                ).scalar()
+                stock_count = result or 0
             
             if stock_count <= product.min_stock_level:
                 low_stock_products.append({
@@ -42,31 +63,62 @@ def inventory_dashboard():
         # Get recent stock items (last 24 hours) for aggregation
         twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
         
-        # Get all stock items in the last 24 hours
-        recent_items = StockItem.query.join(Product).filter(
-            StockItem.created_at >= twenty_four_hours_ago
-        ).all()
+        try:
+            # Try the new query
+            recent_items = StockItem.query.join(Product).filter(
+                StockItem.created_at >= twenty_four_hours_ago
+            ).all()
+        except:
+            # Fallback to simple query
+            from sqlalchemy import text
+            recent_items_query = """
+                SELECT si.*, p.name as product_name, p.sku 
+                FROM stock_items si
+                LEFT JOIN products p ON si.product_id = p.id
+                WHERE si.created_at >= :time_limit
+                ORDER BY si.created_at DESC
+                LIMIT 50
+            """
+            recent_items = db.session.execute(
+                text(recent_items_query),
+                {"time_limit": twenty_four_hours_ago}
+            ).fetchall()
         
         # Aggregate by product name, stock type, and status
         aggregated = {}
-        for item in recent_items:
-            # Create a unique key for aggregation
-            key = f"{item.product_id}_{item.stock_type}_{item.status}"
-            
-            if key in aggregated:
-                # Update existing aggregation - increment quantity
-                aggregated[key]['quantity'] += 1
-            else:
-                # Create new aggregation entry
-                aggregated[key] = {
-                    'product_name': item.product.name if item.product else 'Unknown',
-                    'product_id': item.product_id,
-                    'sku': item.product.sku if item.product else '',
-                    'stock_type': item.stock_type,
-                    'status': item.status,
-                    'quantity': 1,
-                    'product': item.product
-                }
+        
+        if isinstance(recent_items, list):
+            for item in recent_items:
+                if hasattr(item, 'product_id'):
+                    # It's a StockItem object
+                    product_id = item.product_id
+                    product_name = item.product.name if item.product else 'Unknown'
+                    sku = item.product.sku if item.product else ''
+                    stock_type = item.stock_type
+                    status = item.status
+                else:
+                    # It's a result from raw query
+                    product_id = item.product_id
+                    product_name = item.product_name
+                    sku = item.sku
+                    stock_type = item.stock_type
+                    status = item.status
+                
+                # Create a unique key for aggregation
+                key = f"{product_id}_{stock_type}_{status}"
+                
+                if key in aggregated:
+                    aggregated[key]['quantity'] += 1
+                else:
+                    aggregated[key] = {
+                        'product_name': product_name,
+                        'product_id': product_id,
+                        'sku': sku,
+                        'stock_type': stock_type,
+                        'status': status,
+                        'quantity': 1,
+                        'product': None  # Can't assign product object from raw query
+                    }
         
         # Convert to list
         recent_stock = list(aggregated.values())
