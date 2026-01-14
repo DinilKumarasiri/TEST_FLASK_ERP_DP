@@ -13,8 +13,12 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-this-in-production-12345'
     
     # ==================== Database Configuration ====================
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f"sqlite:///{os.path.join(basedir, 'mobile_shop.db')}"
+    # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+    #     f"sqlite:///{os.path.join(basedir, 'mobile_shop.db')}"
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
+    f"sqlite:///{os.path.join(basedir, 'instance', 'database.db')}"
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True for SQL query debugging
     

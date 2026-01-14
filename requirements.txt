@@ -5,6 +5,7 @@ Flask-WTF
 WTForms
 python-dotenv
 email-validator
+flask-migrate
 
 
 
