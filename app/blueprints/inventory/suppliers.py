@@ -111,3 +111,4 @@ def api_delete_supplier(supplier_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+    

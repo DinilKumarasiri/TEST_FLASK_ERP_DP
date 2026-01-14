@@ -22,7 +22,7 @@ class StockItem(db.Model):
     
     # Relationships
     supplier = db.relationship('Supplier', overlaps="stock_items")
-    purchase_order = db.relationship('PurchaseOrder')
+    purchase_order = db.relationship('PurchaseOrder', back_populates='stock_items')
     creator = db.relationship('User', backref='stock_items_created')
     invoice_items = db.relationship('InvoiceItem', backref='stock_item', lazy=True)
     repair_items = db.relationship('RepairItem', backref='stock_item', lazy=True)

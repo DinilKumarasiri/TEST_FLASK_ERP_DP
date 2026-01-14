@@ -116,53 +116,63 @@
         </div>
     </div>
     
-    <!-- Recent Stock Movements -->
+    <!-- Recent Stock Movements (AGGREGATED) -->
     <div class="col-lg-6 mb-4">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Recent Stock Movements</h5>
+                <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Recent Stock Movements (Last 24 Hours)</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Date/Time</th>
                                 <th>Product</th>
-                                <th>Type</th>
-                                <th>Qty</th>
-                                <th>Status</th>
-                                <th>Notes</th>
+                                <th class="text-center">Type</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for stock in recent_stock %}
                             <tr>
-                                <td>{{ stock.created_at.strftime('%H:%M') }}</td>
-                                <td>{{ stock.product.name[:20] }}...</td>
                                 <td>
+                                    <a href="{{ url_for('inventory.product_detail', product_id=stock.product_id) }}">
+                                        {{ stock.product_name|truncate(25) }}
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">SKU: {{ stock.sku|truncate(15) }}</small>
+                                </td>
+                                <td class="text-center">
                                     <span class="badge bg-{{ 'success' if stock.stock_type == 'in' else 'danger' }}">
                                         {{ stock.stock_type|upper }}
                                     </span>
                                 </td>
-                                <td>{{ stock.quantity }}</td>
-                                <td>
+                                <td class="text-center">
+                                    <strong>{{ stock.quantity }}</strong>
+                                </td>
+                                <td class="text-center">
                                     <span class="badge bg-{{ 'success' if stock.status == 'available' else 'secondary' }}">
                                         {{ stock.status }}
                                     </span>
                                 </td>
-                                <td>{{ stock.notes[:20] if stock.notes else '-' }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="6" class="text-center py-4">
+                                <td colspan="4" class="text-center py-4">
                                     <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
-                                    <p class="mb-0 text-muted">No recent stock movements</p>
+                                    <p class="mb-0 text-muted">No stock movements in the last 24 hours</p>
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                <div class="card-footer bg-light py-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Movements aggregated by product (last 24 hours)
+                    </small>
                 </div>
             </div>
         </div>
@@ -247,7 +257,7 @@ function createCategoryChart(categories) {
     
     const labels = categories.map(c => c.name);
     const data = categories.map(c => c.count);
-    const colors = generateColors(categories.length);
+    const colors = categories.map(c => c.color);
     
     new Chart(ctx, {
         type: 'doughnut',
@@ -280,17 +290,6 @@ function createCategoryChart(categories) {
             </div>
         `);
     });
-}
-
-function generateColors(count) {
-    const colors = [];
-    const hueStep = 360 / count;
-    
-    for (let i = 0; i < count; i++) {
-        colors.push(`hsl(${i * hueStep}, 70%, 60%)`);
-    }
-    
-    return colors;
 }
 </script>
 {% endblock %}
