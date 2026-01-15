@@ -10,32 +10,32 @@
                 <h5 class="mb-0"><i class="fas fa-user-plus me-2"></i>Create New Employee</h5>
             </div>
             <div class="card-body">
+                <!-- Display form errors at top -->
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <h6>Please fix the following errors:</h6>
+                    <ul class="mb-0">
+                    {% for field, errors in form.errors.items() %}
+                        {% for error in errors %}
+                        <li>{{ field }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
                 <form method="POST" action="{{ url_for('employee.create_employee') }}">
                     {{ form.hidden_tag() }}
-                    
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Username *</label>
                             {{ form.username(class="form-control", placeholder="Enter username") }}
-                            {% if form.username.errors %}
-                                <div class="text-danger small">
-                                    {% for error in form.username.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label">Email Address *</label>
+                            <label class="form-label">Work Email *</label>
                             {{ form.email(class="form-control", placeholder="Enter email") }}
-                            {% if form.email.errors %}
-                                <div class="text-danger small">
-                                    {% for error in form.email.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                     </div>
                     
@@ -43,25 +43,71 @@
                         <div class="col-md-6">
                             <label class="form-label">Password *</label>
                             {{ form.password(class="form-control", placeholder="Enter password") }}
-                            {% if form.password.errors %}
-                                <div class="text-danger small">
-                                    {% for error in form.password.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label">Role *</label>
+                            <label class="form-label">Confirm Password *</label>
+                            {{ form.confirm_password(class="form-control", placeholder="Confirm password") }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name *</label>
+                            {{ form.full_name(class="form-control", placeholder="Enter full name") }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">System Role *</label>
                             {{ form.role(class="form-select") }}
-                            {% if form.role.errors %}
-                                <div class="text-danger small">
-                                    {% for error in form.role.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Job Title *</label>
+                            {{ form.job_title(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Department *</label>
+                            {{ form.department(class="form-select") }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Employment Type *</label>
+                            {{ form.employment_type(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Date of Joining *</label>
+                            {{ form.date_of_joining(class="form-control", type="date") }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Date of Birth</label>
+                            {{ form.date_of_birth(class="form-control", type="date") }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Gender</label>
+                            {{ form.gender(class="form-select") }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Personal Phone</label>
+                            {{ form.personal_phone(class="form-control", placeholder="Personal phone") }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Personal Email</label>
+                            {{ form.personal_email(class="form-control", placeholder="Personal email") }}
                         </div>
                     </div>
                     
@@ -70,7 +116,6 @@
                             {{ form.is_active(class="form-check-input") }}
                             <label class="form-check-label">Active Account</label>
                         </div>
-                        <small class="text-muted">Uncheck to create an inactive account</small>
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -82,48 +127,6 @@
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
-        
-        <div class="card mt-4">
-            <div class="card-header bg-light">
-                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Role Information</h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="card border-danger mb-3">
-                            <div class="card-body">
-                                <h6 class="card-title">Admin</h6>
-                                <p class="card-text small">Full system access and administration rights.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card border-primary mb-3">
-                            <div class="card-body">
-                                <h6 class="card-title">Manager</h6>
-                                <p class="card-text small">Manage employees, inventory, and view reports.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card border-success mb-3">
-                            <div class="card-body">
-                                <h6 class="card-title">Technician</h6>
-                                <p class="card-text small">Repair management and spare parts access.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card border-secondary mb-3">
-                            <div class="card-body">
-                                <h6 class="card-title">Staff</h6>
-                                <p class="card-text small">POS access and basic inventory viewing.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
