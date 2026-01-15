@@ -1,3 +1,4 @@
+<!-- templates/employee/list.html - Fixed -->
 {% extends "base.html" %}
 
 {% block title %}Employee List - Mobile Shop ERP{% endblock %}
@@ -105,7 +106,7 @@
         Showing <strong>{{ employees|length }}</strong> employee{{ 's' if employees|length != 1 else '' }}
     </div>
     <div>
-        {% set active_count = employees|selectattr('is_active', 'equalto', true)|list|length %}
+        {% set active_count = employees|selectattr('user.is_active', 'equalto', true)|list|length %}
         <span class="badge bg-success">{{ active_count }} Active</span>
         <span class="badge bg-secondary">{{ employees|length - active_count }} Inactive</span>
     </div>
@@ -114,31 +115,31 @@
 <!-- Employee List -->
 {% if employees %}
 <div class="row">
-    {% for employee in employees %}
+    {% for data in employees %}
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card employee-card h-100" onclick="window.location.href='{{ url_for('employee.employee_detail', employee_id=employee.id) }}'">
+        <div class="card employee-card h-100" onclick="window.location.href='{{ url_for('employee.employee_detail', employee_id=data.user.id) }}'">
             <div class="card-body">
                 <div class="d-flex align-items-start mb-3">
                     <div class="employee-avatar me-3">
-                        {{ employee.username[:1]|upper }}
+                        {{ data.user.username[:1]|upper }}
                     </div>
                     <div class="flex-grow-1">
-                        <h5 class="card-title mb-1">{{ employee.username }}</h5>
+                        <h5 class="card-title mb-1">{{ data.user.username }}</h5>
                         <p class="text-muted small mb-0">
-                            <i class="fas fa-envelope me-1"></i> {{ employee.email }}
+                            <i class="fas fa-envelope me-1"></i> {{ data.user.email }}
                         </p>
                     </div>
                     <div class="text-end">
                         <span class="badge 
-                            {% if employee.role == 'admin' %}bg-danger
-                            {% elif employee.role == 'manager' %}bg-primary
-                            {% elif employee.role == 'technician' %}bg-success
+                            {% if data.user.role == 'admin' %}bg-danger
+                            {% elif data.user.role == 'manager' %}bg-primary
+                            {% elif data.user.role == 'technician' %}bg-success
                             {% else %}bg-secondary{% endif %} role-badge">
-                            {{ employee.role|title }}
+                            {{ data.user.role|title }}
                         </span>
                         <div class="mt-1">
-                            <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }} status-badge">
-                                {{ 'Active' if employee.is_active else 'Inactive' }}
+                            <span class="badge bg-{{ 'success' if data.user.is_active else 'secondary' }} status-badge">
+                                {{ 'Active' if data.user.is_active else 'Inactive' }}
                             </span>
                         </div>
                     </div>
@@ -147,47 +148,40 @@
                 <div class="row mb-3">
                     <div class="col-6">
                         <small class="text-muted d-block">Employee ID</small>
-                        <strong>#{{ employee.id }}</strong>
+                        <strong>#{{ data.user.id }}</strong>
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Joined</small>
-                        <strong>{{ employee.created_at.strftime('%b %d, %Y') }}</strong>
+                        <strong>{{ data.user.created_at.strftime('%b %d, %Y') }}</strong>
                     </div>
                 </div>
                 
-                <!-- Quick Stats -->
+                {% if data.profile %}
                 <div class="row mb-3">
-                    <div class="col-4 text-center">
-                        <small class="text-muted d-block">Sales</small>
-                        <span class="badge bg-info">0</span>
-                    </div>
-                    <div class="col-4 text-center">
-                        <small class="text-muted d-block">Repairs</small>
-                        <span class="badge bg-warning">0</span>
-                    </div>
-                    <div class="col-4 text-center">
-                        <small class="text-muted d-block">Attendance</small>
-                        <span class="badge bg-success">95%</span>
+                    <div class="col-12">
+                        <small class="text-muted d-block">Full Name</small>
+                        <strong>{{ data.profile.full_name or 'Not set' }}</strong>
                     </div>
                 </div>
+                {% endif %}
                 
                 <div class="d-flex justify-content-between align-items-center">
-                    <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
+                    <a href="{{ url_for('employee.employee_detail', employee_id=data.user.id) }}" 
                        class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-eye me-1"></i> View Details
                     </a>
                     
                     {% if current_user.role == 'admin' %}
                     <div class="btn-group">
-                        <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" 
+                        <a href="{{ url_for('employee.edit_employee', employee_id=data.user.id) }}" 
                            class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-edit"></i>
                         </a>
                         
-                        {% if employee.id != current_user.id %}
+                        {% if data.user.id != current_user.id %}
                         <button type="button" class="btn btn-sm btn-outline-danger" 
-                                onclick="deleteEmployee({{ employee.id }}, '{{ employee.username }}')">
-                            <i class="fas fa-trash"></i>
+                                onclick="toggleEmployeeStatus({{ data.user.id }}, '{{ data.user.username }}', {{ data.user.is_active|tojson }})">
+                            <i class="fas {% if data.user.is_active %}fa-user-times{% else %}fa-user-check{% endif %}"></i>
                         </button>
                         {% endif %}
                     </div>
@@ -197,123 +191,6 @@
         </div>
     </div>
     {% endfor %}
-</div>
-
-<!-- Table View (Alternative) -->
-<div class="card mt-4 d-none d-lg-block">
-    <div class="card-header">
-        <h5 class="mb-0">Employee Table View</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Employee</th>
-                        <th>Role</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Joined Date</th>
-                        <th>Last Login</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for employee in employees %}
-                    <tr>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div class="employee-avatar me-2">
-                                    {{ employee.username[:1]|upper }}
-                                </div>
-                                <div>
-                                    <h6 class="mb-0">{{ employee.username }}</h6>
-                                    <small class="text-muted">ID: #{{ employee.id }}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="badge 
-                                {% if employee.role == 'admin' %}bg-danger
-                                {% elif employee.role == 'manager' %}bg-primary
-                                {% elif employee.role == 'technician' %}bg-success
-                                {% else %}bg-secondary{% endif %}">
-                                {{ employee.role|title }}
-                            </span>
-                        </td>
-                        <td>{{ employee.email }}</td>
-                        <td>
-                            <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }}">
-                                {{ 'Active' if employee.is_active else 'Inactive' }}
-                            </span>
-                        </td>
-                        <td>{{ employee.created_at.strftime('%Y-%m-%d') }}</td>
-                        <td>
-                            {% if employee.last_login %}
-                                {{ employee.last_login.strftime('%Y-%m-%d') }}
-                            {% else %}
-                                <span class="text-muted">Never</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
-                                   class="btn btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% if current_user.role == 'admin' %}
-                                <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" 
-                                   class="btn btn-outline-secondary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{% else %}
-<div class="card">
-    <div class="card-body text-center py-5">
-        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No employees found</h5>
-        <p class="text-muted mb-4">Try adjusting your search criteria or add new employees</p>
-        {% if current_user.role == 'admin' %}
-        <a href="{{ url_for('employee.create_employee') }}" class="btn btn-primary">
-            <i class="fas fa-user-plus me-1"></i> Add First Employee
-        </a>
-        {% endif %}
-    </div>
-</div>
-{% endif %}
-
-<!-- Quick Actions -->
-<div class="row mt-4">
-    <div class="col-md-3">
-        <a href="{{ url_for('employee.employee_dashboard') }}" class="btn btn-outline-primary w-100">
-            <i class="fas fa-chart-line me-2"></i> Dashboard
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('employee.attendance') }}" class="btn btn-outline-success w-100">
-            <i class="fas fa-calendar-check me-2"></i> Attendance
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('employee.leave_requests') }}" class="btn btn-outline-warning w-100">
-            <i class="fas fa-calendar-alt me-2"></i> Leave Requests
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('employee.user_roles') }}" class="btn btn-outline-info w-100">
-            <i class="fas fa-user-shield me-2"></i> User Roles
-        </a>
-    </div>
 </div>
 
 <!-- Statistics -->
@@ -337,7 +214,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        {% set active_count = employees|selectattr('is_active', 'equalto', true)|list|length %}
+                        {% set active_count = employees|selectattr('user.is_active', 'equalto', true)|list|length %}
                         <h2 class="mb-1">{{ active_count }}</h2>
                         <p class="mb-0">Active Employees</p>
                     </div>
@@ -352,7 +229,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        {% set tech_count = employees|selectattr('role', 'equalto', 'technician')|selectattr('is_active', 'equalto', true)|list|length %}
+                        {% set tech_count = employees|selectattr('user.role', 'equalto', 'technician')|selectattr('user.is_active', 'equalto', true)|list|length %}
                         <h2 class="mb-1">{{ tech_count }}</h2>
                         <p class="mb-0">Technicians</p>
                     </div>
@@ -367,7 +244,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        {% set staff_count = employees|selectattr('role', 'equalto', 'staff')|selectattr('is_active', 'equalto', true)|list|length %}
+                        {% set staff_count = employees|selectattr('user.role', 'equalto', 'staff')|selectattr('user.is_active', 'equalto', true)|list|length %}
                         <h2 class="mb-1">{{ staff_count }}</h2>
                         <p class="mb-0">Staff Members</p>
                     </div>
@@ -377,17 +254,39 @@
         </div>
     </div>
 </div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No employees found</h5>
+        <p class="text-muted mb-4">Try adjusting your search criteria or add new employees</p>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('employee.create_employee') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Add First Employee
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function deleteEmployee(employeeId, employeeName) {
-    if (confirm(`Are you sure you want to deactivate ${employeeName}? This will prevent them from logging in.`)) {
-        fetch(`/employee/delete-employee/${employeeId}`, {
+function toggleEmployeeStatus(employeeId, employeeName, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    const actionText = isActive ? 'deactivate' : 'reactivate';
+    
+    if (confirm(`Are you sure you want to ${actionText} ${employeeName}?`)) {
+        const endpoint = isActive ? 
+            `/employee/delete-employee/${employeeId}` : 
+            `/employee/reactivate-employee/${employeeId}`;
+        
+        fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+                'X-CSRFToken': getCSRFToken()
             }
         })
         .then(response => response.json())
@@ -395,14 +294,19 @@ function deleteEmployee(employeeId, employeeName) {
             if (data.success) {
                 location.reload();
             } else {
-                alert(data.message || 'Error deleting employee');
+                alert(data.message || `Error ${actionText}ing employee`);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error deleting employee');
+            alert(`Error ${actionText}ing employee`);
         });
     }
+}
+
+function getCSRFToken() {
+    const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+    return csrfTokenInput ? csrfTokenInput.value : '';
 }
 
 // Add CSRF token for AJAX requests
@@ -411,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
     $.ajaxSetup({
         beforeSend: function(xhr, settings) {
             if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
-                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() if csrf_token else '' }}");
+                xhr.setRequestHeader("X-CSRFToken", getCSRFToken());
             }
         }
     });

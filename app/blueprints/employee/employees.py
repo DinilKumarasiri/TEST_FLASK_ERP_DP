@@ -7,9 +7,15 @@ from datetime import datetime, date
 from .forms import EmployeeForm, EditEmployeeForm
 from . import employee_bp
 
-@employee_bp.route('/employees')
+@employee_bp.route('/')
 @login_required
-def employee_list():
+def index():
+    """Main employee dashboard"""
+    return redirect(url_for('employee.employee_list'))
+
+@employee_bp.route('/list')
+@login_required
+def employee_list():  # KEEP THIS NAME
     if current_user.role not in ['admin', 'manager']:
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
@@ -41,17 +47,24 @@ def employee_list():
     # Get profiles for each employee
     employee_data = []
     for emp in employees:
-        profile = EmployeeProfile.query.filter_by(user_id=emp.id).first()
-        employee_data.append({
-            'user': emp,
-            'profile': profile
-        })
+        try:
+            profile = EmployeeProfile.query.filter_by(user_id=emp.id).first()
+            employee_data.append({
+                'user': emp,
+                'profile': profile
+            })
+        except Exception as e:
+            print(f"Error loading profile for employee {emp.id}: {e}")
+            employee_data.append({
+                'user': emp,
+                'profile': None
+            })
     
     return render_template('employee/list.html',
                          employees=employee_data,
                          title='Employee List')
 
-@employee_bp.route('/employee/<int:employee_id>')
+@employee_bp.route('/<int:employee_id>')
 @login_required
 def employee_detail(employee_id):
     if current_user.role not in ['admin', 'manager'] and current_user.id != employee_id:
@@ -98,20 +111,20 @@ def employee_detail(employee_id):
                          total_commission=total_commission,
                          title=f'Employee - {employee.username}')
 
-@employee_bp.route('/create-employee', methods=['GET', 'POST'])
+@employee_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create_employee():
     if current_user.role != 'admin':
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
-    form = EmployeeForm(request.form if request.method == 'POST' else None)
+    form = EmployeeForm()
     
     # Populate reporting manager choices
     managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True).all()
     form.reporting_manager_id.choices = [(0, 'None')] + [(m.id, f"{m.username} ({m.role})") for m in managers]
     
-    if request.method == 'POST' and form.validate():
+    if form.validate_on_submit():
         # Check if username or email already exists
         existing_user = User.query.filter(
             db.or_(User.username == form.username.data, User.email == form.email.data)
@@ -185,7 +198,7 @@ def create_employee():
     
     return render_template('employee/create.html', form=form, title='Create Employee')
 
-@employee_bp.route('/edit-employee/<int:employee_id>', methods=['GET', 'POST'])
+@employee_bp.route('/edit/<int:employee_id>', methods=['GET', 'POST'])
 @login_required
 def edit_employee(employee_id):
     if current_user.role != 'admin':
@@ -198,9 +211,10 @@ def edit_employee(employee_id):
     if not profile:
         # Create empty profile if doesn't exist
         profile = EmployeeProfile(user_id=employee_id, full_name=employee.username)
+        db.session.add(profile)
+        db.session.commit()
     
-    # Use request.form for POST, otherwise use object data
-    form = EditEmployeeForm(request.form if request.method == 'POST' else None, obj=profile)
+    form = EditEmployeeForm(obj=profile)
     
     # Populate reporting manager choices
     managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True, User.id != employee_id).all()
@@ -214,7 +228,7 @@ def edit_employee(employee_id):
         form.is_active.data = employee.is_active
         form.reporting_manager_id.data = profile.reporting_manager_id or 0
     
-    if request.method == 'POST' and form.validate():
+    if form.validate_on_submit():
         try:
             # Check if username or email already exists (excluding current employee)
             existing_user = User.query.filter(
@@ -282,7 +296,7 @@ def edit_employee(employee_id):
     
     return render_template('employee/edit.html', form=form, employee=employee, profile=profile, title='Edit Employee')
 
-@employee_bp.route('/delete-employee/<int:employee_id>', methods=['POST'])
+@employee_bp.route('/delete/<int:employee_id>', methods=['POST'])
 @login_required
 def delete_employee(employee_id):
     if current_user.role != 'admin':
@@ -308,14 +322,14 @@ def delete_employee(employee_id):
         db.session.commit()
         
         flash(f'Employee {employee.username} has been deactivated', 'success')
+        return jsonify({'success': True, 'message': f'Employee {employee.username} has been deactivated'})
         
     except Exception as e:
         db.session.rollback()
         flash(f'Error deactivating employee: {str(e)}', 'danger')
-    
-    return redirect(url_for('employee.employee_list'))
+        return jsonify({'success': False, 'message': str(e)})
 
-@employee_bp.route('/reactivate-employee/<int:employee_id>', methods=['POST'])
+@employee_bp.route('/reactivate/<int:employee_id>', methods=['POST'])
 @login_required
 def reactivate_employee(employee_id):
     if current_user.role != 'admin':
@@ -336,9 +350,9 @@ def reactivate_employee(employee_id):
         db.session.commit()
         
         flash(f'Employee {employee.username} has been reactivated', 'success')
+        return jsonify({'success': True, 'message': f'Employee {employee.username} has been reactivated'})
         
     except Exception as e:
         db.session.rollback()
         flash(f'Error reactivating employee: {str(e)}', 'danger')
-    
-    return redirect(url_for('employee.employee_list'))
+        return jsonify({'success': False, 'message': str(e)})

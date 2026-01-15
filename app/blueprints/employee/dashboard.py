@@ -1,3 +1,4 @@
+# app/blueprints/employee/dashboard.py
 from flask import render_template, flash, redirect, url_for
 from flask_login import login_required, current_user
 from ... import db
@@ -5,9 +6,10 @@ from ...models import User, Attendance, LeaveRequest
 from datetime import datetime, date
 from . import employee_bp
 
-@employee_bp.route('/')
+@employee_bp.route('/dashboard')
 @login_required
 def employee_dashboard():
+    """Employee dashboard - separate from index"""
     if current_user.role != 'admin':
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
@@ -38,7 +40,7 @@ def employee_dashboard():
                          employees=employees,
                          title='Employee Dashboard')
 
-@employee_bp.route('/user-roles')
+@employee_bp.route('/roles')
 @login_required
 def user_roles():
     if current_user.role != 'admin':

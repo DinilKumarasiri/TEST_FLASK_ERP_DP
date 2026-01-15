@@ -3,12 +3,13 @@
 {% block title %}Employee Dashboard - Mobile Shop ERP{% endblock %}
 
 {% block content %}
+<!-- In templates/employee/list.html, update the header section -->
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-users me-2"></i>Employee Dashboard</h2>
+    <h2><i class="fas fa-users me-2"></i>Employee List</h2>
     <div>
         {% if current_user.role == 'admin' %}
-        <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
-            <i class="fas fa-user-plus me-1"></i> Add Employee
+        <a href="{{ url_for('employee.create_employee') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Add New Employee
         </a>
         {% endif %}
     </div>
