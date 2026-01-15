@@ -94,6 +94,7 @@ def update_attendance():
         return jsonify({'success': False, 'message': 'Access denied'})
     
     data = request.get_json()
+    attendance_id = data.get('attendance_id')
     employee_id = data.get('employee_id')
     date_str = data.get('date')
     status = data.get('status')
@@ -101,31 +102,43 @@ def update_attendance():
     check_out_str = data.get('check_out')
     notes = data.get('notes')
     
-    try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except:
-        selected_date = date.today()
-    
-    # Find or create attendance record
-    attendance = Attendance.query.filter_by(
-        employee_id=employee_id,
-        date=selected_date
-    ).first()
-    
-    if not attendance:
-        attendance = Attendance(
+    # If we have attendance_id, edit existing record
+    if attendance_id:
+        attendance = Attendance.query.get_or_404(attendance_id)
+        
+        # Check permission
+        if current_user.role not in ['admin', 'manager'] and current_user.id != attendance.employee_id:
+            return jsonify({'success': False, 'message': 'Access denied'})
+    else:
+        # Create new record
+        try:
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except:
+            selected_date = date.today()
+        
+        # Find or create attendance record
+        attendance = Attendance.query.filter_by(
             employee_id=employee_id,
-            date=selected_date,
-            status=status
-        )
+            date=selected_date
+        ).first()
+        
+        if not attendance:
+            attendance = Attendance(
+                employee_id=employee_id,
+                date=selected_date,
+                status=status
+            )
     
     # Update fields
-    attendance.status = status
-    attendance.notes = notes
+    if status:
+        attendance.status = status
+    if notes is not None:
+        attendance.notes = notes
     
     if check_in_str:
         try:
             check_in_time = datetime.strptime(check_in_str, '%H:%M').time()
+            selected_date = attendance.date if hasattr(attendance, 'date') else selected_date
             attendance.check_in = datetime.combine(selected_date, check_in_time)
         except:
             pass
@@ -133,6 +146,7 @@ def update_attendance():
     if check_out_str:
         try:
             check_out_time = datetime.strptime(check_out_str, '%H:%M').time()
+            selected_date = attendance.date if hasattr(attendance, 'date') else selected_date
             attendance.check_out = datetime.combine(selected_date, check_out_time)
         except:
             pass

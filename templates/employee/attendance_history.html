@@ -1,0 +1,532 @@
+<!-- templates/employee/attendance_history.html -->
+{% extends "base.html" %}
+
+{% block title %}Attendance History - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .attendance-table th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+    
+    .filter-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .summary-card {
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        color: white;
+    }
+    
+    .date-picker {
+        max-width: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-history me-2"></i>
+        Attendance History
+        {% if employee %}
+        <small class="text-muted">- {{ employee.username }}</small>
+        {% endif %}
+    </h2>
+    <div>
+        <a href="{{ url_for('employee.attendance') }}" class="btn btn-outline-primary">
+            <i class="fas fa-calendar-check me-1"></i> Back to Attendance
+        </a>
+    </div>
+</div>
+
+<!-- Employee Information -->
+{% if employee %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-2 text-center">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto" 
+                     style="width: 60px; height: 60px; font-size: 24px;">
+                    {{ employee.username[:1]|upper }}
+                </div>
+            </div>
+            <div class="col-md-5">
+                <h5 class="mb-1">{{ employee.username }}</h5>
+                <p class="text-muted mb-1">
+                    <i class="fas fa-envelope me-1"></i>{{ employee.email }}
+                </p>
+                <span class="badge 
+                    {% if employee.role == 'admin' %}bg-danger
+                    {% elif employee.role == 'manager' %}bg-primary
+                    {% elif employee.role == 'technician' %}bg-success
+                    {% else %}bg-secondary{% endif %}">
+                    {{ employee.role|title }}
+                </span>
+                <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }}">
+                    {{ 'Active' if employee.is_active else 'Inactive' }}
+                </span>
+            </div>
+            <div class="col-md-5 text-end">
+                <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-user me-1"></i> View Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card filter-card">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            {% if current_user.role in ['admin', 'manager'] %}
+            <div class="col-md-4">
+                <label class="form-label">Employee</label>
+                <select name="employee_id" class="form-select">
+                    <option value="">Select Employee</option>
+                    {% for emp in all_employees if emp.is_active %}
+                    <option value="{{ emp.id }}" {% if request.args.get('employee_id')|int == emp.id %}selected{% endif %}>
+                        {{ emp.username }} ({{ emp.role|title }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <input type="hidden" name="employee_id" value="{{ current_user.id }}">
+            {% endif %}
+            
+            <div class="col-md-4">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start_date" class="form-control date-picker" 
+                       value="{{ request.args.get('start_date', start_date.strftime('%Y-%m-%d')) }}">
+            </div>
+            
+            <div class="col-md-4">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end_date" class="form-control date-picker" 
+                       value="{{ request.args.get('end_date', end_date.strftime('%Y-%m-%d')) }}">
+            </div>
+            
+            <div class="col-12">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
+                    </button>
+                    <a href="{{ url_for('employee.attendance_history', employee_id=employee.id if employee else current_user.id) }}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-1"></i> Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Attendance Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="summary-card bg-primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ total_days }}</h2>
+                    <p class="mb-0">Total Days</p>
+                </div>
+                <i class="fas fa-calendar fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="summary-card bg-success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ present_days }}</h2>
+                    <p class="mb-0">Present Days</p>
+                </div>
+                <i class="fas fa-user-check fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="summary-card bg-warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ leave_days }}</h2>
+                    <p class="mb-0">Leave Days</p>
+                </div>
+                <i class="fas fa-calendar-times fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="summary-card bg-danger">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ absent_days }}</h2>
+                    <p class="mb-0">Absent Days</p>
+                </div>
+                <i class="fas fa-user-times fa-2x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="card">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>
+            Attendance Records
+            <span class="badge bg-secondary ms-2">{{ attendance_records|length }}</span>
+        </h5>
+        <div>
+            <button class="btn btn-sm btn-outline-primary" onclick="exportToCSV()">
+                <i class="fas fa-download me-1"></i> Export CSV
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 attendance-table" id="attendanceTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Check In</th>
+                        <th class="text-center">Check Out</th>
+                        <th class="text-center">Total Hours</th>
+                        <th>Notes</th>
+                        {% if current_user.role in ['admin', 'manager'] %}
+                        <th>Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in attendance_records %}
+                    <tr>
+                        <td>
+                            {{ record.date.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td>
+                            {{ record.date.strftime('%A') }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge 
+                                {% if record.status == 'present' %}bg-success
+                                {% elif record.status == 'absent' %}bg-danger
+                                {% elif record.status == 'half_day' %}bg-warning
+                                {% elif record.status == 'leave' %}bg-info
+                                {% else %}bg-secondary{% endif %} status-badge">
+                                {{ record.status|title }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if record.check_in %}
+                            <span class="badge bg-success">{{ record.check_in.strftime('%H:%M') }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">--:--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if record.check_out %}
+                            <span class="badge bg-info">{{ record.check_out.strftime('%H:%M') }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">--:--</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if record.total_hours %}
+                            <span class="badge bg-primary">{{ "%.1f"|format(record.total_hours) }}h</span>
+                            {% else %}
+                            <span class="badge bg-secondary">0h</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ record.notes|truncate(30) if record.notes else '' }}</small>
+                        </td>
+                        {% if current_user.role in ['admin', 'manager'] %}
+                        <td>
+                            <button class="btn btn-sm btn-outline-warning" 
+                                    onclick="editAttendanceRecord({{ record.id }})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{% if current_user.role in ['admin', 'manager'] %}8{% else %}7{% endif %}" class="text-center py-4">
+                            <i class="fas fa-calendar fa-2x text-muted mb-2"></i>
+                            <h5 class="text-muted">No attendance records found</h5>
+                            <p class="text-muted">Try adjusting your date range</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="row">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Showing {{ attendance_records|length }} records from {{ start_date.strftime('%b %d, %Y') }} to {{ end_date.strftime('%b %d, %Y') }}
+                </small>
+            </div>
+            <div class="col-md-6 text-end">
+                <small class="text-muted">
+                    Attendance Rate: <strong>{{ "%.1f"|format((present_days/total_days*100) if total_days > 0 else 0) }}%</strong>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Chart -->
+<div class="card mt-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Attendance Overview</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="attendanceChart" height="150"></canvas>
+    </div>
+</div>
+
+<!-- Edit Attendance Modal -->
+{% if current_user.role in ['admin', 'manager'] %}
+<div class="modal fade" id="editAttendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Attendance Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAttendanceForm">
+                    <input type="hidden" id="editAttendanceId" name="attendance_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select id="editStatus" class="form-select" name="status">
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="half_day">Half Day</option>
+                            <option value="leave">Leave</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Check In Time</label>
+                            <input type="time" id="editCheckIn" class="form-control" name="check_in">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Check Out Time</label>
+                            <input type="time" id="editCheckOut" class="form-control" name="check_out">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea id="editNotes" class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAttendanceEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Create attendance chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    
+    // Calculate weekly data
+    const weeklyData = {
+        present: 0,
+        absent: 0,
+        leave: 0,
+        half_day: 0
+    };
+    
+    {% for record in attendance_records %}
+    switch('{{ record.status }}') {
+        case 'present': weeklyData.present++; break;
+        case 'absent': weeklyData.absent++; break;
+        case 'leave': weeklyData.leave++; break;
+        case 'half_day': weeklyData.half_day++; break;
+    }
+    {% endfor %}
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Present', 'Absent', 'Leave', 'Half Day'],
+            datasets: [{
+                data: [weeklyData.present, weeklyData.absent, weeklyData.leave, weeklyData.half_day],
+                backgroundColor: [
+                    '#198754', // Success (Present)
+                    '#dc3545', // Danger (Absent)
+                    '#0dcaf0', // Info (Leave)
+                    '#ffc107'  // Warning (Half Day)
+                ],
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = weeklyData.present + weeklyData.absent + weeklyData.leave + weeklyData.half_day;
+                            const percentage = total > 0 ? ((context.raw / total) * 100).toFixed(1) : 0;
+                            return `${context.label}: ${context.raw} days (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+// Edit attendance record
+function editAttendanceRecord(attendanceId) {
+    // Find the record row
+    const row = document.querySelector(`button[onclick*="editAttendanceRecord(${attendanceId})"]`).closest('tr');
+    
+    // Get current values
+    const date = row.cells[0].textContent.trim();
+    const statusBadge = row.cells[2].querySelector('.badge');
+    const checkInBadge = row.cells[3].querySelector('.badge');
+    const checkOutBadge = row.cells[4].querySelector('.badge');
+    const notesCell = row.cells[6];
+    
+    // Extract status from badge class
+    let status = 'present';
+    if (statusBadge.classList.contains('bg-danger')) status = 'absent';
+    else if (statusBadge.classList.contains('bg-warning')) status = 'half_day';
+    else if (statusBadge.classList.contains('bg-info')) status = 'leave';
+    
+    // Set form values
+    document.getElementById('editAttendanceId').value = attendanceId;
+    document.getElementById('editStatus').value = status;
+    document.getElementById('editCheckIn').value = checkInBadge.textContent.includes('--:--') ? '' : checkInBadge.textContent;
+    document.getElementById('editCheckOut').value = checkOutBadge.textContent.includes('--:--') ? '' : checkOutBadge.textContent;
+    document.getElementById('editNotes').value = notesCell.textContent.trim();
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('editAttendanceModal')).show();
+}
+
+// Save attendance edit
+function saveAttendanceEdit() {
+    const formData = {
+        attendance_id: document.getElementById('editAttendanceId').value,
+        status: document.getElementById('editStatus').value,
+        check_in: document.getElementById('editCheckIn').value,
+        check_out: document.getElementById('editCheckOut').value,
+        notes: document.getElementById('editNotes').value
+    };
+    
+    $.ajax({
+        url: '/employee/update-attendance',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert(response.message || 'Error updating attendance');
+            }
+        },
+        error: function() {
+            alert('Error updating attendance. Please try again.');
+        }
+    });
+}
+
+// Export to CSV
+function exportToCSV() {
+    const table = document.getElementById('attendanceTable');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    rows.forEach(row => {
+        const rowData = [];
+        const cells = row.querySelectorAll('td, th');
+        
+        cells.forEach(cell => {
+            // Remove action buttons
+            if (!cell.querySelector('button')) {
+                rowData.push(cell.textContent.trim());
+            }
+        });
+        
+        if (rowData.length > 0) {
+            csv.push(rowData.join(','));
+        }
+    });
+    
+    const csvContent = 'data:text/csv;charset=utf-8,' + csv.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `attendance_history_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Print attendance report
+function printReport() {
+    window.print();
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl + P for print
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        printReport();
+    }
+    // Ctrl + E for export
+    else if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        exportToCSV();
+    }
+});
+</script>
+{% endblock %}

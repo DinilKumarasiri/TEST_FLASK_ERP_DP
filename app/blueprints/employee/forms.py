@@ -2,8 +2,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SelectField, TextAreaField, DateField, FloatField, IntegerField, EmailField, TelField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional, NumberRange
-from ...models.user import User
-from ...models.employee import EmployeeProfile
 from datetime import datetime, date
 
 class EmployeeForm(FlaskForm):
@@ -29,7 +27,8 @@ class EmployeeForm(FlaskForm):
         ('', 'Select Role'),
         ('admin', 'Administrator'),
         ('manager', 'Manager'),
-        ('staff', 'Sales Staff')
+        ('staff', 'Sales Staff'),
+        ('technician', 'Technician')
     ], validators=[DataRequired(message='Please select a role')])
     is_active = BooleanField('Active Account', default=True)
 
@@ -144,16 +143,6 @@ class EmployeeForm(FlaskForm):
         NumberRange(min=0, message='Sales target cannot be negative')
     ])
 
-    def validate_username(self, field):
-        user = User.query.filter_by(username=field.data).first()
-        if user:
-            raise ValidationError('That username is already taken. Please choose a different one.')
-
-    def validate_email(self, field):
-        user = User.query.filter_by(email=field.data).first()
-        if user:
-            raise ValidationError('That email is already registered. Please use a different one.')
-
     def validate_date_of_birth(self, field):
         if field.data and field.data > date.today():
             raise ValidationError('Date of birth cannot be in the future.')
@@ -177,14 +166,6 @@ class EditEmployeeForm(EmployeeForm):
         # Remove required validators for username and email in edit mode
         self.username.validators = [DataRequired(), Length(min=3, max=80)]
         self.email.validators = [DataRequired(), Email(), Length(max=120)]
-        
-    def validate_username(self, field):
-        # Skip validation for edit - we'll handle it in the view
-        pass
-    
-    def validate_email(self, field):
-        # Skip validation for edit - we'll handle it in the view
-        pass
 
 class LeaveRequestForm(FlaskForm):
     leave_type = SelectField('Leave Type *', choices=[

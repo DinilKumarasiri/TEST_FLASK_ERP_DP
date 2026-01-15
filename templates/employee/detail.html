@@ -1,0 +1,608 @@
+<!-- templates/employee/detail.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ employee.username }} - Employee Details - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #4361ee, #3a0ca3);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        font-weight: bold;
+        border: 4px solid white;
+    }
+    
+    .info-card {
+        border-radius: 10px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card {
+        text-align: center;
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+    }
+    
+    .stat-card h3 {
+        font-size: 2rem;
+        margin-bottom: 5px;
+    }
+    
+    .stat-card p {
+        margin: 0;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- CSRF Token for AJAX requests -->
+<input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token() }}">
+
+<!-- Profile Header -->
+<div class="profile-header">
+    <div class="row align-items-center">
+        <div class="col-md-3 text-center">
+            <div class="profile-avatar mx-auto">
+                {{ employee.username[:1]|upper }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h1 class="mb-2">{{ employee_profile.full_name if employee_profile else employee.username }}</h1>
+            <p class="mb-1">
+                <i class="fas fa-envelope me-2"></i>{{ employee.email }}
+                {% if employee_profile and employee_profile.personal_email %}
+                | <i class="fas fa-envelope-open me-2"></i>{{ employee_profile.personal_email }}
+                {% endif %}
+            </p>
+            <p class="mb-0">
+                <span class="badge bg-light text-dark me-2">
+                    <i class="fas fa-id-badge me-1"></i> #{{ employee.id }}
+                </span>
+                {% if employee_profile and employee_profile.employee_code %}
+                <span class="badge bg-light text-dark me-2">
+                    <i class="fas fa-hashtag me-1"></i> {{ employee_profile.employee_code }}
+                </span>
+                {% endif %}
+                <span class="badge 
+                    {% if employee.role == 'admin' %}bg-danger
+                    {% elif employee.role == 'manager' %}bg-primary
+                    {% elif employee.role == 'technician' %}bg-success
+                    {% else %}bg-secondary{% endif %} me-2">
+                    {{ employee.role|title }}
+                </span>
+                <span class="badge bg-{{ 'success' if employee.is_active else 'secondary' }}">
+                    {{ 'Active' if employee.is_active else 'Inactive' }}
+                </span>
+            </p>
+        </div>
+        <div class="col-md-3 text-end">
+            <div class="btn-group">
+                <a href="{{ url_for('employee.employee_list') }}" class="btn btn-light">
+                    <i class="fas fa-arrow-left me-1"></i> Back
+                </a>
+                {% if current_user.role == 'admin' or current_user.id == employee.id %}
+                <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" class="btn btn-warning">
+                    <i class="fas fa-edit me-1"></i> Edit
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card bg-primary">
+            <h3>{{ present_days }}</h3>
+            <p><i class="fas fa-calendar-check me-1"></i> Present Days</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-success">
+            <h3>{{ "%.2f"|format(total_commission) }}</h3>
+            <p><i class="fas fa-money-check-alt me-1"></i> Total Commission</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-info">
+            <h3>{{ leave_requests|length }}</h3>
+            <p><i class="fas fa-calendar-alt me-1"></i> Leave Requests</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-warning">
+            <h3>{{ attendance_records|length }}</h3>
+            <p><i class="fas fa-history me-1"></i> Attendance Records</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Personal Information -->
+    <div class="col-md-6 mb-4">
+        <div class="card info-card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>Personal Information</h5>
+            </div>
+            <div class="card-body">
+                {% if employee_profile %}
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Full Name:</th>
+                        <td>{{ employee_profile.full_name or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date of Birth:</th>
+                        <td>{{ employee_profile.date_of_birth.strftime('%Y-%m-%d') if employee_profile.date_of_birth else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Gender:</th>
+                        <td>{{ employee_profile.gender|title if employee_profile.gender else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Personal Phone:</th>
+                        <td>{{ employee_profile.personal_phone or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Emergency Contact:</th>
+                        <td>{{ employee_profile.emergency_contact or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Emergency Phone:</th>
+                        <td>{{ employee_profile.emergency_phone or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Address:</th>
+                        <td>{{ employee_profile.address or 'Not set' }}</td>
+                    </tr>
+                </table>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-user-slash fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">No profile information available</p>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Add Profile Information
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Employment Information -->
+    <div class="col-md-6 mb-4">
+        <div class="card info-card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-briefcase me-2"></i>Employment Information</h5>
+            </div>
+            <div class="card-body">
+                {% if employee_profile %}
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Job Title:</th>
+                        <td>{{ employee_profile.job_title|replace('_', ' ')|title if employee_profile.job_title else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Department:</th>
+                        <td>{{ employee_profile.department|title if employee_profile.department else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Employment Type:</th>
+                        <td>{{ employee_profile.employment_type|replace('_', ' ')|title if employee_profile.employment_type else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date of Joining:</th>
+                        <td>{{ employee_profile.date_of_joining.strftime('%Y-%m-%d') if employee_profile.date_of_joining else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Work Location:</th>
+                        <td>{{ employee_profile.work_location or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Shift Timing:</th>
+                        <td>{{ employee_profile.shift_timing or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Basic Salary:</th>
+                        <td>{{ "₹%.2f"|format(employee_profile.basic_salary) if employee_profile.basic_salary else 'Not set' }}</td>
+                    </tr>
+                </table>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No employment information available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Attendance -->
+    <div class="col-md-6 mb-4">
+        <div class="card info-card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Recent Attendance</h5>
+                <a href="{{ url_for('employee.attendance_history') }}?employee_id={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-center">Check In</th>
+                                <th class="text-center">Check Out</th>
+                                <th class="text-center">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in attendance_records[:5] %}
+                            <tr>
+                                <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 
+                                        'success' if record.status == 'present'
+                                        else 'danger' if record.status == 'absent'
+                                        else 'warning' if record.status == 'half_day'
+                                        else 'info'
+                                    }}">
+                                        {{ record.status|title }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    {% if record.check_in %}
+                                    <span class="badge bg-success">{{ record.check_in.strftime('%H:%M') }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">--:--</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if record.check_out %}
+                                    <span class="badge bg-info">{{ record.check_out.strftime('%H:%M') }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">--:--</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if record.total_hours %}
+                                    <span class="badge bg-primary">{{ "%.1f"|format(record.total_hours) }}h</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">0h</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <i class="fas fa-calendar fa-2x text-muted mb-2"></i>
+                                    <p class="mb-0 text-muted">No attendance records</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Commissions -->
+    <div class="col-md-6 mb-4">
+        <div class="card info-card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-money-check-alt me-2"></i>Recent Commissions</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for commission in commissions %}
+                            <tr>
+                                <td>{{ commission.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <strong>₹{{ "%.2f"|format(commission.commission_amount) }}</strong>
+                                </td>
+                                <td>
+                                    {% if commission.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if commission.invoice_id %}
+                                    <span class="badge bg-info">Sale</span>
+                                    <small class="d-block">{{ commission.invoice.invoice_number if commission.invoice else 'N/A' }}</small>
+                                    {% elif commission.repair_job_id %}
+                                    <span class="badge bg-warning">Repair</span>
+                                    <small class="d-block">{{ commission.repair_job.job_number if commission.repair_job else 'N/A' }}</small>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Other</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4">
+                                    <i class="fas fa-money-bill-wave fa-2x text-muted mb-2"></i>
+                                    <p class="mb-0 text-muted">No commission records</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for more details -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <ul class="nav nav-tabs card-header-tabs" id="employeeTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="leaves-tab" data-bs-toggle="tab" data-bs-target="#leaves" type="button">
+                    <i class="fas fa-calendar-alt me-1"></i> Leave Requests
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="bank-tab" data-bs-toggle="tab" data-bs-target="#bank" type="button">
+                    <i class="fas fa-university me-1"></i> Bank Details
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="skills-tab" data-bs-toggle="tab" data-bs-target="#skills" type="button">
+                    <i class="fas fa-graduation-cap me-1"></i> Skills & Education
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="employeeTabsContent">
+            <!-- Leave Requests Tab -->
+            <div class="tab-pane fade show active" id="leaves" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Leave Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Days</th>
+                                <th>Status</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leave_requests %}
+                            <tr>
+                                <td>{{ leave.leave_type|title }}</td>
+                                <td>{{ leave.start_date.strftime('%Y-%m-%d') if leave.start_date else '' }}</td>
+                                <td>{{ leave.end_date.strftime('%Y-%m-%d') if leave.end_date else '' }}</td>
+                                <td>{{ leave.days_requested or ((leave.end_date - leave.start_date).days + 1) if leave.end_date and leave.start_date else 1 }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if leave.status == 'approved' %}bg-success
+                                        {% elif leave.status == 'rejected' %}bg-danger
+                                        {% else %}bg-warning{% endif %}">
+                                        {{ leave.status|title }}
+                                    </span>
+                                </td>
+                                <td>{{ leave.reason|truncate(50) if leave.reason else '' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <i class="fas fa-calendar-times fa-2x text-muted mb-2"></i>
+                                    <p class="mb-0 text-muted">No leave requests</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bank Details Tab -->
+            <div class="tab-pane fade" id="bank" role="tabpanel">
+                {% if employee_profile and (employee_profile.bank_name or employee_profile.account_number) %}
+                <table class="table table-sm">
+                    <tr>
+                        <th width="30%">Bank Name:</th>
+                        <td>{{ employee_profile.bank_name or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Account Number:</th>
+                        <td>{{ employee_profile.account_number or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>IFSC Code:</th>
+                        <td>{{ employee_profile.ifsc_code or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Aadhar Number:</th>
+                        <td>{{ employee_profile.aadhar_number or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <th>PAN Number:</th>
+                        <td>{{ employee_profile.pan_number or 'Not set' }}</td>
+                    </tr>
+                </table>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-university fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No bank details available</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Skills & Education Tab -->
+            <div class="tab-pane fade" id="skills" role="tabpanel">
+                {% if employee_profile and (employee_profile.education or employee_profile.skills) %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Education:</h6>
+                        <p>{{ employee_profile.education or 'Not set' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Skills:</h6>
+                        <p>{{ employee_profile.skills or 'Not set' }}</p>
+                    </div>
+                </div>
+                {% if employee_profile.experience_years %}
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6>Experience:</h6>
+                        <p>{{ employee_profile.experience_years }} years</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Certifications:</h6>
+                        <p>{{ employee_profile.certifications or 'Not set' }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-graduation-cap fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No education/skills information available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <a href="{{ url_for('employee.attendance_history') }}?employee_id={{ employee.id }}" 
+                   class="btn btn-outline-primary w-100">
+                    <i class="fas fa-calendar-alt fa-2x mb-2"></i><br>
+                    Attendance History
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('employee.leave_requests') }}?employee_id={{ employee.id }}" 
+                   class="btn btn-outline-success w-100">
+                    <i class="fas fa-calendar-plus fa-2x mb-2"></i><br>
+                    Leave History
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('employee.commissions') }}?employee_id={{ employee.id }}" 
+                   class="btn btn-outline-info w-100">
+                    <i class="fas fa-money-check-alt fa-2x mb-2"></i><br>
+                    Commission Report
+                </a>
+            </div>
+            <div class="col-md-3">
+                {% if current_user.role == 'admin' and current_user.id != employee.id %}
+                <button onclick="toggleEmployeeStatus({{ employee.id }}, '{{ employee.username }}', {{ employee.is_active|tojson }})" 
+                        class="btn btn-outline-{{ 'danger' if employee.is_active else 'success' }} w-100">
+                    <i class="fas fa-{{ 'user-times' if employee.is_active else 'user-check' }} fa-2x mb-2"></i><br>
+                    {{ 'Deactivate' if employee.is_active else 'Activate' }}
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleEmployeeStatus(employeeId, employeeName, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    const actionText = isActive ? 'deactivate' : 'reactivate';
+    
+    if (confirm(`Are you sure you want to ${actionText} ${employeeName}?`)) {
+        const endpoint = isActive ? 
+            `/employee/delete/${employeeId}` : 
+            `/employee/reactivate/${employeeId}`;
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || `Error ${actionText}ing employee`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(`Error ${actionText}ing employee`);
+        });
+    }
+}
+
+function getCSRFToken() {
+    const csrfTokenInput = document.getElementById('csrf_token');
+    return csrfTokenInput ? csrfTokenInput.value : '';
+}
+
+// Initialize tabs
+document.addEventListener('DOMContentLoaded', function() {
+    // Make sure tabs work properly
+    const triggerTabList = [].slice.call(document.querySelectorAll('#employeeTabs button'))
+    triggerTabList.forEach(function (triggerEl) {
+        const tabTrigger = new bootstrap.Tab(triggerEl)
+        
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault()
+            tabTrigger.show()
+        })
+    })
+});
+</script>
+{% endblock %}
