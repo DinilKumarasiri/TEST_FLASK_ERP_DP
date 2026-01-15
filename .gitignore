@@ -4,4 +4,4 @@ venv/
 
 # Python cache
 __pycache__/
-mobile_shop.db
+instance/database.db
