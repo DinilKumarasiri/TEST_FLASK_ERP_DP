@@ -164,6 +164,9 @@ def update_attendance():
 @employee_bp.route('/attendance-report')
 @login_required
 def attendance_report():
+    print("DEBUG: attendance_report route called!")  # Add this
+    print(f"DEBUG: Current user: {current_user.username}, Role: {current_user.role}")  # Add this
+    
     if current_user.role not in ['admin', 'manager']:
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
@@ -317,3 +320,8 @@ def mark_all_attendance():
         'success': True,
         'message': f'Successfully processed {success_count} employees'
     })
+
+@employee_bp.route('/attendance-report-simple')
+@login_required
+def attendance_report_simple():
+    return "Attendance report simple version works!"
