@@ -79,7 +79,7 @@
                         {{ purchase_order.status|title if purchase_order.status else 'Pending' }}
                     </span>
                     <div class="mt-2">
-                        <h4>₹{{ "%.2f"|format(purchase_order.total_amount) if purchase_order.total_amount else '0.00' }}</h4>
+                        <h4>Rs.{{ "%.2f"|format(purchase_order.total_amount) if purchase_order.total_amount else '0.00' }}</h4>
                         <small class="text-muted">Total Amount</small>
                     </div>
                 </div>
@@ -178,8 +178,8 @@
                             <td class="text-center">{{ item.quantity }}</td>
                             <td class="text-center">{{ item.received_quantity or 0 }}</td>
                             <td class="text-center">{{ item.quantity - (item.received_quantity or 0) }}</td>
-                            <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
-                            <td class="text-end">₹{{ "%.2f"|format(item.total_price) }}</td>
+                            <td class="text-end">Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                            <td class="text-end">Rs.{{ "%.2f"|format(item.total_price) }}</td>
                             <td class="text-center">
                                 {% set received = item.received_quantity or 0 %}
                                 {% if received == 0 %}
@@ -197,7 +197,7 @@
                         <tr class="table-active">
                             <td colspan="6" class="text-end"><strong>Total:</strong></td>
                             <td colspan="3" class="text-end">
-                                <strong>₹{{ "%.2f"|format(purchase_order.total_amount) if purchase_order.total_amount else '0.00' }}</strong>
+                                <strong>Rs.{{ "%.2f"|format(purchase_order.total_amount) if purchase_order.total_amount else '0.00' }}</strong>
                             </td>
                         </tr>
                     </tfoot>

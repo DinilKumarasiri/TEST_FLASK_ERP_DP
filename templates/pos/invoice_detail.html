@@ -111,9 +111,9 @@
                             {% endif %}
                         </td>
                         <td class="text-center">{{ item.quantity }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(item.discount) }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(item.total) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(item.discount) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(item.total) }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -149,19 +149,19 @@
                 <table class="table table-bordered totals-table">
                     <tr>
                         <td><strong>Subtotal</strong></td>
-                        <td class="text-end">₹{{ "%.2f"|format(invoice.subtotal) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.subtotal) }}</td>
                     </tr>
                     <tr>
                         <td><strong>Tax (15%)</strong></td>
-                        <td class="text-end">₹{{ "%.2f"|format(invoice.tax) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.tax) }}</td>
                     </tr>
                     <tr>
                         <td><strong>Discount</strong></td>
-                        <td class="text-end">₹{{ "%.2f"|format(invoice.discount) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.discount) }}</td>
                     </tr>
                     <tr class="table-active">
                         <td><strong>Total Amount</strong></td>
-                        <td class="text-end"><strong>₹{{ "%.2f"|format(invoice.total) }}</strong></td>
+                        <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.total) }}</strong></td>
                     </tr>
                 </table>
             </div>
@@ -225,7 +225,7 @@
                 <form id="paymentForm">
                     <div class="mb-3">
                         <label class="form-label">Amount Due</label>
-                        <input type="text" class="form-control" value="₹{{ "%.2f"|format(invoice.total) }}" readonly>
+                        <input type="text" class="form-control" value="Rs.{{ "%.2f"|format(invoice.total) }}" readonly>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Amount Received *</label>

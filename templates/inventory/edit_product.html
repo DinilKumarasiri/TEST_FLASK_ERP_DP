@@ -115,7 +115,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Purchase Price *</label>
                         <div class="input-group price-input">
-                            <span class="input-group-text">₹</span>
+                            <span class="input-group-text">Rs.</span>
                             <input type="number" name="purchase_price" class="form-control" 
                                    step="0.01" min="0" value="{{ "%.2f"|format(product.purchase_price) }}" required>
                         </div>
@@ -124,7 +124,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Selling Price *</label>
                         <div class="input-group price-input">
-                            <span class="input-group-text">₹</span>
+                            <span class="input-group-text">Rs.</span>
                             <input type="number" name="selling_price" class="form-control" 
                                    step="0.01" min="0" value="{{ "%.2f"|format(product.selling_price) }}" required>
                         </div>
@@ -133,7 +133,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Wholesale Price</label>
                         <div class="input-group price-input">
-                            <span class="input-group-text">₹</span>
+                            <span class="input-group-text">Rs.</span>
                             <input type="number" name="wholesale_price" class="form-control" 
                                    step="0.01" min="0" value="{{ "%.2f"|format(product.wholesale_price) if product.wholesale_price else '' }}">
                         </div>
@@ -246,7 +246,7 @@
                 <div class="text-center">
                     <small class="text-muted">Total Value:</small>
                     <h5 class="mb-0">
-                        ₹{{ "%.2f"|format((product.stock_items|selectattr('status', 'equalto', 'available')|list|length) * product.purchase_price) }}
+                        Rs.{{ "%.2f"|format((product.stock_items|selectattr('status', 'equalto', 'available')|list|length) * product.purchase_price) }}
                     </h5>
                 </div>
             </div>

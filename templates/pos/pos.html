@@ -453,7 +453,7 @@
                     <h6 class="product-name mb-1">{{ product.name }}</h6>
                     <small class="text-muted d-block mb-1">{{ product.sku }}</small>
                     <div class="mt-2">
-                        <strong class="text-primary">₹{{ "%.2f"|format(product.selling_price) }}</strong>
+                        <strong class="text-primary">Rs.{{ "%.2f"|format(product.selling_price) }}</strong>
                     </div>
                     {% if product.has_imei %}
                     <small class="text-info mt-1"><i class="fas fa-barcode"></i> IMEI</small>
@@ -488,19 +488,19 @@
             <div class="cart-summary mt-3">
                 <div class="d-flex justify-content-between mb-2">
                     <span>Subtotal:</span>
-                    <span id="cartSubtotal">₹0.00</span>
+                    <span id="cartSubtotal">Rs.0.00</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span>Tax (15%):</span>
-                    <span id="cartTax">₹0.00</span>
+                    <span id="cartTax">Rs.0.00</span>
                 </div>
                 <div class="d-flex justify-content-between mb-3">
                     <span>Discount:</span>
-                    <span id="cartDiscount">₹0.00</span>
+                    <span id="cartDiscount">Rs.0.00</span>
                 </div>
                 <div class="d-flex justify-content-between cart-total mb-3">
                     <span>Total:</span>
-                    <span id="cartTotal">₹0.00</span>
+                    <span id="cartTotal">Rs.0.00</span>
                 </div>
                 
                 <!-- Customer Search -->
@@ -936,10 +936,10 @@ function updateCartDisplay() {
         emptyCart.show();
         cartItems.html('');
         $('#cartCount').text('0');
-        $('#cartSubtotal').text('₹0.00');
-        $('#cartTax').text('₹0.00');
-        $('#cartDiscount').text('₹0.00');
-        $('#cartTotal').text('₹0.00');
+        $('#cartSubtotal').text('Rs.0.00');
+        $('#cartTax').text('Rs.0.00');
+        $('#cartDiscount').text('Rs.0.00');
+        $('#cartTotal').text('Rs.0.00');
         
         // Update tab title
         document.title = 'POS Terminal - Mobile Shop ERP';
@@ -961,7 +961,7 @@ function updateCartDisplay() {
             <div class="cart-item">
                 <div class="flex-grow-1">
                     <h6 class="mb-1 text-truncate">${item.name}</h6>
-                    <small class="text-muted">₹${item.price.toFixed(2)} each</small>
+                    <small class="text-muted">Rs.${item.price.toFixed(2)} each</small>
                 </div>
                 <div class="cart-item-controls">
                     <div class="quantity-control">
@@ -978,7 +978,7 @@ function updateCartDisplay() {
                         </button>
                     </div>
                     <div class="text-end ms-2" style="min-width: 70px;">
-                        <div class="fw-bold">₹${(item.price * item.quantity).toFixed(2)}</div>
+                        <div class="fw-bold">Rs.${(item.price * item.quantity).toFixed(2)}</div>
                         <button class="btn btn-sm btn-link text-danger p-0" 
                                 onclick="removeFromCart(${item.id})"
                                 aria-label="Remove item">
@@ -996,10 +996,10 @@ function updateCartDisplay() {
     const total = subtotal + tax - discount;
     
     $('#cartCount').text(itemCount);
-    $('#cartSubtotal').text('₹' + subtotal.toFixed(2));
-    $('#cartTax').text('₹' + tax.toFixed(2));
-    $('#cartDiscount').text('₹' + discount.toFixed(2));
-    $('#cartTotal').text('₹' + total.toFixed(2));
+    $('#cartSubtotal').text('Rs.' + subtotal.toFixed(2));
+    $('#cartTax').text('Rs.' + tax.toFixed(2));
+    $('#cartDiscount').text('Rs.' + discount.toFixed(2));
+    $('#cartTotal').text('Rs.' + total.toFixed(2));
     
     // Update tab title with cart count
     document.title = `(${itemCount}) POS Terminal - Mobile Shop ERP`;

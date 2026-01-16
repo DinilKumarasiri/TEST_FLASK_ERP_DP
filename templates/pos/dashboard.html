@@ -16,7 +16,7 @@
     <div class="stat-card bg-primary text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h3 class="mb-1">₹ {{ "%.2f"|format(today_sales) }}</h3>
+          <h3 class="mb-1">Rs. {{ "%.2f"|format(today_sales) }}</h3>
           <p class="mb-0">Today's Sales</p>
         </div>
         <i class="fas fa-rupee-sign"></i>
@@ -40,7 +40,7 @@
     <div class="stat-card bg-info text-white">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h3 class="mb-1">₹ {{ "%.2f"|format(today_cash) }}</h3>
+          <h3 class="mb-1">Rs. {{ "%.2f"|format(today_cash) }}</h3>
           <p class="mb-0">Cash Sales</p>
         </div>
         <i class="fas fa-money-bill-wave"></i>
@@ -93,7 +93,7 @@
                   </td>
                   <td>{{ invoice.customer_name or 'Walk-in' }}</td>
                   <td>{{ invoice.date.strftime('%H:%M') }}</td>
-                  <td class="text-end">₹{{ "%.2f"|format(invoice.total) }}</td>
+                  <td class="text-end">Rs.{{ "%.2f"|format(invoice.total) }}</td>
                   <td>
                     <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' }}">
                       {{ invoice.payment_status|title }}

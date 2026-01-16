@@ -30,7 +30,7 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="mb-1">₹{{ "%.2f"|format(total_sales) }}</h3>
+                <h3 class="mb-1">Rs.{{ "%.2f"|format(total_sales) }}</h3>
                 <p class="text-muted mb-0">Total Sales</p>
             </div>
         </div>
@@ -48,7 +48,7 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="mb-1">₹{{ "%.2f"|format(total_tax) }}</h3>
+                <h3 class="mb-1">Rs.{{ "%.2f"|format(total_tax) }}</h3>
                 <p class="text-muted mb-0">Tax Collected</p>
             </div>
         </div>
@@ -57,7 +57,7 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="mb-1">₹{{ "%.2f"|format(total_discount) }}</h3>
+                <h3 class="mb-1">Rs.{{ "%.2f"|format(total_discount) }}</h3>
                 <p class="text-muted mb-0">Discount Given</p>
             </div>
         </div>
@@ -78,7 +78,7 @@
                         <div class="card payment-method-card {{ method }}">
                             <div class="card-body">
                                 <h5 class="card-title">{{ method|title }}</h5>
-                                <h3 class="card-text">₹{{ "%.2f"|format(amount) }}</h3>
+                                <h3 class="card-text">Rs.{{ "%.2f"|format(amount) }}</h3>
                                 <small class="text-muted">
                                     {{ "%.1f"|format((amount/total_sales)*100 if total_sales > 0 else 0) }}% of total
                                 </small>
@@ -130,11 +130,11 @@
                                 <td>{{ invoice.date.strftime('%H:%M') }}</td>
                                 <td>{{ invoice.customer_name or 'Walk-in' }}</td>
                                 <td>{{ invoice.items|length }} items</td>
-                                <td class="text-end">₹{{ "%.2f"|format(invoice.subtotal) }}</td>
-                                <td class="text-end">₹{{ "%.2f"|format(invoice.tax) }}</td>
-                                <td class="text-end">₹{{ "%.2f"|format(invoice.discount) }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.subtotal) }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.tax) }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.discount) }}</td>
                                 <td class="text-end">
-                                    <strong>₹{{ "%.2f"|format(invoice.total) }}</strong>
+                                    <strong>Rs.{{ "%.2f"|format(invoice.total) }}</strong>
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark">
@@ -160,10 +160,10 @@
                         <tfoot class="table-light">
                             <tr>
                                 <td colspan="4" class="text-end"><strong>Totals:</strong></td>
-                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_sales - total_tax + total_discount) }}</strong></td>
-                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_tax) }}</strong></td>
-                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_discount) }}</strong></td>
-                                <td class="text-end"><strong>₹{{ "%.2f"|format(total_sales) }}</strong></td>
+                                <td class="text-end"><strong>Rs.{{ "%.2f"|format(total_sales - total_tax + total_discount) }}</strong></td>
+                                <td class="text-end"><strong>Rs.{{ "%.2f"|format(total_tax) }}</strong></td>
+                                <td class="text-end"><strong>Rs.{{ "%.2f"|format(total_discount) }}</strong></td>
+                                <td class="text-end"><strong>Rs.{{ "%.2f"|format(total_sales) }}</strong></td>
                                 <td colspan="2"></td>
                             </tr>
                         </tfoot>

@@ -38,7 +38,7 @@
                 <div class="col-md-6 text-end">
                     <div class="text-muted">Receiving Date: {{ now.strftime('%B %d, %Y') }}</div>
                     <div class="mt-2">
-                        <h5>₹{{ "%.2f"|format(purchase_order.total_amount or 0) }}</h5>
+                        <h5>Rs.{{ "%.2f"|format(purchase_order.total_amount or 0) }}</h5>
                         <small class="text-muted">Total Order Value</small>
                     </div>
                 </div>
