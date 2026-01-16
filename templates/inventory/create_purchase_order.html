@@ -114,11 +114,11 @@
                 <table class="table table-bordered">
                     <tr>
                         <td><strong>Subtotal</strong></td>
-                        <td class="text-end" id="subtotal">₹0.00</td>
+                        <td class="text-end" id="subtotal">Rs.0.00</td>
                     </tr>
                     <tr class="table-active">
                         <td><strong>Total Amount</strong></td>
-                        <td class="text-end"><strong id="totalAmount">₹0.00</strong></td>
+                        <td class="text-end"><strong id="totalAmount">Rs.0.00</strong></td>
                     </tr>
                 </table>
             </div>
@@ -175,7 +175,7 @@
                                         {{ stock_count }}
                                     </span>
                                 </td>
-                                <td>₹{{ "%.2f"|format(product.purchase_price) }}</td>
+                                <td>Rs.{{ "%.2f"|format(product.purchase_price) }}</td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectProduct({{ product.id }}, '{{ product.name|replace("\'", "\\\'") }}', '{{ product.sku }}', {{ product.purchase_price }})">
                                         Select
@@ -296,7 +296,7 @@ function addItem() {
                 <div class="mb-3">
                     <label class="form-label">Total</label>
                     <input type="text" class="form-control" id="itemTotal-${currentItemIndex}" 
-                           value="₹0.00" readonly>
+                           value="Rs.0.00" readonly>
                 </div>
             </div>
         </div>
@@ -363,7 +363,7 @@ function calculateItemTotal(index) {
     const unitPrice = document.getElementsByName(`items[${index}][unit_price]`)[0].value || 0;
     const total = quantity * unitPrice;
     
-    document.getElementById(`itemTotal-${index}`).value = '₹' + total.toFixed(2);
+    document.getElementById(`itemTotal-${index}`).value = 'Rs.' + total.toFixed(2);
     calculateTotals();
 }
 
@@ -380,8 +380,8 @@ function calculateTotals() {
         }
     }
     
-    document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
-    document.getElementById('totalAmount').textContent = '₹' + subtotal.toFixed(2);
+    document.getElementById('subtotal').textContent = 'Rs.' + subtotal.toFixed(2);
+    document.getElementById('totalAmount').textContent = 'Rs.' + subtotal.toFixed(2);
 }
 
 // Initialize product search functionality

@@ -101,7 +101,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Purchase Price *</label>
                         <div class="input-group price-input">
-                            <span class="input-group-text">₹</span>
+                            <span class="input-group-text">Rs.</span>
                             <input type="number" name="purchase_price" class="form-control" 
                                    step="0.01" min="0" placeholder="0.00" required>
                         </div>
@@ -111,7 +111,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Selling Price *</label>
                         <div class="input-group price-input">
-                            <span class="input-group-text">₹</span>
+                            <span class="input-group-text">Rs.</span>
                             <input type="number" name="selling_price" class="form-control" 
                                    step="0.01" min="0" placeholder="0.00" required>
                         </div>
@@ -121,7 +121,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Wholesale Price</label>
                         <div class="input-group price-input">
-                            <span class="input-group-text">₹</span>
+                            <span class="input-group-text">Rs.</span>
                             <input type="number" name="wholesale_price" class="form-control" 
                                    step="0.01" min="0" placeholder="0.00">
                         </div>
@@ -174,7 +174,7 @@
                            class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">{{ product.name|truncate(30) }}</h6>
-                                <small>₹{{ "%.2f"|format(product.selling_price) }}</small>
+                                <small>Rs.{{ "%.2f"|format(product.selling_price) }}</small>
                             </div>
                             <small class="text-muted">SKU: {{ product.sku }}</small>
                         </a>

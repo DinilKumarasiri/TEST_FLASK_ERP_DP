@@ -154,8 +154,8 @@
                                 <tr>
                                     <td>{{ item.product.name[:20] }}...</td>
                                     <td>{{ item.quantity }}</td>
-                                    <td>₹{{ "%.2f"|format(item.unit_price) }}</td>
-                                    <td>₹{{ "%.2f"|format(item.total_price) }}</td>
+                                    <td>Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                                    <td>Rs.{{ "%.2f"|format(item.total_price) }}</td>
                                 </tr>
                                 {% endfor %}
                                 {% if po.po_items|length > 3 %}
@@ -177,7 +177,7 @@
                     </div>
                     <div class="col-6 text-end">
                         <small class="text-muted d-block">Total Amount:</small>
-                        <small class="fw-bold">₹{{ "%.2f"|format(po.total_amount) }}</small>
+                        <small class="fw-bold">Rs.{{ "%.2f"|format(po.total_amount) }}</small>
                     </div>
                 </div>
                 

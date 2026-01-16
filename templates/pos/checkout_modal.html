@@ -39,11 +39,11 @@
                 <tfoot>
                     <tr>
                         <td colspan="3" class="text-end fw-bold">Subtotal:</td>
-                        <td id="checkoutSubtotal">₹0.00</td>
+                        <td id="checkoutSubtotal">Rs.0.00</td>
                     </tr>
                     <tr>
                         <td colspan="3" class="text-end fw-bold">Tax (15%):</td>
-                        <td id="checkoutTax">₹0.00</td>
+                        <td id="checkoutTax">Rs.0.00</td>
                     </tr>
                     <tr>
                         <td colspan="3" class="text-end fw-bold">Discount:</td>
@@ -55,7 +55,7 @@
                     </tr>
                     <tr class="table-primary">
                         <td colspan="3" class="text-end fw-bold fs-5">Total:</td>
-                        <td id="checkoutTotal" class="fw-bold fs-5">₹0.00</td>
+                        <td id="checkoutTotal" class="fw-bold fs-5">Rs.0.00</td>
                     </tr>
                 </tfoot>
             </table>
@@ -208,9 +208,9 @@ function loadCheckoutItems() {
         const row = `
             <tr>
                 <td>${item.name}</td>
-                <td>₹${item.price.toFixed(2)}</td>
+                <td>Rs.${item.price.toFixed(2)}</td>
                 <td>${item.quantity}</td>
-                <td>₹${itemTotal.toFixed(2)}</td>
+                <td>Rs.${itemTotal.toFixed(2)}</td>
             </tr>
         `;
         itemsContainer.append(row);
@@ -220,9 +220,9 @@ function loadCheckoutItems() {
     const discount = parseFloat($('#discount').val()) || 0;
     const total = subtotal + tax - discount;
     
-    $('#checkoutSubtotal').text('₹' + subtotal.toFixed(2));
-    $('#checkoutTax').text('₹' + tax.toFixed(2));
-    $('#checkoutTotal').text('₹' + total.toFixed(2));
+    $('#checkoutSubtotal').text('Rs.' + subtotal.toFixed(2));
+    $('#checkoutTax').text('Rs.' + tax.toFixed(2));
+    $('#checkoutTotal').text('Rs.' + total.toFixed(2));
 }
 
 function calculateCheckoutTotal() {

@@ -77,7 +77,7 @@
     
     <div class="col-md-3">
         <div class="stats-card bg-warning text-dark">
-            <h3>₹{{ "%.2f"|format(supplier.purchase_orders|sum(attribute='total_amount')) }}</h3>
+            <h3>Rs.{{ "%.2f"|format(supplier.purchase_orders|sum(attribute='total_amount')) }}</h3>
             <p class="mb-0">Total Business</p>
         </div>
     </div>
@@ -229,7 +229,7 @@
                                         {{ po.status|title }}
                                     </span>
                                 </td>
-                                <td class="text-end">₹{{ "%.2f"|format(po.total_amount) }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(po.total_amount) }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ url_for('inventory.purchase_order_detail', po_id=po.id) }}" 
@@ -295,7 +295,7 @@
                                 <td>{{ stock.created_at.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ stock.product.name if stock.product else 'N/A' }}</td>
                                 <td>{{ stock.batch_number or '-' }}</td>
-                                <td class="text-end">₹{{ "%.2f"|format(stock.purchase_price or 0) }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(stock.purchase_price or 0) }}</td>
                                 <td>
                                     <span class="badge bg-{{ 'success' if stock.status == 'available' else 'secondary' }}">
                                         {{ stock.status }}

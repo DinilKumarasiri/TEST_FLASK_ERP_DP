@@ -122,7 +122,7 @@
                         <small>{{ item.product_sku }}</small>
                     </div>
                     <div class="text-end">
-                        ₹{{ "%.2f"|format(item.unit_price) }}<br>
+                        Rs.{{ "%.2f"|format(item.unit_price) }}<br>
                         <small>Qty: {{ item.quantity }}</small>
                     </div>
                 </div>
@@ -132,21 +132,21 @@
                 <div class="receipt-total">
                     <div class="receipt-item">
                         <span>Subtotal:</span>
-                        <span>₹{{ "%.2f"|format(invoice.subtotal) }}</span>
+                        <span>Rs.{{ "%.2f"|format(invoice.subtotal) }}</span>
                     </div>
                     <div class="receipt-item">
                         <span>Tax (15%):</span>
-                        <span>₹{{ "%.2f"|format(invoice.tax) }}</span>
+                        <span>Rs.{{ "%.2f"|format(invoice.tax) }}</span>
                     </div>
                     {% if invoice.discount > 0 %}
                     <div class="receipt-item">
                         <span>Discount:</span>
-                        <span>-₹{{ "%.2f"|format(invoice.discount) }}</span>
+                        <span>-Rs.{{ "%.2f"|format(invoice.discount) }}</span>
                     </div>
                     {% endif %}
                     <div class="receipt-item" style="font-size: 1.2em;">
                         <strong>TOTAL:</strong>
-                        <strong>₹{{ "%.2f"|format(invoice.total) }}</strong>
+                        <strong>Rs.{{ "%.2f"|format(invoice.total) }}</strong>
                     </div>
                 </div>
                 

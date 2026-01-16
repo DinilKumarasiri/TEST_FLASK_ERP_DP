@@ -220,8 +220,8 @@
                             {% endif %}
                         </td>
                         <td>{{ product.category.name if product.category else 'N/A' }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(product.purchase_price) }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(product.selling_price) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(product.purchase_price) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(product.selling_price) }}</td>
                         <td class="text-center">
                             <span class="badge bg-{{ 'success' if product.stock_count > product.min_stock_level else 'danger' }}">
                                 {{ product.stock_count }}
@@ -346,13 +346,13 @@
                     </div>
                     <div class="col-6 text-end">
                         <small class="text-muted d-block">Selling Price</small>
-                        <div class="price-tag">₹{{ "%.2f"|format(product.selling_price) }}</div>
+                        <div class="price-tag">Rs.{{ "%.2f"|format(product.selling_price) }}</div>
                     </div>
                 </div>
                 
                 <div class="mb-3">
                     <small class="text-muted d-block">Cost Price</small>
-                    <small>₹{{ "%.2f"|format(product.purchase_price) }}</small>
+                    <small>Rs.{{ "%.2f"|format(product.purchase_price) }}</small>
                     {% if product.has_imei %}
                     <span class="badge bg-info ms-2">IMEI Tracking</span>
                     {% endif %}

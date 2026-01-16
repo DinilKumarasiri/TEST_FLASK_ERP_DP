@@ -131,7 +131,7 @@
     <div class="col-md-3">
         <div class="card bg-light">
             <div class="card-body text-center">
-                <h3 class="mb-1">₹{{ "%.2f"|format(invoices.items|sum(attribute='total')) }}</h3>
+                <h3 class="mb-1">Rs.{{ "%.2f"|format(invoices.items|sum(attribute='total')) }}</h3>
                 <p class="mb-0 text-muted">Total Amount</p>
             </div>
         </div>
@@ -185,7 +185,7 @@
                 <div class="mb-3">
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">Amount:</span>
-                        <span class="fw-bold">₹{{ "%.2f"|format(invoice.total) }}</span>
+                        <span class="fw-bold">Rs.{{ "%.2f"|format(invoice.total) }}</span>
                     </div>
                     {% if invoice.customer_phone %}
                     <div class="d-flex justify-content-between">

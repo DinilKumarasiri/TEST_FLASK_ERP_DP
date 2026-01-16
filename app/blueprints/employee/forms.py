@@ -114,7 +114,7 @@ class EmployeeForm(FlaskForm):
     reporting_manager_id = SelectField('Reporting Manager', coerce=int, choices=[], validators=[Optional()])
     
     # Salary & Compensation
-    basic_salary = FloatField('Basic Salary (₹)', validators=[
+    basic_salary = FloatField('Basic Salary (Rs.)', validators=[
         Optional(),
         NumberRange(min=0, message='Salary cannot be negative')
     ])
@@ -138,7 +138,7 @@ class EmployeeForm(FlaskForm):
     ])
     
     # Sales Staff Specific
-    sales_target_monthly = FloatField('Monthly Sales Target (₹)', validators=[
+    sales_target_monthly = FloatField('Monthly Sales Target (Rs.)', validators=[
         Optional(),
         NumberRange(min=0, message='Sales target cannot be negative')
     ])

@@ -230,7 +230,7 @@
                     </tr>
                     <tr>
                         <th>Basic Salary:</th>
-                        <td>{{ "₹%.2f"|format(employee_profile.basic_salary) if employee_profile.basic_salary else 'Not set' }}</td>
+                        <td>{{ "Rs.%.2f"|format(employee_profile.basic_salary) if employee_profile.basic_salary else 'Not set' }}</td>
                     </tr>
                 </table>
                 {% else %}
@@ -338,7 +338,7 @@
                             <tr>
                                 <td>{{ commission.created_at.strftime('%Y-%m-%d') }}</td>
                                 <td>
-                                    <strong>₹{{ "%.2f"|format(commission.commission_amount) }}</strong>
+                                    <strong>Rs.{{ "%.2f"|format(commission.commission_amount) }}</strong>
                                 </td>
                                 <td>
                                     {% if commission.status == 'paid' %}

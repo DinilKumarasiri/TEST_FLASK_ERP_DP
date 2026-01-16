@@ -80,7 +80,7 @@
                         <p><strong>Product:</strong> {{ product.name }}</p>
                         <p><strong>SKU:</strong> {{ product.sku }}</p>
                         <p><strong>Barcode:</strong> {{ product.barcode }}</p>
-                        <p><strong>Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}</p>
+                        <p><strong>Price:</strong> Rs.{{ "%.2f"|format(product.selling_price) }}</p>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
@@ -120,7 +120,7 @@
             </div>
             {% endif %}
             <div class="barcode-number">{{ product.barcode }}</div>
-            <div class="price">₹{{ "%.2f"|format(product.selling_price) }}</div>
+            <div class="price">Rs.{{ "%.2f"|format(product.selling_price) }}</div>
         </div>
     </div>
     

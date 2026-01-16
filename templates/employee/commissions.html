@@ -50,7 +50,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="mb-1">₹{{ "%.2f"|format(total_pending|default(0)) }}</h2>
+                        <h2 class="mb-1">Rs.{{ "%.2f"|format(total_pending|default(0)) }}</h2>
                         <p class="mb-0">Pending Commission</p>
                     </div>
                     <i class="fas fa-clock fa-2x opacity-50"></i>
@@ -64,7 +64,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="mb-1">₹{{ "%.2f"|format(total_paid|default(0)) }}</h2>
+                        <h2 class="mb-1">Rs.{{ "%.2f"|format(total_paid|default(0)) }}</h2>
                         <p class="mb-0">Paid Commission</p>
                     </div>
                     <i class="fas fa-check-circle fa-2x opacity-50"></i>
@@ -78,7 +78,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="mb-1">₹{{ "%.2f"|format((total_pending|default(0)) + (total_paid|default(0))) }}</h2>
+                        <h2 class="mb-1">Rs.{{ "%.2f"|format((total_pending|default(0)) + (total_paid|default(0))) }}</h2>
                         <p class="mb-0">Total Commission</p>
                     </div>
                     <i class="fas fa-rupee-sign fa-2x opacity-50"></i>
@@ -191,13 +191,13 @@
                             {% endif %}
                         </td>
                         <td class="text-end amount-cell">
-                            ₹{{ "%.2f"|format(commission.sale_amount) }}
+                            Rs.{{ "%.2f"|format(commission.sale_amount) }}
                         </td>
                         <td class="text-end">
                             {{ "%.1f"|format(commission.commission_rate) }}%
                         </td>
                         <td class="text-end amount-cell">
-                            <strong>₹{{ "%.2f"|format(commission.commission_amount) }}</strong>
+                            <strong>Rs.{{ "%.2f"|format(commission.commission_amount) }}</strong>
                         </td>
                         <td>
                             {% if commission.status == 'paid' %}
@@ -255,7 +255,7 @@
             </div>
             <div class="col-md-6 text-end">
                 <small class="text-muted">
-                    Total Commission: <strong>₹{{ "%.2f"|format((total_pending|default(0)) + (total_paid|default(0))) }}</strong>
+                    Total Commission: <strong>Rs.{{ "%.2f"|format((total_pending|default(0)) + (total_paid|default(0))) }}</strong>
                 </small>
             </div>
         </div>
@@ -286,7 +286,7 @@
                     {% for emp_name, total in employee_totals.items() %}
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span>{{ emp_name }}</span>
-                        <span class="fw-bold">₹{{ "%.2f"|format(total) }}</span>
+                        <span class="fw-bold">Rs.{{ "%.2f"|format(total) }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Commission Amount (₹)',
+                    label: 'Commission Amount (Rs.)',
                     data: data,
                     backgroundColor: [
                         '#4361ee', '#3a0ca3', '#4cc9f0', '#f72585', '#7209b7',
@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return '₹' + value.toLocaleString();
+                                return 'Rs.' + value.toLocaleString();
                             }
                         }
                     }
@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return 'Commission: ₹' + context.raw.toLocaleString();
+                                return 'Commission: Rs.' + context.raw.toLocaleString();
                             }
                         }
                     }

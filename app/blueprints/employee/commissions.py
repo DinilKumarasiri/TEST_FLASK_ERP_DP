@@ -127,7 +127,7 @@ def commission_details(commission_id):
                 <table class="table table-sm">
                     <tr>
                         <th>Sale Amount:</th>
-                        <td>₹{commission.sale_amount:.2f}</td>
+                        <td>Rs.{commission.sale_amount:.2f}</td>
                     </tr>
                     <tr>
                         <th>Commission Rate:</th>
@@ -135,7 +135,7 @@ def commission_details(commission_id):
                     </tr>
                     <tr>
                         <th>Commission Amount:</th>
-                        <td><strong>₹{commission.commission_amount:.2f}</strong></td>
+                        <td><strong>Rs.{commission.commission_amount:.2f}</strong></td>
                     </tr>
                     <tr>
                         <th>Payment Date:</th>

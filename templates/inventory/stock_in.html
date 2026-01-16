@@ -121,9 +121,9 @@
                     <strong>IMEI Tracking:</strong> <span id="hasImei"></span>
                 </div>
                 <div class="col-md-4">
-                    <strong>Purchase Price:</strong> ₹<span id="purchasePrice"></span><br>
-                    <strong>Selling Price:</strong> ₹<span id="sellingPrice"></span><br>
-                    <strong>Wholesale Price:</strong> ₹<span id="wholesalePrice"></span>
+                    <strong>Purchase Price:</strong> Rs.<span id="purchasePrice"></span><br>
+                    <strong>Selling Price:</strong> Rs.<span id="sellingPrice"></span><br>
+                    <strong>Wholesale Price:</strong> Rs.<span id="wholesalePrice"></span>
                 </div>
             </div>
         </div>
@@ -137,7 +137,7 @@
             <div class="col-md-4">
                 <label class="form-label">Purchase Price (per unit) *</label>
                 <div class="input-group">
-                    <span class="input-group-text">₹</span>
+                    <span class="input-group-text">Rs.</span>
                     <input type="number" name="purchase_price" id="purchasePriceInput" 
                            class="form-control" step="0.01" min="0" required
                            oninput="calculateTotalValue()">
@@ -148,7 +148,7 @@
             <div class="col-md-4">
                 <label class="form-label">Selling Price (per unit) *</label>
                 <div class="input-group">
-                    <span class="input-group-text">₹</span>
+                    <span class="input-group-text">Rs.</span>
                     <input type="number" name="selling_price" id="sellingPriceInput" 
                            class="form-control" step="0.01" min="0" required>
                 </div>
@@ -158,7 +158,7 @@
             <div class="col-md-4">
                 <label class="form-label">Total Value</label>
                 <div class="input-group">
-                    <span class="input-group-text">₹</span>
+                    <span class="input-group-text">Rs.</span>
                     <input type="text" id="totalValue" class="form-control" readonly>
                 </div>
                 <small class="text-muted">Quantity × Purchase Price</small>
@@ -327,7 +327,7 @@
                                     <span class="badge bg-{{ 'success' if product.stock_count > product.min_stock_level else 'danger' }}">
                                         {{ product.stock_count }}
                                     </span><br>
-                                    <strong>Price:</strong> ₹{{ "%.2f"|format(product.selling_price) }}<br>
+                                    <strong>Price:</strong> Rs.{{ "%.2f"|format(product.selling_price) }}<br>
                                     <strong>IMEI:</strong> 
                                     <span class="badge bg-{{ 'info' if product.has_imei else 'secondary' }}">
                                         {{ 'Required' if product.has_imei else 'Not Required' }}
