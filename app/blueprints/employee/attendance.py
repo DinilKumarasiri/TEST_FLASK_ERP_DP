@@ -263,3 +263,57 @@ def attendance_history():
                          absent_days=absent_days,
                          leave_days=leave_days,
                          title=f'Attendance History - {employee.username}')
+    
+@employee_bp.route('/mark-all-attendance', methods=['POST'])
+@login_required
+def mark_all_attendance():
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Access denied'})
+    
+    data = request.get_json()
+    employee_ids = data.get('employee_ids', [])
+    action = data.get('action')  # 'check_in' or 'check_out'
+    date_str = data.get('date', date.today().strftime('%Y-%m-%d'))
+    
+    try:
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except:
+        selected_date = date.today()
+    
+    current_time = datetime.utcnow()
+    success_count = 0
+    
+    for employee_id in employee_ids:
+        # Find existing attendance record
+        attendance = Attendance.query.filter_by(
+            employee_id=employee_id,
+            date=selected_date
+        ).first()
+        
+        if not attendance:
+            attendance = Attendance(
+                employee_id=employee_id,
+                date=selected_date,
+                status='present'
+            )
+        
+        if action == 'check_in':
+            if not attendance.check_in:  # Only check in if not already checked in
+                attendance.check_in = current_time
+                success_count += 1
+        elif action == 'check_out':
+            if attendance.check_in and not attendance.check_out:  # Only check out if checked in but not out
+                attendance.check_out = current_time
+                # Calculate total hours
+                time_diff = current_time - attendance.check_in
+                attendance.total_hours = time_diff.total_seconds() / 3600
+                success_count += 1
+        
+        db.session.add(attendance)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Successfully processed {success_count} employees'
+    })
