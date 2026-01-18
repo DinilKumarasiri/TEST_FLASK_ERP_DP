@@ -54,6 +54,13 @@ def create_app(config_class=Config):
     app = Flask(__name__, template_folder='../templates')
     app.config.from_object(config_class)
 
+    # MySQL specific configurations
+    app.config['SQLALCHEMY_DATABASE_URI'] = config_class.SQLALCHEMY_DATABASE_URI
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_recycle': 280,
+        'pool_pre_ping': True,
+    }
+
     # Create upload folder
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
