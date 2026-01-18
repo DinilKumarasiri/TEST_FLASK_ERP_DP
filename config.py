@@ -16,11 +16,17 @@ class Config:
     # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
     #     f"sqlite:///{os.path.join(basedir, 'mobile_shop.db')}"
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
-    f"sqlite:///{os.path.join(basedir, 'instance', 'database.db')}"
-
+    # SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
+    # f"sqlite:///{os.path.join(basedir, 'instance', 'database.db')}"
+    
+    
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/mobile_shop?charset=utf8mb4"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True for SQL query debugging
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_recycle': 280,
+        'pool_pre_ping': True,
+    }
     
     # ==================== Security Configuration ====================
     SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
