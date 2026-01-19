@@ -1,5 +1,9 @@
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Get the base directory
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -13,55 +17,69 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-this-in-production-12345'
     
     # ==================== Database Configuration ====================
-    # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-    #     f"sqlite:///{os.path.join(basedir, 'mobile_shop.db')}"
-
-    # SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
-    # f"sqlite:///{os.path.join(basedir, 'instance', 'database.db')}"
+    # Build MySQL connection from environment variables or use hardcoded
+    DB_HOST = os.environ.get('DB_HOST', 'localhost')
+    DB_USER = os.environ.get('DB_USER', 'root')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
+    DB_NAME = os.environ.get('DB_NAME', 'mobile_shop')
+    DB_PORT = os.environ.get('DB_PORT', '3306')
     
+    # Use DATABASE_URL if provided, otherwise construct from individual vars
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    if DATABASE_URL:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+        if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
+            SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://')
+    else:
+        if DB_PASSWORD:
+            SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+        else:
+            SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
     
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/mobile_shop?charset=utf8mb4"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ECHO = False  # Set to True for SQL query debugging
+    SQLALCHEMY_ECHO = os.environ.get('SQLALCHEMY_ECHO', 'false').lower() == 'true'
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_recycle': 280,
-        'pool_pre_ping': True,
+        'pool_recycle': int(os.environ.get('SQLALCHEMY_POOL_RECYCLE', 280)),
+        'pool_pre_ping': os.environ.get('SQLALCHEMY_POOL_PRE_PING', 'true').lower() == 'true',
+        'pool_size': int(os.environ.get('SQLALCHEMY_POOL_SIZE', 10)),
+        'max_overflow': int(os.environ.get('SQLALCHEMY_MAX_OVERFLOW', 20)),
+        'pool_timeout': int(os.environ.get('SQLALCHEMY_POOL_TIMEOUT', 30)),
     }
     
     # ==================== Security Configuration ====================
-    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
-    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+    SESSION_COOKIE_HTTPONLY = os.environ.get('SESSION_COOKIE_HTTPONLY', 'true').lower() == 'true'
     SESSION_COOKIE_SAMESITE = 'Lax'
     REMEMBER_COOKIE_DURATION = timedelta(days=7)
-    REMEMBER_COOKIE_SECURE = False
+    REMEMBER_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     REMEMBER_COOKIE_HTTPONLY = True
     
     # CSRF Protection
-    WTF_CSRF_ENABLED = False
+    WTF_CSRF_ENABLED = os.environ.get('WTF_CSRF_ENABLED', 'false').lower() == 'true'
     WTF_CSRF_SECRET_KEY = os.environ.get('CSRF_SECRET_KEY') or 'csrf-secret-key-here-67890'
     
     # ==================== Application Settings ====================
     
     # POS Settings
-    DEFAULT_VAT_RATE = 0.15  # 15% VAT
-    DEFAULT_TAX_RATE = 0.15  # 15% Tax
-    DEFAULT_CURRENCY = 'LKR'
-    DEFAULT_CURRENCY_SYMBOL = 'Rs.'
+    DEFAULT_VAT_RATE = float(os.environ.get('DEFAULT_VAT_RATE', 0.15))
+    DEFAULT_TAX_RATE = float(os.environ.get('DEFAULT_TAX_RATE', 0.15))
+    DEFAULT_CURRENCY = os.environ.get('DEFAULT_CURRENCY', 'LKR')
+    DEFAULT_CURRENCY_SYMBOL = os.environ.get('DEFAULT_CURRENCY_SYMBOL', 'Rs.')
     
     # Employee Settings
-    DEFAULT_COMMISSION_RATE = 5.0  # 5% commission
+    DEFAULT_COMMISSION_RATE = float(os.environ.get('DEFAULT_COMMISSION_RATE', 5.0))
     WORKING_HOURS_PER_DAY = 8
-    ATTENDANCE_TOLERANCE_MINUTES = 15  # Late tolerance in minutes
-    DEFAULT_WORKING_DAYS = 26  # Default working days per month
+    ATTENDANCE_TOLERANCE_MINUTES = 15
+    DEFAULT_WORKING_DAYS = 26
     
     # Inventory Settings
-    LOW_STOCK_THRESHOLD = 5
-    CRITICAL_STOCK_THRESHOLD = 2
-    STOCK_REORDER_MULTIPLIER = 1.5  # Reorder 1.5 times the low stock threshold
+    LOW_STOCK_THRESHOLD = int(os.environ.get('LOW_STOCK_THRESHOLD', 5))
+    CRITICAL_STOCK_THRESHOLD = int(os.environ.get('CRITICAL_STOCK_THRESHOLD', 2))
+    STOCK_REORDER_MULTIPLIER = 1.5
     
     # Repair Settings
-    DEFAULT_WARRANTY_PERIOD = 3  # months
-    MAX_REPAIR_DAYS = 14  # Maximum days for repair completion
+    DEFAULT_WARRANTY_PERIOD = 3
+    MAX_REPAIR_DAYS = 14
     REPAIR_JOB_PREFIX = 'RJ'
     
     # Invoice Settings
@@ -69,9 +87,9 @@ class Config:
     DEFAULT_PAYMENT_METHODS = ['cash', 'card', 'online', 'due']
     
     # ==================== File Upload Settings ====================
-    UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    UPLOAD_FOLDER = os.path.join(basedir, os.environ.get('UPLOAD_FOLDER', 'uploads'))
+    ALLOWED_EXTENSIONS = set(os.environ.get('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
     
     # ==================== Pagination Settings ====================
     ITEMS_PER_PAGE = 20
@@ -85,54 +103,80 @@ class Config:
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@mobileshop.com')
-    MAIL_SUPPRESS_SEND = True  # Set to False to actually send emails
+    MAIL_SUPPRESS_SEND = os.environ.get('MAIL_SUPPRESS_SEND', 'true').lower() in ['true', 'on', '1']
     
     # ==================== Logging Configuration ====================
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
-    LOG_FILE = os.path.join(basedir, 'logs', 'mobile_shop.log')
+    LOG_FILE = os.path.join(basedir, os.environ.get('LOG_FILE', 'logs/mobile_shop.log'))
     
     # ==================== API Settings ====================
-    API_RATE_LIMIT = "200 per day, 50 per hour"
-    API_PREFIX = '/api/v1'
+    API_RATE_LIMIT = os.environ.get('API_RATE_LIMIT', '200 per day, 50 per hour')
+    API_PREFIX = os.environ.get('API_PREFIX', '/api/v1')
     
     # ==================== Business Hours ====================
-    BUSINESS_OPEN_TIME = "09:00"
-    BUSINESS_CLOSE_TIME = "18:00"
-    BUSINESS_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    BUSINESS_OPEN_TIME = os.environ.get('BUSINESS_OPEN_TIME', '09:00')
+    BUSINESS_CLOSE_TIME = os.environ.get('BUSINESS_CLOSE_TIME', '18:00')
+    BUSINESS_DAYS = os.environ.get('BUSINESS_DAYS', 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday').split(',')
     
     # ==================== Backup Settings ====================
-    BACKUP_FOLDER = os.path.join(basedir, 'backups')
-    BACKUP_RETENTION_DAYS = 30
+    BACKUP_FOLDER = os.path.join(basedir, os.environ.get('BACKUP_FOLDER', 'backups'))
+    BACKUP_RETENTION_DAYS = int(os.environ.get('BACKUP_RETENTION_DAYS', 30))
     
     # ==================== Cache Settings ====================
-    CACHE_TYPE = 'simple'  # 'simple', 'redis', 'memcached'
-    CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes
+    CACHE_TYPE = os.environ.get('CACHE_TYPE', 'simple')
+    CACHE_DEFAULT_TIMEOUT = int(os.environ.get('CACHE_DEFAULT_TIMEOUT', 300))
     
     # ==================== Theme Settings ====================
-    THEME_COLOR_PRIMARY = '#4361ee'
-    THEME_COLOR_SECONDARY = '#3a0ca3'
-    THEME_COLOR_SUCCESS = '#4cc9f0'
-    THEME_COLOR_DANGER = '#f72585'
-    THEME_COLOR_WARNING = '#f8961e'
-    THEME_COLOR_INFO = '#7209b7'
+    THEME_COLOR_PRIMARY = os.environ.get('THEME_COLOR_PRIMARY', '#4361ee')
+    THEME_COLOR_SECONDARY = os.environ.get('THEME_COLOR_SECONDARY', '#3a0ca3')
+    THEME_COLOR_SUCCESS = os.environ.get('THEME_COLOR_SUCCESS', '#4cc9f0')
+    THEME_COLOR_DANGER = os.environ.get('THEME_COLOR_DANGER', '#f72585')
+    THEME_COLOR_WARNING = os.environ.get('THEME_COLOR_WARNING', '#f8961e')
+    THEME_COLOR_INFO = os.environ.get('THEME_COLOR_INFO', '#7209b7')
+    
+    # ==================== Flask Server Settings ====================
+    SERVER_NAME = os.environ.get('SERVER_NAME')
+    APPLICATION_ROOT = os.environ.get('APPLICATION_ROOT', '/')
+    PREFERRED_URL_SCHEME = os.environ.get('PREFERRED_URL_SCHEME', 'http')
+    JSON_AS_ASCII = os.environ.get('JSON_AS_ASCII', 'false').lower() == 'true'
+    JSON_SORT_KEYS = os.environ.get('JSON_SORT_KEYS', 'false').lower() == 'true'
+    TEMPLATES_AUTO_RELOAD = os.environ.get('TEMPLATES_AUTO_RELOAD', 'true').lower() == 'true'
+    
+    def __init__(self):
+        """Initialize and print configuration summary"""
+        env = os.environ.get('FLASK_ENV', 'development').upper()
+        
+        # Mask password in database URI for display
+        db_display = self.SQLALCHEMY_DATABASE_URI
+        if ':' in db_display and '@' in db_display:
+            parts = db_display.split('@')
+            if ':' in parts[0]:
+                user_pass = parts[0].split(':')
+                if len(user_pass) > 2:
+                    db_display = f"{user_pass[0]}:****@{parts[1]}"
+        
+        print(f"\n{'='*60}")
+        print(f"📱 Mobile Shop ERP - {env} Configuration")
+        print(f"{'='*60}")
+        print(f"🔗 Database: {db_display}")
+        print(f"🔧 Debug Mode: {self.DEBUG}")
+        print(f"🔒 CSRF Enabled: {self.WTF_CSRF_ENABLED}")
+        print(f"📁 Upload Folder: {self.UPLOAD_FOLDER}")
+        print(f"{'='*60}\n")
 
 
 class DevelopmentConfig(Config):
     """
     Development configuration - for local development
     """
-    DEBUG = True
-    SQLALCHEMY_ECHO = False  # Show SQL queries in console - set to True for debugging
+    DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
+    SQLALCHEMY_ECHO = os.environ.get('SQLALCHEMY_ECHO', 'false').lower() == 'true'
     TEMPLATES_AUTO_RELOAD = True
-    MAIL_SUPPRESS_SEND = True  # Don't send emails in development
-    
-    # Development-specific settings
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'development-secret-key-123456'
+    MAIL_SUPPRESS_SEND = True
     
     def __init__(self):
         super().__init__()
-        print("📱 Using Development Configuration")
-        print(f"🔗 Database: {self.SQLALCHEMY_DATABASE_URI}")
+        print("📱 Development Mode Activated")
 
 
 class TestingConfig(Config):
@@ -143,22 +187,19 @@ class TestingConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SQLALCHEMY_ECHO = False
-    WTF_CSRF_ENABLED = False  # Disable CSRF for testing
+    WTF_CSRF_ENABLED = False
     MAIL_SUPPRESS_SEND = True
-    
-    # Testing-specific settings
-    SECRET_KEY = 'testing-secret-key-123456'
     
     def __init__(self):
         super().__init__()
-        print("🧪 Using Testing Configuration")
+        print("🧪 Testing Mode Activated")
 
 
 class ProductionConfig(Config):
     """
     Production configuration - for live deployment
     """
-    DEBUG = False
+    DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
     TESTING = False
     SQLALCHEMY_ECHO = False
     TEMPLATES_AUTO_RELOAD = False
@@ -167,6 +208,7 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
+    PREFERRED_URL_SCHEME = 'https'
     
     # Email settings for production
     MAIL_SUPPRESS_SEND = False
@@ -174,28 +216,16 @@ class ProductionConfig(Config):
     def __init__(self):
         super().__init__()
         
-        # Override database URL for production if DATABASE_URL is set
-        if os.environ.get('DATABASE_URL'):
-            # Convert postgres:// to postgresql:// for SQLAlchemy
-            db_url = os.environ.get('DATABASE_URL')
-            if db_url.startswith('postgres://'):
-                self.SQLALCHEMY_DATABASE_URI = db_url.replace('postgres://', 'postgresql://')
-            else:
-                self.SQLALCHEMY_DATABASE_URI = db_url
+        # Warn about insecure secret key
+        if not self.SECRET_KEY or 'dev-secret-key' in self.SECRET_KEY or 'development' in self.SECRET_KEY:
+            import warnings
+            warnings.warn(
+                "⚠️  WARNING: Using default or development secret key! "
+                "Set a strong SECRET_KEY environment variable.",
+                RuntimeWarning
+            )
         
-        # Warn about insecure secret key (but don't crash on import)
-        current_env = os.environ.get('FLASK_ENV', '').lower()
-        if current_env == 'production':
-            if not self.SECRET_KEY or self.SECRET_KEY.startswith('dev-secret-key') or self.SECRET_KEY.startswith('development'):
-                import warnings
-                warnings.warn(
-                    "⚠️  WARNING: Using default or development secret key in production! "
-                    "Set a strong SECRET_KEY environment variable.",
-                    RuntimeWarning
-                )
-        
-        print("🚀 Using Production Configuration")
-        print(f"🔒 Secure cookies: {self.SESSION_COOKIE_SECURE}")
+        print("🚀 Production Mode - Secure Settings Activated")
 
 
 # Configuration dictionary for easy access
@@ -210,12 +240,6 @@ config_dict = {
 def get_config(config_name=None):
     """
     Get configuration class based on environment name.
-    
-    Args:
-        config_name (str): Configuration name ('development', 'testing', 'production')
-    
-    Returns:
-        Config class
     """
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development').lower()
@@ -237,8 +261,7 @@ def ensure_directories():
     directories = [
         config.UPLOAD_FOLDER,
         config.BACKUP_FOLDER,
-        os.path.dirname(config.LOG_FILE),
-        os.path.dirname(config.SQLALCHEMY_DATABASE_URI.replace('sqlite:///', ''))
+        os.path.dirname(config.LOG_FILE) if config.LOG_FILE else None,
     ]
     
     for directory in directories:
@@ -253,43 +276,11 @@ def print_config_summary():
     """
     config = get_config()
     
-    print("\n" + "="*60)
-    print("📱 Mobile Shop ERP - Configuration Summary")
-    print("="*60)
-    
-    # Basic info
-    env = os.environ.get('FLASK_ENV', 'development')
-    print(f"Environment: {env.upper()}")
-    print(f"Debug Mode: {config.DEBUG}")
-    print(f"Database: {config.SQLALCHEMY_DATABASE_URI}")
-    
-    # Security info
-    print(f"\n🔒 Security:")
-    print(f"  CSRF Enabled: {config.WTF_CSRF_ENABLED}")
-    print(f"  Secure Cookies: {config.SESSION_COOKIE_SECURE}")
-    
-    # Application settings
-    print(f"\n⚙️  Application Settings:")
-    print(f"  Currency: {config.DEFAULT_CURRENCY_SYMBOL}{config.DEFAULT_CURRENCY}")
-    print(f"  VAT Rate: {config.DEFAULT_VAT_RATE*100}%")
-    print(f"  Default Commission: {config.DEFAULT_COMMISSION_RATE}%")
-    
-    # File settings
-    print(f"\n📁 File Settings:")
-    print(f"  Upload Folder: {config.UPLOAD_FOLDER}")
-    print(f"  Max File Size: {config.MAX_CONTENT_LENGTH/1024/1024:.0f}MB")
-    
-    # Pagination
-    print(f"\n📄 Pagination:")
-    print(f"  Items per page: {config.ITEMS_PER_PAGE}")
-    
-    # Business hours
-    print(f"\n🕒 Business Hours:")
-    print(f"  Open: {config.BUSINESS_OPEN_TIME}")
-    print(f"  Close: {config.BUSINESS_CLOSE_TIME}")
-    print(f"  Days: {', '.join(config.BUSINESS_DAYS)}")
-    
-    print("="*60 + "\n")
+    env = os.environ.get('FLASK_ENV', 'development').upper()
+    print(f"\n📊 Configuration Summary [{env}]")
+    print(f"   Database: {config.DB_USER}@{config.DB_HOST}/{config.DB_NAME}")
+    print(f"   Debug: {config.DEBUG}")
+    print(f"   Uploads: {config.UPLOAD_FOLDER}")
 
 
 # Auto-create directories when config is imported
@@ -298,6 +289,3 @@ if __name__ != '__main__':
         ensure_directories()
     except Exception as e:
         print(f"⚠️  Warning: Could not create directories: {e}")
-
-# Default configuration (for backward compatibility)
-Config = DevelopmentConfig
