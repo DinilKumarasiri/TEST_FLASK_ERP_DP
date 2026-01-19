@@ -11,7 +11,7 @@ import re
 # Import barcode generator
 try:
     from app.utils.barcode_generator import BarcodeGenerator
-    print("✓ BarcodeGenerator imported successfully")
+    # print("✓ BarcodeGenerator imported successfully")
     BARCODE_AVAILABLE = True
 except ImportError as e:
     print(f"✗ Error importing BarcodeGenerator: {e}")
