@@ -2,29 +2,20 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
-
-# Get the base directory
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     """
     Base configuration class. All configurations inherit from this.
     """
-    
-    # ==================== Flask Configuration ====================
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-this-in-production-12345'
+    DB_HOST = os.environ.get('DB_HOST')
+    DB_USER = os.environ.get('DB_USER')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD')
+    DB_NAME = os.environ.get('DB_NAME')
+    DB_PORT = os.environ.get('DB_PORT')
     
-    # ==================== Database Configuration ====================
-    # Build MySQL connection from environment variables or use hardcoded
-    DB_HOST = os.environ.get('DB_HOST', 'localhost')
-    DB_USER = os.environ.get('DB_USER', 'root')
-    DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
-    DB_NAME = os.environ.get('DB_NAME', 'mobile_shop')
-    DB_PORT = os.environ.get('DB_PORT', '3306')
-    
-    # Use DATABASE_URL if provided, otherwise construct from individual vars
     DATABASE_URL = os.environ.get('DATABASE_URL')
     if DATABASE_URL:
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
@@ -143,10 +134,7 @@ class Config:
     TEMPLATES_AUTO_RELOAD = os.environ.get('TEMPLATES_AUTO_RELOAD', 'true').lower() == 'true'
     
     def __init__(self):
-        """Initialize and print configuration summary"""
         env = os.environ.get('FLASK_ENV', 'development').upper()
-        
-        # Mask password in database URI for display
         db_display = self.SQLALCHEMY_DATABASE_URI
         if ':' in db_display and '@' in db_display:
             parts = db_display.split('@')
@@ -154,21 +142,17 @@ class Config:
                 user_pass = parts[0].split(':')
                 if len(user_pass) > 2:
                     db_display = f"{user_pass[0]}:****@{parts[1]}"
-        
         print(f"\n{'='*60}")
-        print(f"📱 Mobile Shop ERP - {env} Configuration")
+        print(f"Mobile Shop ERP - {env} Configuration")
         print(f"{'='*60}")
-        print(f"🔗 Database: {db_display}")
-        print(f"🔧 Debug Mode: {self.DEBUG}")
-        print(f"🔒 CSRF Enabled: {self.WTF_CSRF_ENABLED}")
-        print(f"📁 Upload Folder: {self.UPLOAD_FOLDER}")
+        print(f"Database: {db_display}")
+        print(f"Debug Mode: {self.DEBUG}")
+        print(f"CSRF Enabled: {self.WTF_CSRF_ENABLED}")
+        print(f"Upload Folder: {self.UPLOAD_FOLDER}")
         print(f"{'='*60}\n")
 
 
 class DevelopmentConfig(Config):
-    """
-    Development configuration - for local development
-    """
     DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
     SQLALCHEMY_ECHO = os.environ.get('SQLALCHEMY_ECHO', 'false').lower() == 'true'
     TEMPLATES_AUTO_RELOAD = True
@@ -176,13 +160,10 @@ class DevelopmentConfig(Config):
     
     def __init__(self):
         super().__init__()
-        print("📱 Development Mode Activated")
+        print("Development Mode Activated")
 
 
 class TestingConfig(Config):
-    """
-    Testing configuration - for unit tests
-    """
     TESTING = True
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
@@ -192,43 +173,31 @@ class TestingConfig(Config):
     
     def __init__(self):
         super().__init__()
-        print("🧪 Testing Mode Activated")
+        print("Testing Mode Activated")
 
 
 class ProductionConfig(Config):
-    """
-    Production configuration - for live deployment
-    """
     DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
     TESTING = False
     SQLALCHEMY_ECHO = False
     TEMPLATES_AUTO_RELOAD = False
-    
-    # Security settings for production
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     PREFERRED_URL_SCHEME = 'https'
-    
-    # Email settings for production
     MAIL_SUPPRESS_SEND = False
     
     def __init__(self):
         super().__init__()
-        
-        # Warn about insecure secret key
         if not self.SECRET_KEY or 'dev-secret-key' in self.SECRET_KEY or 'development' in self.SECRET_KEY:
             import warnings
             warnings.warn(
-                "⚠️  WARNING: Using default or development secret key! "
-                "Set a strong SECRET_KEY environment variable.",
+                "WARNING: Using default or development secret key! Set a strong SECRET_KEY environment variable.",
                 RuntimeWarning
             )
-        
-        print("🚀 Production Mode - Secure Settings Activated")
+        print("Production Mode - Secure Settings Activated")
 
 
-# Configuration dictionary for easy access
 config_dict = {
     'development': DevelopmentConfig,
     'testing': TestingConfig,
@@ -238,54 +207,39 @@ config_dict = {
 
 
 def get_config(config_name=None):
-    """
-    Get configuration class based on environment name.
-    """
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development').lower()
-    
     config_class = config_dict.get(config_name)
-    
     if config_class is None:
-        print(f"⚠️  Warning: Unknown configuration '{config_name}', using 'development'")
+        print(f"Warning: Unknown configuration '{config_name}', using 'development'")
         config_class = DevelopmentConfig
-    
     return config_class()
 
 
 def ensure_directories():
-    """
-    Ensure all required directories exist.
-    """
     config = get_config()
     directories = [
         config.UPLOAD_FOLDER,
         config.BACKUP_FOLDER,
         os.path.dirname(config.LOG_FILE) if config.LOG_FILE else None,
     ]
-    
     for directory in directories:
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-            print(f"📁 Created directory: {directory}")
+            print(f"Created directory: {directory}")
 
 
 def print_config_summary():
-    """
-    Print a summary of the current configuration.
-    """
     config = get_config()
-    
     env = os.environ.get('FLASK_ENV', 'development').upper()
-    print(f"\n📊 Configuration Summary [{env}]")
-    print(f"   Database: {config.DB_USER}@{config.DB_HOST}/{config.DB_NAME}")
-    print(f"   Debug: {config.DEBUG}")
-    print(f"   Uploads: {config.UPLOAD_FOLDER}")
+    print(f"\nConfiguration Summary [{env}]")
+    print(f"Database: {config.DB_USER}@{config.DB_HOST}/{config.DB_NAME}")
+    print(f"Debug: {config.DEBUG}")
+    print(f"Uploads: {config.UPLOAD_FOLDER}")
 
 
-# Auto-create directories when config is imported
 if __name__ != '__main__':
     try:
         ensure_directories()
     except Exception as e:
-        print(f"⚠️  Warning: Could not create directories: {e}")
+        print(f"Warning: Could not create directories: {e}")
