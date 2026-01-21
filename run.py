@@ -17,5 +17,5 @@ if __name__ == '__main__':
     host = os.environ.get('HOST', '0.0.0.0')
     
     # Run the app
-    print(f"🚀 Starting Mobile Shop ERP on http://{host}:{port}")
+    print(f" Starting Mobile Shop ERP on http://{host}:{port}")
     app.run(host=host, port=port, debug=app.config['DEBUG'])
