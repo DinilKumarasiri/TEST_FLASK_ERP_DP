@@ -14,4 +14,4 @@ from config import ProductionConfig
 # Create application instance
 application = create_app(ProductionConfig())
 
-print("✅ Mobile Shop ERP - Production Server Started")
+print("Mobile Shop ERP - Production Server Started")
