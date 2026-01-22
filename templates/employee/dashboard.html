@@ -219,7 +219,7 @@
     </div>
 </div>
 
-<!-- Employee Performance -->
+<!-- Employee Attendance -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
@@ -234,9 +234,7 @@
                                 <th>Employee</th>
                                 <th>Role</th>
                                 <th class="text-center">Sales This Month</th>
-                                <th class="text-center">Repairs Completed</th>
                                 <th class="text-center">Attendance %</th>
-                                <th>Performance</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -268,17 +266,13 @@
                                 <td class="text-center">
                                     <span class="badge bg-info">Rs.12,500</span>
                                 </td>
-                                <td class="text-center">
-                                    <span class="badge bg-success">15</span>
-                                </td>
+<!-- remove repair count  -->
                                 <td class="text-center">
                                     <div class="progress" style="height: 20px;">
                                         <div class="progress-bar bg-success" style="width: 95%">95%</div>
                                     </div>
                                 </td>
-                                <td>
-                                    <span class="badge bg-success">Excellent</span>
-                                </td>
+<!-- remove performances  -->
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ url_for('employee.employee_detail', employee_id=employee.id) }}" 
@@ -292,6 +286,66 @@
                                         </a>
                                         {% endif %}
                                     </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technician Summery -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Technician Summery </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th class="text-center">Repairs Completed</th>
+                                <th class="text-center">Attendance %</th>
+                                <th>Performance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employee in employees if employee.is_active and employee.role == 'technician'%}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                             style="width: 32px; height: 32px;">
+                                            {{ employee.username[:1]|upper }}
+                                        </div>
+                                        <div class="ms-2">
+                                            <h6 class="mb-0">{{ employee.username }}</h6>
+                                            <small class="text-muted">{{ employee.role|title }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {{ employee.role|title }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-success">15</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" style="width: 95%">95%</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <!-- need to make a equation - hardcoded value-->
+                                    <span class="badge bg-success">Excellent</span> 
                                 </td>
                             </tr>
                             {% endfor %}
