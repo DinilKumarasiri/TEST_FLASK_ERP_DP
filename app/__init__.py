@@ -166,23 +166,59 @@ def create_app(config_class=None):
     # Initialize database with sample data
     with app.app_context():
         try:
-            # Create all tables if they don't exist
             db.create_all()
             print("✅ Database tables checked/created successfully!")
 
-            # Create default admin if not exists
-            admin = User.query.filter_by(username='admin').first()
-            if not admin:
-                admin = User(
-                    username='admin',
-                    email='admin@mobileshop.com',
-                    role='admin',
-                    is_active=True
-                )
-                admin.set_password('admin123')
-                db.session.add(admin)
+            # List of default users with roles and dummy data
+            default_users = [
+                {
+                    "username": "admin",
+                    "email": "admin@mobileshop.com",
+                    "role": "admin",
+                    "password": "admin123"
+                },
+                {
+                    "username": "manager",
+                    "email": "manager@mobileshop.com",
+                    "role": "manager",
+                    "password": "manager123"
+                },
+                {
+                    "username": "staff",
+                    "email": "staff@mobileshop.com",
+                    "role": "staff",
+                    "password": "staff123"
+                },
+                {
+                    "username": "technician",
+                    "email": "technician@mobileshop.com",
+                    "role": "technician",
+                    "password": "tech123"
+                },
+                {
+                    "username": "cashier",
+                    "email": "cashier@mobileshop.com",
+                    "role": "cashier",
+                    "password": "cashier123"
+                }
+            ]
+
+            # Create users if they don't exist
+            for user_data in default_users:
+                user = User.query.filter_by(username=user_data["username"]).first()
+                if not user:
+                    user = User(
+                        username=user_data["username"],
+                        email=user_data["email"],
+                        role=user_data["role"],
+                        is_active=True
+                    )
+                    user.set_password(user_data["password"])
+                    db.session.add(user)
+                    print(f"✅ Created default user: {user_data['username']} / {user_data['password']}")
+
                 db.session.commit()
-                print("✅ Created default admin user: admin / admin123")
+
 
         except Exception as e:
             db.session.rollback()
