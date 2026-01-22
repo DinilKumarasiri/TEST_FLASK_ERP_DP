@@ -11,6 +11,10 @@ class ProductCategory(db.Model):
     # Relationships
     products = db.relationship('Product', backref='category', lazy=True)
     
+    def __init__(self, name, description=None):
+        self.name = name
+        self.description = description
+    
     def __repr__(self):
         return f'<ProductCategory {self.name}>'
 
