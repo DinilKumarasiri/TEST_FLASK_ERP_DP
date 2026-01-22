@@ -1,6 +1,5 @@
 from .. import db
 from flask_login import UserMixin
-from  import RoleMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -10,8 +9,8 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))
-    role = db.Column(db.String(20), nullable=False, default='staff')  # admin, manager, staff, technician
+    password_hash = db.Column(db.String(256))d
+    role = db.Column(db.String(20), nullable=False, default='staff')  # admin, manager, staff, technician , cashier
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -25,11 +24,4 @@ class User(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<User {self.username}>'
-
-
-
-class Role(RoleMixin , db.Model): 
-    __tablename__ = 'role'
-    id = db.Column(db.Integer(), primary_key=True)
-    role_name = db.Column(db.String(80), unique=True, nullable=False)
 
