@@ -131,6 +131,8 @@ def product_list():
 def product_detail(product_id):
     """Product detail page"""
     try:
+        from ...models import Supplier  # Add this import
+        
         # Get product
         product = Product.query.get(product_id)
         if not product:
@@ -148,10 +150,14 @@ def product_detail(product_id):
             status='available'
         ).count()
         
+        # Get suppliers for the dropdown
+        suppliers = Supplier.query.order_by(Supplier.name).all()
+        
         return render_template('inventory/product_detail.html',
                              product=product,
                              stock_items=stock_items,
                              available_stock=available_stock,
+                             suppliers=suppliers,  # Pass suppliers to template
                              title=f'{product.name} - Details')
         
     except Exception as e:
@@ -160,8 +166,6 @@ def product_detail(product_id):
         traceback.print_exc()
         flash(f'Error loading product details: {str(e)}', 'danger')
         return redirect(url_for('inventory.product_list'))
-
-# In products.py - Update the stock_in function
 
 @inventory_bp.route('/stock-in', methods=['GET', 'POST'])
 @login_required
@@ -182,7 +186,9 @@ def stock_in():
             batch_number = request.form.get('batch_number', '')
             location = request.form.get('location', '')
             notes = request.form.get('notes', '')
-            generate_individual_barcodes = request.form.get('generate_individual_barcodes') == 'on'
+            generate_individual_barcodes = True  # Default to True
+            if 'generate_individual_barcodes' in request.form:
+                generate_individual_barcodes = request.form.get('generate_individual_barcodes') == 'on'
             
             print(f"DEBUG: product_id={product_id}, quantity={quantity}, generate_barcodes={generate_individual_barcodes}")
             
@@ -1309,3 +1315,16 @@ def api_get_categories():
         return jsonify({'success': True, 'categories': category_list})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+    
+@inventory_bp.route('/fix-barcodes')
+@login_required
+def fix_barcodes():
+    """Fix all NULL barcodes"""
+    if current_user.role != 'admin':
+        flash('Only admin can fix barcodes', 'danger')
+        return redirect(url_for('inventory.product_list'))
+    
+    fixed_count = StockItem.fix_all_null_barcodes()
+    
+    flash(f'Fixed {fixed_count} items with NULL barcodes', 'success')
+    return redirect(url_for('inventory.product_list'))
