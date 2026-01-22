@@ -36,6 +36,17 @@ class Config:
         'max_overflow': int(os.environ.get('SQLALCHEMY_MAX_OVERFLOW', 20)),
         'pool_timeout': int(os.environ.get('SQLALCHEMY_POOL_TIMEOUT', 30)),
     }
+
+    # ==================== DATABASE SSL ====================
+    DB_SSL_ENABLED = os.environ.get('DB_SSL_ENABLED', 'false').lower() == 'true'
+    DB_SSL_CA = os.environ.get('DB_SSL_CA')
+
+    if DB_SSL_ENABLED:
+        SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {
+            'ssl': {
+                'ca': os.path.join(basedir, DB_SSL_CA)
+            }
+        }
     
     # ==================== Security Configuration ====================
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'

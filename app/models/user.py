@@ -1,5 +1,6 @@
 from .. import db
 from flask_login import UserMixin
+from  import RoleMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -24,3 +25,11 @@ class User(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+
+class Role(RoleMixin , db.Model): 
+    __tablename__ = 'role'
+    id = db.Column(db.Integer(), primary_key=True)
+    role_name = db.Column(db.String(80), unique=True, nullable=False)
+

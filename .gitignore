@@ -7,3 +7,6 @@ __pycache__/
 instance/database.db
 logs/passenger.log
 .env
+
+#SSL certificate for cloud database
+ca.pem
