@@ -21,6 +21,12 @@
         .action-buttons {
             margin-top: 15px;
         }
+        .stock-section {
+            background: #f0f8ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -95,92 +101,50 @@
             </div>
         </div>
         
-        <!-- Barcode Section -->
-        <div class="card mt-4">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-barcode me-2"></i>Barcode Management</h5>
-                <div>
-                    {% if product.barcode %}
-                    <a href="/inventory/product/{{ product.id }}/print-barcode" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-print me-1"></i> Print Label
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="card-body">
-                {% if product.barcode %}
+        <!-- Add Stock Form -->
+        <div class="stock-section">
+            <h5><i class="fas fa-plus-circle me-2"></i>Add Stock to This Product</h5>
+            <form method="POST" action="/inventory/stock-in" class="mt-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                
                 <div class="row">
-                    <div class="col-md-6">
-                        <h6>Barcode Information</h6>
-                        <div class="mb-3">
-                            <label class="form-label">Barcode Number</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" value="{{ product.barcode }}" id="barcodeText" readonly>
-                                <button class="btn btn-outline-secondary" onclick="copyBarcode()">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Use this barcode for scanning</small>
-                        </div>
-                        
-                        <!-- Manual Edit Form -->
-                        <form method="POST" action="/inventory/product/{{ product.id }}/edit-barcode" class="mt-3">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="mb-3">
-                                <label class="form-label">Edit Barcode Manually</label>
-                                <div class="input-group">
-                                    <input type="text" name="barcode" class="form-control" 
-                                           value="{{ product.barcode }}" placeholder="Enter new barcode">
-                                    <button type="submit" class="btn btn-warning">
-                                        <i class="fas fa-save"></i> Update
-                                    </button>
-                                </div>
-                                <small class="text-muted">Change the barcode number if needed</small>
-                            </div>
-                        </form>
+                    <div class="col-md-3">
+                        <label class="form-label">Quantity *</label>
+                        <input type="number" name="quantity" class="form-control" min="1" value="1" required>
                     </div>
-                    
-                    <div class="col-md-6 text-center">
-                        <h6>Barcode Image</h6>
-                        {% if product.get_barcode_image_url() %}
-                        <div class="mb-3">
-                            <img src="{{ product.get_barcode_image_url() }}" 
-                                 alt="Barcode" 
-                                 class="img-fluid barcode-image">
-                            <div class="mt-2">
-                                <small class="text-muted">{{ product.barcode }}</small>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Barcode image will be generated from online service
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Regenerate Button -->
-                        <form method="POST" action="/inventory/product/{{ product.id }}/generate-barcode" class="mt-3">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-sync-alt me-1"></i> Regenerate Barcode
-                            </button>
-                        </form>
+                    <div class="col-md-3">
+                        <label class="form-label">Purchase Price (Rs.) *</label>
+                        <input type="number" name="purchase_price" class="form-control" 
+                               step="0.01" min="0" value="{{ product.purchase_price }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Selling Price (Rs.) *</label>
+                        <input type="number" name="selling_price" class="form-control" 
+                               step="0.01" min="0" value="{{ product.selling_price }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Location</label>
+                        <input type="text" name="location" class="form-control" placeholder="e.g., Shelf A1">
                     </div>
                 </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-barcode fa-4x text-muted mb-3"></i>
-                    <h5 class="text-muted">No Barcode Generated</h5>
-                    <p class="text-muted">Generate a barcode to enable barcode scanning in POS</p>
-                    <form method="POST" action="/inventory/product/{{ product.id }}/generate-barcode">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-barcode me-1"></i> Generate Barcode
-                        </button>
-                    </form>
+                
+                <!-- Show IMEI fields if product requires it -->
+                {% if product.has_imei %}
+                <div class="mt-3">
+                    <label class="form-label">IMEI Numbers (Required)</label>
+                    <div id="imeiFields">
+                        <!-- IMEI fields will be added dynamically by JavaScript -->
+                    </div>
                 </div>
                 {% endif %}
-            </div>
+                
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i> Add Stock
+                    </button>
+                </div>
+            </form>
         </div>
         
         <!-- Stock Items Table -->
@@ -261,20 +225,42 @@
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function copyBarcode() {
-        const barcodeText = document.getElementById('barcodeText');
-        barcodeText.select();
-        barcodeText.setSelectionRange(0, 99999); // For mobile devices
-        document.execCommand('copy');
+    // Function to dynamically add IMEI fields
+    function updateImeiFields() {
+        const quantity = parseInt(document.querySelector('input[name="quantity"]').value) || 1;
+        const imeiFields = document.getElementById('imeiFields');
         
-        // Show feedback
-        alert('Barcode copied to clipboard: ' + barcodeText.value);
+        if (imeiFields) {
+            imeiFields.innerHTML = '';
+            
+            for (let i = 0; i < quantity; i++) {
+                imeiFields.innerHTML += `
+                    <div class="input-group mb-2">
+                        <span class="input-group-text">#${i + 1}</span>
+                        <input type="text" name="imei_${i}" class="form-control" 
+                               placeholder="Enter 15-digit IMEI" 
+                               pattern="[0-9]{15}" 
+                               maxlength="15"
+                               required>
+                    </div>
+                `;
+            }
+        }
     }
     
     function showStockOutModal(productId) {
         // Implement stock out modal
         alert('Stock out functionality for product ID: ' + productId);
     }
+    
+    // Initialize IMEI fields if needed
+    document.addEventListener('DOMContentLoaded', function() {
+        const quantityInput = document.querySelector('input[name="quantity"]');
+        if (quantityInput) {
+            quantityInput.addEventListener('change', updateImeiFields);
+            updateImeiFields(); // Initial call
+        }
+    });
     </script>
 </body>
 </html>

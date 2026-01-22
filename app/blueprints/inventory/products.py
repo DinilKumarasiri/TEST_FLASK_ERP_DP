@@ -109,7 +109,9 @@ def product_list():
         query = query.filter((Product.barcode == None) | (Product.barcode == ''))
     
     products = query.order_by(Product.name).paginate(page=page, per_page=per_page)
-    categories = ProductCategory.query.all()
+    
+    # MAKE SURE CATEGORIES ARE QUERIED
+    categories = ProductCategory.query.order_by(ProductCategory.name).all()
     
     # Get stock counts for each product
     for product in products.items:
@@ -120,7 +122,7 @@ def product_list():
     
     return render_template('inventory/products.html',
                          products=products,
-                         categories=categories,
+                         categories=categories,  # This is important!
                          title='Products',
                          barcode_status=barcode_status)
 
@@ -164,7 +166,9 @@ def product_detail(product_id):
 @inventory_bp.route('/stock-in', methods=['GET', 'POST'])
 @login_required
 def stock_in():
-    from ...models import Supplier
+    from ...models import Supplier, Product, ProductCategory, StockItem
+    import time
+    
     if request.method == 'POST':
         try:
             print("DEBUG: POST request received for stock-in")
@@ -204,7 +208,87 @@ def stock_in():
             # Generate batch barcodes if requested
             individual_barcodes = []
             if generate_individual_barcodes:
-                individual_barcodes = BarcodeGenerator.generate_batch_barcodes(product, quantity)
+                print(f"DEBUG: Generating {quantity} individual barcodes...")
+                
+                # Get all existing barcodes to avoid duplicates
+                existing_barcodes = set()
+                existing_items = StockItem.query.filter(StockItem.item_barcode.isnot(None)).all()
+                for item in existing_items:
+                    if item.item_barcode:
+                        existing_barcodes.add(item.item_barcode)
+                
+                print(f"DEBUG: Found {len(existing_barcodes)} existing barcodes in database")
+                
+                # Generate unique barcodes for each item
+                for i in range(quantity):
+                    max_attempts = 20  # Increased attempts
+                    barcode_generated = False
+                    
+                    for attempt in range(max_attempts):
+                        try:
+                            # Generate barcode with more randomness
+                            timestamp = int(time.time() * 1000) % 1000000
+                            random_suffix = ''.join([str(time.time_ns() % 10) for _ in range(4)])
+                            
+                            if product.sku:
+                                base = re.sub(r'[^A-Za-z0-9]', '', product.sku)
+                                if len(base) < 4:
+                                    base = base.ljust(4, 'X')
+                                barcode = f"{base[:4]}{timestamp:08d}{random_suffix}"
+                            else:
+                                barcode = f"P{product.id:04d}{timestamp:08d}{random_suffix}"
+                            
+                            # Ensure proper length (12-13 digits)
+                            if len(barcode) < 12:
+                                barcode = barcode.ljust(12, '0')
+                            elif len(barcode) > 13:
+                                barcode = barcode[:13]
+                            
+                            # Add check digit
+                            if len(barcode) == 12:
+                                digits = [int(d) for d in barcode if d.isdigit()]
+                                if len(digits) == 12:
+                                    odd_sum = sum(digits[i] * 3 for i in range(0, 12, 2))
+                                    even_sum = sum(digits[i] for i in range(1, 12, 2))
+                                    total = odd_sum + even_sum
+                                    check_digit = (10 - (total % 10)) % 10
+                                    barcode = barcode + str(check_digit)
+                            
+                            # Check if barcode already exists
+                            if barcode in existing_barcodes:
+                                print(f"DEBUG: Barcode {barcode} already exists, generating new one...")
+                                time.sleep(0.001)  # Small delay for different timestamp
+                                continue
+                            
+                            # Check in database
+                            existing = StockItem.query.filter_by(item_barcode=barcode).first()
+                            if existing:
+                                print(f"DEBUG: Barcode {barcode} exists in DB, generating new one...")
+                                existing_barcodes.add(barcode)
+                                time.sleep(0.001)
+                                continue
+                            
+                            # Valid unique barcode found
+                            individual_barcodes.append(barcode)
+                            existing_barcodes.add(barcode)
+                            print(f"DEBUG: Generated unique barcode {i+1}/{quantity}: {barcode}")
+                            barcode_generated = True
+                            break
+                            
+                        except Exception as e:
+                            print(f"DEBUG: Error generating barcode: {e}")
+                            # Fallback barcode
+                            fallback = f"F{int(time.time() * 1000000)}{i}"
+                            individual_barcodes.append(fallback)
+                            existing_barcodes.add(fallback)
+                            barcode_generated = True
+                            break
+                    
+                    if not barcode_generated:
+                        # Last resort
+                        last_resort = f"L{int(time.time() * 1000000)}{i}"
+                        individual_barcodes.append(last_resort)
+                        print(f"DEBUG: Using last resort barcode: {last_resort}")
             
             # Check for IMEI validation if product requires it
             if product.has_imei:
@@ -250,9 +334,23 @@ def stock_in():
                     print(f"DEBUG: Added IMEI {imei} to stock item")
                 
                 # Generate unique barcode if requested
-                if generate_individual_barcodes and i < len(individual_barcodes):
-                    stock_item.item_barcode = individual_barcodes[i]
-                    print(f"DEBUG: Added unique barcode {individual_barcodes[i]} to stock item")
+                if generate_individual_barcodes:
+                    if i < len(individual_barcodes):
+                        stock_item.item_barcode = individual_barcodes[i]
+                    else:
+                        # Generate a unique barcode on the fly with more randomness
+                        timestamp = int(time.time() * 1000000)
+                        stock_item.item_barcode = f"{product.sku if product.sku else 'ITEM'}{timestamp}{i}"
+                    
+                    # Double-check for duplicate before committing
+                    existing = StockItem.query.filter_by(item_barcode=stock_item.item_barcode).first()
+                    if existing:
+                        # Regenerate if duplicate found
+                        timestamp = int(time.time() * 1000000) + i
+                        stock_item.item_barcode = f"{product.sku if product.sku else 'ITEM'}{timestamp}{i}"
+                        print(f"DEBUG: Regenerated duplicate barcode to: {stock_item.item_barcode}")
+                    
+                    print(f"DEBUG: Added unique barcode {stock_item.item_barcode} to stock item")
                 
                 db.session.add(stock_item)
             
@@ -284,23 +382,45 @@ def stock_in():
             flash(f'Error adding stock: {str(e)}', 'danger')
             return redirect(url_for('inventory.stock_in'))
     
-    # GET request
-    products = Product.query.filter_by(is_active=True).all()
-    suppliers = Supplier.query.all()
-    categories = ProductCategory.query.all()
-    
-    # Add stock count to each product for display
-    for product in products:
-        product.stock_count = StockItem.query.filter_by(
-            product_id=product.id,
-            status='available'
-        ).count()
-    
-    return render_template('inventory/stock_in.html',
-                         products=products,
-                         suppliers=suppliers,
-                         categories=categories,
-                         title='Stock In')
+    # ============ GET REQUEST ============
+    # GET request - show the form
+    try:
+        print("DEBUG: GET request received for stock-in")
+        
+        # Get all active products
+        products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+        
+        # Calculate stock count for each product
+        for product in products:
+            product.stock_count = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+        
+        # Get all suppliers
+        suppliers = Supplier.query.order_by(Supplier.name).all()
+        
+        # Get all categories
+        categories = ProductCategory.query.order_by(ProductCategory.name).all()
+        
+        # Get product ID from query string if provided
+        product_id = request.args.get('product_id', type=int)
+        
+        print(f"DEBUG: Found {len(products)} products, {len(suppliers)} suppliers, {len(categories)} categories")
+        
+        return render_template('inventory/stock_in.html',
+                             products=products,
+                             suppliers=suppliers,
+                             categories=categories,
+                             selected_product_id=product_id,
+                             title='Stock In')
+        
+    except Exception as e:
+        print(f"ERROR in stock_in (GET): {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error loading stock in form: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_list'))
 
 @inventory_bp.route('/stock-out', methods=['POST'])
 @login_required
@@ -1012,3 +1132,180 @@ def generate_stock_item_barcode(item_id):
         db.session.rollback()
         flash(f'Error generating barcode: {str(e)}', 'danger')
         return redirect(request.referrer)
+
+# ============ CATEGORY ROUTES ============
+
+@inventory_bp.route('/categories')
+@login_required
+def category_list():
+    """View all product categories"""
+    try:
+        categories = ProductCategory.query.order_by(ProductCategory.name).all()
+        
+        # Count products in each category
+        for category in categories:
+            category.product_count = Product.query.filter_by(
+                category_id=category.id,
+                is_active=True
+            ).count()
+        
+        return render_template('inventory/categories.html',
+                             categories=categories,
+                             title='Product Categories')
+        
+    except Exception as e:
+        flash(f'Error loading categories: {str(e)}', 'danger')
+        return redirect(url_for('inventory.product_list'))
+
+@inventory_bp.route('/add-category', methods=['POST'])
+@login_required
+def add_category():
+    """Add new product category - Simple and robust version"""
+    try:
+        print("\n" + "="*60)
+        print("🔄 ADD CATEGORY REQUEST STARTED")
+        print("="*60)
+        
+        # Get form data
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        redirect_to = request.form.get('redirect_to', 'products')
+        
+        print(f"📝 Form data received:")
+        print(f"  Name: '{name}'")
+        print(f"  Description: '{description}'")
+        print(f"  Redirect to: '{redirect_to}'")
+        
+        # Validation
+        if not name:
+            flash('Category name is required', 'danger')
+            print("❌ Validation failed: Name is empty")
+            return redirect(request.referrer or url_for('inventory.product_list'))
+        
+        # Check if category already exists
+        existing_category = ProductCategory.query.filter_by(name=name).first()
+        if existing_category:
+            flash(f'Category "{name}" already exists', 'danger')
+            print(f"❌ Category '{name}' already exists (ID: {existing_category.id})")
+            return redirect(request.referrer or url_for('inventory.product_list'))
+        
+        print(f"✅ Validation passed. Creating category...")
+        
+        # Create new category
+        category = ProductCategory(
+            name=name,
+            description=description if description else None
+        )
+        
+        db.session.add(category)
+        db.session.flush()  # Get the ID without committing yet
+        print(f"📦 Category object created with ID: {category.id}")
+        
+        db.session.commit()
+        print(f"💾 Database committed successfully!")
+        
+        flash(f'Category "{name}" added successfully!', 'success')
+        print(f"✅ Category '{name}' added with ID: {category.id}")
+        
+        # Return to appropriate page
+        if redirect_to == 'products':
+            return redirect(url_for('inventory.product_list'))
+        else:
+            return redirect(url_for('inventory.category_list'))
+        
+    except Exception as e:
+        print(f"\n❌ ERROR in add_category:")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("="*60 + "\n")
+        
+        db.session.rollback()
+        flash(f'Error adding category: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('inventory.product_list'))
+
+@inventory_bp.route('/category/<int:category_id>/edit', methods=['POST'])
+@login_required
+def edit_category(category_id):
+    """Edit existing category"""
+    try:
+        category = ProductCategory.query.get_or_404(category_id)
+        
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        
+        if not name:
+            flash('Category name is required', 'danger')
+            return redirect(url_for('inventory.category_list'))
+        
+        # Check if name already exists (excluding current category)
+        existing_category = ProductCategory.query.filter(
+            ProductCategory.name == name,
+            ProductCategory.id != category_id
+        ).first()
+        
+        if existing_category:
+            flash(f'Category "{name}" already exists', 'danger')
+            return redirect(url_for('inventory.category_list'))
+        
+        # Update category
+        category.name = name
+        category.description = description
+        
+        db.session.commit()
+        
+        flash(f'Category "{name}" updated successfully!', 'success')
+        return redirect(url_for('inventory.category_list'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating category: {str(e)}', 'danger')
+        return redirect(url_for('inventory.category_list'))
+
+@inventory_bp.route('/category/<int:category_id>/delete', methods=['POST'])
+@login_required
+def delete_category(category_id):
+    """Delete a category"""
+    if current_user.role != 'admin':
+        flash('Only admin can delete categories', 'danger')
+        return redirect(url_for('inventory.category_list'))
+    
+    try:
+        category = ProductCategory.query.get_or_404(category_id)
+        
+        # Check if category has products
+        product_count = Product.query.filter_by(category_id=category_id).count()
+        if product_count > 0:
+            flash(f'Cannot delete category "{category.name}" because it has {product_count} products. Reassign products first.', 'danger')
+            return redirect(url_for('inventory.category_list'))
+        
+        db.session.delete(category)
+        db.session.commit()
+        
+        flash(f'Category "{category.name}" deleted successfully!', 'success')
+        return redirect(url_for('inventory.category_list'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting category: {str(e)}', 'danger')
+        return redirect(url_for('inventory.category_list'))
+
+@inventory_bp.route('/api/categories')
+@login_required
+def api_get_categories():
+    """API endpoint to get categories for AJAX requests"""
+    try:
+        categories = ProductCategory.query.order_by(ProductCategory.name).all()
+        
+        category_list = []
+        for category in categories:
+            category_list.append({
+                'id': category.id,
+                'name': category.name,
+                'description': category.description
+            })
+        
+        return jsonify({'success': True, 'categories': category_list})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})

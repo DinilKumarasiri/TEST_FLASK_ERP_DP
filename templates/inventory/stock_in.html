@@ -34,26 +34,6 @@
         border-radius: 4px;
         margin-bottom: 15px;
     }
-    
-    .preview-barcode {
-        background: white;
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin: 5px;
-        display: inline-block;
-        text-align: center;
-        border-radius: 4px;
-    }
-    
-    .barcode-preview-container {
-        max-height: 300px;
-        overflow-y: auto;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        padding: 10px;
-        margin-top: 10px;
-        background: white;
-    }
 </style>
 {% endblock %}
 
@@ -91,7 +71,7 @@
             <div class="col-md-3">
                 <label class="form-label">Quantity *</label>
                 <input type="number" name="quantity" id="quantity" class="form-control" 
-                       min="1" value="1" required onchange="updateImeiFields(); updateBarcodePreview();">
+                       min="1" value="1" required onchange="updateImeiFields();">
                 <small class="text-muted">Number of items to add</small>
             </div>
             
@@ -170,61 +150,17 @@
     <div class="form-section">
         <h5><i class="fas fa-barcode me-2"></i>Barcode Generation</h5>
         
-        <div class="row">
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="generate_individual_barcodes" 
-                               id="generateBarcodes" checked onchange="updateBarcodePreview()">
-                        <label class="form-check-label" for="generateBarcodes">
-                            <strong>Generate unique barcodes for each item</strong>
-                        </label>
-                        <small class="text-muted d-block">
-                            Each item will get its own unique barcode for individual tracking.
-                            Recommended for serialized items like mobile phones.
-                        </small>
-                    </div>
-                </div>
-                
-                <!-- Barcode Format Options -->
-                <div id="barcodeFormatOptions" style="display: none;">
-                    <label class="form-label">Barcode Format</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="barcode_format" 
-                               id="formatStandard" value="standard" checked>
-                        <label class="form-check-label" for="formatStandard">
-                            Standard (Product SKU + Sequence)
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="barcode_format" 
-                               id="formatCustom" value="custom">
-                        <label class="form-check-label" for="formatCustom">
-                            Custom Prefix
-                        </label>
-                    </div>
-                    
-                    <div id="customPrefixDiv" style="display: none; margin-top: 10px;">
-                        <input type="text" name="custom_prefix" id="customPrefix" 
-                               class="form-control form-control-sm" placeholder="e.g., HUAWEI"
-                               oninput="updateBarcodePreview()">
-                        <small class="text-muted">Custom prefix for barcodes</small>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <!-- Barcode Preview -->
-                <div id="barcodePreview">
-                    <label class="form-label">Generated Barcodes Preview</label>
-                    <div id="barcodePreviewContainer" class="barcode-preview-container">
-                        <div class="text-center text-muted">
-                            <i class="fas fa-barcode fa-2x mb-2"></i>
-                            <p>Select a product and quantity to preview barcodes</p>
-                        </div>
-                    </div>
-                    <small class="text-muted">Unique barcodes will be generated for each item</small>
-                </div>
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="generate_individual_barcodes" 
+                       id="generateBarcodes" checked>
+                <label class="form-check-label" for="generateBarcodes">
+                    <strong>Generate unique barcodes for each item</strong>
+                </label>
+                <small class="text-muted d-block">
+                    Each item will get its own unique barcode for individual tracking.
+                    Recommended for serialized items like mobile phones.
+                </small>
             </div>
         </div>
     </div>
@@ -347,7 +283,6 @@
 {% block extra_js %}
 <script>
 let selectedProduct = null;
-let generatedBarcodes = [];
 
 // Product selection
 $('#productSelect').on('change', function() {
@@ -355,11 +290,9 @@ $('#productSelect').on('change', function() {
     if (productId) {
         loadProductInfo(productId);
         updateImeiFields();
-        updateBarcodePreview();
     } else {
         $('#productInfo').hide();
         $('#imeiSection').hide();
-        $('#barcodeFormatOptions').hide();
     }
 });
 
@@ -393,9 +326,6 @@ function loadProductInfo(productId) {
             } else {
                 $('#imeiSection').hide();
             }
-            
-            // Show barcode format options
-            $('#barcodeFormatOptions').show();
             
             calculateTotalValue();
         }
@@ -476,78 +406,6 @@ function validateImeiNumbers() {
     }
 }
 
-// Update barcode preview
-function updateBarcodePreview() {
-    const generateBarcodes = $('#generateBarcodes').is(':checked');
-    const quantity = parseInt($('#quantity').val()) || 1;
-    const container = $('#barcodePreviewContainer');
-    
-    if (!selectedProduct || !generateBarcodes) {
-        container.html(`
-            <div class="text-center text-muted">
-                <i class="fas fa-barcode fa-2x mb-2"></i>
-                <p>Individual barcodes will not be generated</p>
-            </div>
-        `);
-        generatedBarcodes = [];
-        return;
-    }
-    
-    // Generate preview barcodes
-    generatedBarcodes = [];
-    const sku = selectedProduct.sku.replace(/[^A-Za-z0-9]/g, '').substring(0, 6);
-    const prefix = $('#customPrefix').val() || sku || 'ITEM';
-    const format = $('input[name="barcode_format"]:checked').val();
-    
-    let html = '<div class="row">';
-    
-    for (let i = 0; i < quantity; i++) {
-        let barcodeNumber;
-        
-        if (format === 'custom' && $('#customPrefix').val()) {
-            barcodeNumber = `${prefix}${(i + 1).toString().padStart(4, '0')}`;
-        } else {
-            // Standard format: Product SKU + timestamp + sequence
-            const timestamp = Date.now().toString().slice(-6);
-            const seq = (i + 1).toString().padStart(3, '0');
-            barcodeNumber = `${sku}${timestamp}${seq}`;
-        }
-        
-        generatedBarcodes.push(barcodeNumber);
-        
-        // Limit display to 12 barcodes
-        if (i < 12) {
-            html += `
-                <div class="col-md-3 col-6 mb-3">
-                    <div class="preview-barcode">
-                        <small class="text-muted d-block mb-1">Item ${i + 1}</small>
-                        <img src="https://barcode.tec-it.com/barcode.ashx?data=${barcodeNumber}&code=Code128&dpi=60&dataseparator=" 
-                             alt="Barcode" 
-                             style="width: 100px; height: 30px;">
-                        <div class="mt-1">
-                            <small class="text-muted">${barcodeNumber.substring(0, 12)}...</small>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
-    html += '</div>';
-    
-    // Show message if more than 12 items
-    if (quantity > 12) {
-        html += `
-            <div class="alert alert-info mt-2">
-                <i class="fas fa-info-circle me-2"></i>
-                Showing first 12 of ${quantity} barcodes. All ${quantity} unique barcodes will be generated.
-            </div>
-        `;
-    }
-    
-    container.html(html);
-}
-
 // Calculate total value
 function calculateTotalValue() {
     const quantity = parseInt($('#quantity').val()) || 1;
@@ -566,16 +424,8 @@ function selectProduct(productId) {
 // Reset form
 function resetForm() {
     selectedProduct = null;
-    generatedBarcodes = [];
     $('#productInfo').hide();
     $('#imeiSection').hide();
-    $('#barcodeFormatOptions').hide();
-    $('#barcodePreviewContainer').html(`
-        <div class="text-center text-muted">
-            <i class="fas fa-barcode fa-2x mb-2"></i>
-            <p>Select a product and quantity to preview barcodes</p>
-        </div>
-    `);
 }
 
 // Form validation
@@ -655,22 +505,11 @@ $('#stockInForm').on('submit', function(e) {
     this.submit();
 });
 
-// Show/hide custom prefix input
-$('input[name="barcode_format"]').on('change', function() {
-    if ($(this).val() === 'custom') {
-        $('#customPrefixDiv').show();
-    } else {
-        $('#customPrefixDiv').hide();
-    }
-    updateBarcodePreview();
-});
-
 // Event listeners for calculations
 $('#quantity, #purchasePriceInput').on('input', function() {
     calculateTotalValue();
     if ($(this).attr('id') === 'quantity') {
         updateImeiFields();
-        updateBarcodePreview();
     }
 });
 
@@ -688,13 +527,8 @@ $('#purchasePriceInput').on('blur', function() {
 
 // Initialize
 $(document).ready(function() {
-    // Set default barcode format to show
-    $('#barcodeFormatOptions').hide();
-    
-    // Auto-preview barcodes when custom prefix changes
-    $('#customPrefix').on('input', function() {
-        updateBarcodePreview();
-    });
+    // Event listener for quantity changes
+    $('#quantity').on('input', updateImeiFields);
 });
 </script>
 {% endblock %}

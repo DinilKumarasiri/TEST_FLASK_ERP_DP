@@ -1,114 +1,120 @@
-# app/utils/barcode_generator.py - Updated
-import os
-import base64
-from io import BytesIO
 import re
 import secrets
 import string
+import time
 from datetime import datetime
 
 class BarcodeGenerator:
-    """Barcode generator for products and stock items"""
+    @staticmethod
+    def generate_batch_barcodes(product, quantity):
+        """Generate unique barcodes for a batch of items"""
+        barcodes = []
+        used_barcodes = set()
+        
+        # Get existing barcodes from database to avoid duplicates
+        from app.models import StockItem
+        existing_barcodes = {b.item_barcode for b in StockItem.query.filter(
+            StockItem.item_barcode.isnot(None)
+        ).all()}
+        
+        for i in range(quantity):
+            max_attempts = 20
+            for attempt in range(max_attempts):
+                # Generate base barcode
+                base_barcode = BarcodeGenerator._generate_single_barcode(product, i)
+                
+                # Make it unique with timestamp and random part
+                timestamp = int(time.time() * 1000) % 1000000
+                random_part = ''.join(secrets.choice(string.digits) for _ in range(4))
+                unique_barcode = f"{base_barcode[:8]}{timestamp:06d}{random_part}"
+                
+                # Ensure proper length
+                if len(unique_barcode) < 12:
+                    unique_barcode = unique_barcode.ljust(12, '0')
+                elif len(unique_barcode) > 13:
+                    unique_barcode = unique_barcode[:13]
+                
+                # Add check digit
+                unique_barcode = BarcodeGenerator._add_check_digit(unique_barcode)
+                
+                # Check if this barcode is unique
+                if (unique_barcode not in used_barcodes and 
+                    unique_barcode not in existing_barcodes):
+                    barcodes.append(unique_barcode)
+                    used_barcodes.add(unique_barcode)
+                    break
+                
+                if attempt == max_attempts - 1:
+                    # Last resort: use timestamp only
+                    last_resort = f"U{int(time.time() * 1000000)}{i}"
+                    barcodes.append(last_resort[:13])
+                    used_barcodes.add(last_resort[:13])
+        
+        return barcodes
     
     @staticmethod
-    def generate_product_barcode(product):
-        """Generate barcode number for product"""
+    def _generate_single_barcode(product, index):
+        """Generate a single barcode for a product"""
         try:
             if product.sku:
-                barcode = re.sub(r'[^A-Za-z0-9]', '', product.sku)
-                if len(barcode) < 8:
-                    barcode = barcode.zfill(12)
-                return barcode[:12]
+                # Clean SKU to create barcode (remove special characters)
+                base = re.sub(r'[^A-Za-z0-9]', '', product.sku)
+                if len(base) < 6:
+                    base = base.ljust(6, 'X')
+                return base[:6] + f"{index:04d}"
             else:
-                return str(product.id).zfill(12)
-        except Exception as e:
-            print(f"Error generating product barcode: {e}")
-            return str(product.id).zfill(12)
-    
-    @staticmethod
-    def generate_stock_item_barcode(stock_item, product=None):
-        """Generate unique barcode for stock item"""
-        try:
-            # Use existing item_barcode if it exists
-            if stock_item.item_barcode:
-                return stock_item.item_barcode
-            
-            # Get product info
-            if not product and hasattr(stock_item, 'product'):
-                product = stock_item.product
-            
-            timestamp = int(datetime.utcnow().timestamp() * 1000) % 1000000
-            random_part = ''.join(secrets.choice(string.digits) for _ in range(4))
-            
-            if product and product.sku:
-                base = re.sub(r'[^A-Za-z0-9]', '', product.sku)[:6]
-                barcode_number = f"{base}{timestamp:06d}{random_part}"
-            else:
-                barcode_number = f"ST{stock_item.id:08d}{timestamp:06d}{random_part}"
-            
-            # Ensure proper length
-            if len(barcode_number) < 12:
-                barcode_number = barcode_number.zfill(12)
-            elif len(barcode_number) > 13:
-                barcode_number = barcode_number[:13]
-            
-            # Add check digit
-            barcode_number = BarcodeGenerator._add_check_digit(barcode_number)
-            
-            return barcode_number
-            
-        except Exception as e:
-            print(f"Error generating stock item barcode: {e}")
-            # Fallback: use timestamp + random
-            return f"IT{int(datetime.utcnow().timestamp())}{secrets.randbelow(10000):04d}"
+                return f"P{product.id:06d}{index:04d}"
+        except:
+            import time
+            return f"G{int(time.time() * 1000) % 1000000:06d}{index:04d}"
     
     @staticmethod
     def _add_check_digit(barcode):
-        """Add EAN-13 check digit"""
+        """Add check digit to barcode (EAN-13 style)"""
         if len(barcode) == 12:
-            try:
-                digits = [int(d) for d in barcode]
-                odd_sum = sum(digits[i] * 3 for i in range(0, 12, 2))
-                even_sum = sum(digits[i] for i in range(1, 12, 2))
-                total = odd_sum + even_sum
-                check_digit = (10 - (total % 10)) % 10
-                return barcode + str(check_digit)
-            except:
-                return barcode
+            digits = [int(d) for d in barcode]
+            
+            # Step 1: Multiply odd positions by 3 (starting from 1)
+            odd_sum = sum(digits[i] * 3 for i in range(0, 12, 2))
+            # Step 2: Sum even positions
+            even_sum = sum(digits[i] for i in range(1, 12, 2))
+            
+            # Step 3: Add both sums
+            total = odd_sum + even_sum
+            
+            # Step 4: Find check digit (smallest number to make total multiple of 10)
+            check_digit = (10 - (total % 10)) % 10
+            
+            return barcode + str(check_digit)
+        return barcode
+    
+    @staticmethod
+    def generate_product_barcode(product):
+        """Generate barcode for product (not for individual items)"""
+        import time
+        timestamp = int(time.time() * 1000) % 1000000
+        
+        if product.sku:
+            base = re.sub(r'[^A-Za-z0-9]', '', product.sku)
+            if len(base) < 8:
+                base = base.ljust(8, '0')
+            barcode = f"{base[:8]}{timestamp:06d}"
+        else:
+            barcode = f"PR{product.id:08d}{timestamp:06d}"
+        
+        # Ensure length
+        if len(barcode) < 12:
+            barcode = barcode.ljust(12, '0')
+        elif len(barcode) > 13:
+            barcode = barcode[:13]
+        
+        # Add check digit if needed
+        if len(barcode) == 12:
+            barcode = BarcodeGenerator._add_check_digit(barcode)
+        
         return barcode
     
     @staticmethod
     def generate_online_barcode_url(barcode_number, barcode_type='Code128'):
         """Get barcode image from online generator service"""
         return f"https://barcode.tec-it.com/barcode.ashx?data={barcode_number}&code={barcode_type}&dpi=96&dataseparator="
-    
-    @staticmethod
-    def generate_batch_barcodes(product, quantity=1):
-        """Generate multiple unique barcodes for batch creation"""
-        barcodes = []
-        for i in range(quantity):
-            # Create a mock stock item for barcode generation
-            class MockStockItem:
-                def __init__(self, product):
-                    self.id = 0
-                    self.product = product
-                    self.item_barcode = None
-            
-            mock_item = MockStockItem(product)
-            barcode = BarcodeGenerator.generate_stock_item_barcode(mock_item, product)
-            barcodes.append(barcode)
-        
-        return barcodes
-    
-    @staticmethod
-    def validate_barcode(barcode_number):
-        """Validate barcode format"""
-        if not barcode_number:
-            return False
-        
-        # Check if it's alphanumeric and reasonable length
-        if len(barcode_number) < 8 or len(barcode_number) > 20:
-            return False
-        
-        # Basic validation
-        return bool(re.match(r'^[A-Za-z0-9]+$', barcode_number))

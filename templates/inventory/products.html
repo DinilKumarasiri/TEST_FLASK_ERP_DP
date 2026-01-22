@@ -73,6 +73,16 @@
         background-color: #0d6efd;
         color: white;
     }
+    
+    /* Category Modal Styles */
+    .category-modal .modal-dialog {
+        max-width: 500px;
+    }
+    
+    /* Toast Styles */
+    .toast-container {
+        z-index: 9999;
+    }
 </style>
 {% endblock %}
 
@@ -83,9 +93,13 @@
         <a href="{{ url_for('inventory.add_new_product') }}" class="btn btn-primary me-2">
             <i class="fas fa-plus me-1"></i> Add New Product
         </a>
-        <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-primary">
+        <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-primary me-2">
             <i class="fas fa-plus me-1"></i> Add Stock
         </a>
+        <!-- Add Category Button -->
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="fas fa-tag me-1"></i> Add Category
+        </button>
     </div>
 </div>
 
@@ -219,7 +233,13 @@
                             <span class="badge bg-info badge-sm">IMEI Tracking</span>
                             {% endif %}
                         </td>
-                        <td>{{ product.category.name if product.category else 'N/A' }}</td>
+                        <td>
+                            {% if product.category %}
+                                <span class="badge bg-secondary">{{ product.category.name }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                         <td class="text-end">Rs.{{ "%.2f"|format(product.purchase_price) }}</td>
                         <td class="text-end">Rs.{{ "%.2f"|format(product.selling_price) }}</td>
                         <td class="text-center">
@@ -326,7 +346,9 @@
                         </p>
                     </div>
                     <div class="text-end">
-                        <span class="badge bg-secondary">{{ product.category.name if product.category else 'Uncategorized' }}</span>
+                        {% if product.category %}
+                            <span class="badge bg-secondary">{{ product.category.name }}</span>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -447,6 +469,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="stockOutForm" method="POST" action="{{ url_for('inventory.stock_out') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div id="stockOutProductInfo" class="mb-3">
                         <!-- Product info will be inserted here -->
@@ -487,10 +510,65 @@
     </div>
 </div>
 
+<!-- Add Category Modal -->
+<div class="modal fade category-modal" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCategoryModalLabel">
+                    <i class="fas fa-tag me-2"></i>Add New Category
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('inventory.add_category') }}" id="addCategoryForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="redirect_to" value="products">
+                
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name *</label>
+                        <input type="text" class="form-control" id="categoryName" name="name" 
+                               placeholder="e.g., Mobile Phones, Accessories, Repair Parts" required>
+                        <div class="form-text">Enter a descriptive category name for your products.</div>
+                        <div class="invalid-feedback" id="categoryNameError">Please enter a category name.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categoryDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="categoryDescription" name="description" 
+                                  rows="3" placeholder="Optional description of this category..."></textarea>
+                        <div class="form-text">Optional: Add a description to help identify this category.</div>
+                    </div>
+                    
+                    <!-- Category Preview -->
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title mb-2"><i class="fas fa-eye me-1"></i>Preview</h6>
+                            <p class="mb-1"><strong>Name:</strong> <span id="previewName" class="text-muted">[Enter name]</span></p>
+                            <p class="mb-0"><strong>Description:</strong> <span id="previewDescription" class="text-muted">[Optional]</span></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitCategoryBtn">
+                        <i class="fas fa-plus me-1"></i> Add Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container for Notifications -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Stock Out Modal Functions
 function showStockOutModal(productId) {
     // Get product info
     $.get(`/inventory/product/${productId}/info`, function(response) {
@@ -556,6 +634,163 @@ $(document).ready(function() {
                     newHref.search = newParams.toString();
                     $(this).attr('href', newHref.toString());
                 }
+            }
+        });
+    });
+    
+    // ============ CATEGORY FORM HANDLING ============
+    console.log('Products page loaded. Initializing category functionality...');
+    
+    // Real-time preview for category form
+    $('#categoryName, #categoryDescription').on('input', function() {
+        const name = $('#categoryName').val().trim();
+        const description = $('#categoryDescription').val().trim();
+        
+        $('#previewName').text(name || '[Enter name]');
+        $('#previewDescription').text(description || '[Optional]');
+        
+        // Clear validation errors when user types
+        if (name) {
+            $('#categoryName').removeClass('is-invalid');
+            $('#categoryNameError').text('');
+        }
+    });
+    
+    // Category form submission - SIMPLE & RELIABLE VERSION
+    $('#addCategoryForm').on('submit', function(e) {
+        console.log('Category form submission started');
+        
+        const form = $(this);
+        const submitBtn = $('#submitCategoryBtn');
+        const originalBtnText = submitBtn.html();
+        
+        // Get form values
+        const name = $('#categoryName').val().trim();
+        const description = $('#categoryDescription').val().trim();
+        
+        console.log('Form data:', { name, description });
+        
+        // Validation
+        if (!name) {
+            e.preventDefault();
+            $('#categoryName').addClass('is-invalid');
+            $('#categoryNameError').text('Category name is required');
+            $('#categoryName').focus();
+            return false;
+        }
+        
+        // Show loading state
+        submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i> Adding...');
+        submitBtn.prop('disabled', true);
+        
+        console.log('Form validation passed. Submitting...');
+        
+        // Allow normal form submission - this is the most reliable
+        return true;
+    });
+    
+    // Clear validation when user types in category name
+    $('#categoryName').on('input', function() {
+        if ($(this).val().trim()) {
+            $(this).removeClass('is-invalid');
+            $('#categoryNameError').text('');
+        }
+    });
+    
+    // Reset form when modal is closed
+    $('#addCategoryModal').on('hidden.bs.modal', function () {
+        console.log('Category modal closed, resetting form...');
+        
+        // Reset form
+        $('#addCategoryForm')[0].reset();
+        
+        // Clear validation
+        $('#categoryName').removeClass('is-invalid');
+        $('#categoryNameError').text('');
+        
+        // Reset preview
+        $('#previewName').text('[Enter name]');
+        $('#previewDescription').text('[Optional]');
+        
+        // Reset button
+        $('#submitCategoryBtn').prop('disabled', false).html('<i class="fas fa-plus me-1"></i> Add Category');
+    });
+    
+    // Debug: Log modal events
+    $('#addCategoryModal').on('show.bs.modal', function () {
+        console.log('Add Category modal opened');
+    });
+    
+    // Debug: Check if CSRF token exists
+    const csrfToken = $('input[name="csrf_token"]').val();
+    console.log('CSRF token present:', csrfToken ? 'Yes' : 'No');
+    console.log('Form action:', $('#addCategoryForm').attr('action'));
+    
+    // ============ HELPER FUNCTIONS ============
+    
+    // Function to show toast notifications
+    window.showToast = function(message, type = 'info') {
+        const toastId = 'toast-' + Date.now();
+        const icon = type === 'success' ? 'check-circle' : 
+                    type === 'error' ? 'exclamation-triangle' : 
+                    type === 'warning' ? 'exclamation-circle' : 'info-circle';
+        
+        const toastHtml = `
+            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-${type} text-white">
+                    <i class="fas fa-${icon} me-2"></i>
+                    <strong class="me-auto">${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        `;
+        
+        $('#toastContainer').append(toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, {
+            autohide: true,
+            delay: 3000
+        });
+        toast.show();
+        
+        // Remove toast from DOM after it hides
+        toastElement.addEventListener('hidden.bs.toast', function () {
+            $(this).remove();
+        });
+    };
+    
+    // Test: Add a test button for debugging
+    console.log('Adding debug button...');
+    $('body').append(`
+        <button id="debugTest" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;" 
+                class="btn btn-sm btn-warning">Debug Test</button>
+    `);
+    
+    $('#debugTest').on('click', function() {
+        console.log('Debug test clicked');
+        console.log('Current categories in dropdown:', $('select[name="category_id"] option').length);
+        
+        // Test the add category endpoint directly
+        $.ajax({
+            url: '/inventory/add-category',
+            method: 'POST',
+            data: {
+                csrf_token: csrfToken,
+                name: 'Test Category ' + new Date().getTime(),
+                description: 'Test from debug button',
+                redirect_to: 'products'
+            },
+            success: function(response) {
+                console.log('Direct AJAX success:', response);
+                showToast('Test category added via AJAX!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function(xhr, status, error) {
+                console.error('Direct AJAX error:', status, error, xhr.responseText);
+                showToast('AJAX Error: ' + error, 'error');
             }
         });
     });
