@@ -32,342 +32,291 @@ def scan_product():
     
     print(f"DEBUG: Scanning barcode: {barcode}")
     
-    # First, try to find by stock item barcode (item_barcode)
-    stock_item = StockItem.query.filter_by(
-        item_barcode=barcode,
-        status='available'
+    # FIRST: Look for stock item by barcode (item_barcode or IMEI)
+    stock_item = StockItem.query.filter(
+        (StockItem.item_barcode == barcode) | (StockItem.imei == barcode),
+        StockItem.status == 'available'
     ).first()
     
     if stock_item:
-        print(f"DEBUG: Found stock item with barcode: {barcode}")
+        print(f"DEBUG: Found SPECIFIC stock item: {stock_item.id}, Product: {stock_item.product.name if stock_item.product else 'Unknown'}")
+        
         product = stock_item.product
-        if product and product.is_active:
-            # Calculate available stock
-            available_stock = StockItem.query.filter_by(
-                product_id=product.id,
-                status='available'
-            ).count()
-            
-            product_data = {
-                'id': product.id,
-                'sku': product.sku,
-                'name': product.name,
-                'selling_price': float(product.selling_price),
-                'has_imei': product.has_imei,
-                'stock_available': available_stock,
-                'stock_item_id': stock_item.id,  # Include stock item ID
-                'stock_item_barcode': stock_item.item_barcode,
-                'is_specific_item': True,  # Flag that this is a specific stock item
-                'message': 'Found specific stock item'
-            }
-            return jsonify({'success': True, 'product': product_data})
+        if not product or not product.is_active:
+            return jsonify({'success': False, 'message': 'Product not active'})
+        
+        # Check if this specific item is already in cart
+        cart = session.get('cart', {})
+        for key, item in cart.items():
+            if item.get('stock_item_id') == stock_item.id:
+                return jsonify({
+                    'success': False,
+                    'message': f'This specific {product.name} (Barcode: {barcode}) is already in your cart'
+                })
+        
+        # Calculate available stock for this product
+        available_stock = StockItem.query.filter_by(
+            product_id=product.id,
+            status='available'
+        ).count()
+        
+        product_data = {
+            'id': product.id,
+            'sku': product.sku,
+            'name': product.name,
+            'selling_price': float(product.selling_price),
+            'has_imei': product.has_imei,
+            'stock_available': available_stock,
+            'stock_item_id': stock_item.id,  # CRITICAL: Include stock item ID
+            'stock_item_barcode': stock_item.item_barcode or stock_item.imei,
+            'imei': stock_item.imei,
+            'is_specific_item': True,  # Flag that this is a specific stock item
+            'message': f'Found specific item: {stock_item.item_barcode or stock_item.imei}'
+        }
+        return jsonify({'success': True, 'product': product_data})
     
-    # Try to find by product SKU
-    product = Product.query.filter_by(sku=barcode, is_active=True).first()
+    # If no specific stock item found, try product SKU/barcode
+    product = Product.query.filter(
+        (Product.sku == barcode) | (Product.barcode == barcode),
+        Product.is_active == True
+    ).first()
     
-    # Try to find by product barcode
-    if not product:
-        product = Product.query.filter_by(barcode=barcode, is_active=True).first()
+    if product:
+        print(f"DEBUG: Found product by SKU/barcode: {product.name}")
+        
+        # For serialized products, require scanning each item
+        if product.has_imei:
+            return jsonify({
+                'success': False,
+                'message': f'{product.name} requires serialization. Please scan each item\'s barcode/IMEI individually.'
+            })
+        
+        available_stock = StockItem.query.filter_by(
+            product_id=product.id,
+            status='available'
+        ).count()
+        
+        if available_stock <= 0:
+            return jsonify({'success': False, 'message': 'Out of stock'})
+        
+        product_data = {
+            'id': product.id,
+            'sku': product.sku,
+            'name': product.name,
+            'selling_price': float(product.selling_price),
+            'has_imei': product.has_imei,
+            'stock_available': available_stock,
+            'is_specific_item': False,
+            'message': 'Found by product barcode/SKU'
+        }
+        return jsonify({'success': True, 'product': product_data})
     
-    # Try to find by IMEI in stock items
-    if not product:
-        stock_item = StockItem.query.filter_by(imei=barcode, status='available').first()
-        if stock_item:
-            product = stock_item.product
-            # This is also a specific stock item
-            available_stock = StockItem.query.filter_by(
-                product_id=product.id,
-                status='available'
-            ).count()
-            
-            product_data = {
-                'id': product.id,
-                'sku': product.sku,
-                'name': product.name,
-                'selling_price': float(product.selling_price),
-                'has_imei': product.has_imei,
-                'stock_available': available_stock,
-                'stock_item_id': stock_item.id,
-                'stock_item_barcode': stock_item.imei,
-                'is_specific_item': True,
-                'message': 'Found by IMEI'
-            }
-            return jsonify({'success': True, 'product': product_data})
-    
-    if not product:
-        print(f"DEBUG: Product not found for barcode: {barcode}")
-        return jsonify({'success': False, 'message': f'Product not found for "{barcode}"'})
-    
-    # Check stock availability
-    available_stock = StockItem.query.filter_by(
-        product_id=product.id,
-        status='available'
-    ).count()
-    
-    if available_stock <= 0:
-        return jsonify({'success': False, 'message': 'Out of stock'})
-    
-    product_data = {
-        'id': product.id,
-        'sku': product.sku,
-        'name': product.name,
-        'selling_price': float(product.selling_price),
-        'has_imei': product.has_imei,
-        'stock_available': available_stock,
-        'is_specific_item': False,  # Not a specific stock item
-        'message': 'Found by product barcode/SKU'
-    }
-    
-    return jsonify({'success': True, 'product': product_data})
+    return jsonify({'success': False, 'message': f'Product not found for "{barcode}"'})
 
 @pos_bp.route('/add-to-cart', methods=['POST'])
 @login_required
 def add_to_cart():
-    """
-    Add product to cart - handles both JSON and FormData
-    With proper stock validation and management
-    """
+    """Add product to cart - FIXED DUPLICATE ITEM ISSUE"""
     print("=" * 50)
-    print("DEBUG: /pos/add-to-cart route called - WITH STOCK VALIDATION")
+    print("DEBUG: /pos/add-to-cart - FIXED DUPLICATE ITEM ISSUE")
     
     try:
-        # Handle both JSON and form data
+        # Get request data
         if request.is_json:
-            print("DEBUG: Processing as JSON request")
             data = request.get_json()
             product_id = data.get('product_id')
             quantity_str = data.get('quantity', '1')
             stock_item_id = data.get('stock_item_id')
         else:
-            print("DEBUG: Processing as FormData request")
             data = request.form
             product_id = data.get('product_id')
             quantity_str = data.get('quantity', '1')
             stock_item_id = data.get('stock_item_id')
         
-        # Convert quantity to int
+        # Convert quantity
         try:
             quantity = int(quantity_str)
         except ValueError:
             return jsonify({
                 'success': False,
-                'message': 'Invalid quantity value',
-                'error_type': 'invalid_quantity'
+                'message': 'Invalid quantity value'
             }), 400
         
         if quantity <= 0:
             return jsonify({
                 'success': False,
-                'message': 'Quantity must be at least 1',
-                'error_type': 'invalid_quantity'
-            }), 400
-        
-        # Validate required fields
-        if not product_id:
-            return jsonify({
-                'success': False,
-                'message': 'Product ID is required',
-                'error_type': 'missing_product_id'
+                'message': 'Quantity must be at least 1'
             }), 400
         
         print(f"DEBUG: product_id={product_id}, quantity={quantity}, stock_item_id={stock_item_id}")
         
-        # Check if product exists
+        # Validate product exists
         product = Product.query.get(product_id)
         if not product:
             return jsonify({
                 'success': False,
-                'message': 'Product not found',
-                'error_type': 'product_not_found',
-                'product_id': product_id
+                'message': 'Product not found'
             }), 404
         
-        print(f"DEBUG: Found product: {product.name} (ID: {product.id}, SKU: {product.sku}, Has IMEI: {product.has_imei})")
+        print(f"DEBUG: Product: {product.name} (ID: {product.id}), Has IMEI: {product.has_imei}")
         
-        # ========== CHECK TOTAL AVAILABLE STOCK ==========
-        total_available_stock = StockItem.query.filter_by(
-            product_id=product.id,
-            status='available'
-        ).count()
-        
-        print(f"DEBUG: Total available stock for {product.name}: {total_available_stock}")
-        
-        # Check if product is out of stock
-        if total_available_stock <= 0:
-            return jsonify({
-                'success': False,
-                'message': f'{product.name} is out of stock',
-                'error_type': 'out_of_stock',
-                'product_name': product.name,
-                'available_stock': 0
-            }), 400
-        
-        # Initialize cart if not exists
+        # Initialize cart if needed
         if 'cart' not in session:
-            print("DEBUG: Initializing new cart in session")
             session['cart'] = {}
         
         cart = session['cart']
         
-        # ========== CALCULATE HOW MANY ARE ALREADY IN CART ==========
-        already_in_cart = 0
-        already_used_stock_ids = set()
-        
-        for cart_key, cart_item in cart.items():
-            if cart_item.get('id') == product.id:
-                already_in_cart += cart_item.get('quantity', 0)
-                if cart_item.get('stock_item_id'):
-                    already_used_stock_ids.add(cart_item['stock_item_id'])
-        
-        print(f"DEBUG: Already in cart: {already_in_cart} items")
-        print(f"DEBUG: Already used stock IDs: {already_used_stock_ids}")
-        
-        # ========== CHECK IF WE HAVE ENOUGH STOCK FOR NEW QUANTITY ==========
-        total_needed = already_in_cart + quantity
-        remaining_stock = total_available_stock - already_in_cart
-        
-        print(f"DEBUG: Total needed: {total_needed}, Remaining stock: {remaining_stock}")
-        
-        if quantity > remaining_stock:
-            if remaining_stock <= 0:
-                return jsonify({
-                    'success': False,
-                    'message': f'All {total_available_stock} available {product.name} items are already in your cart',
-                    'error_type': 'all_stock_in_cart',
-                    'available_stock': total_available_stock,
-                    'already_in_cart': already_in_cart,
-                    'product_name': product.name
-                }), 400
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': f'Only {remaining_stock} more {product.name} available (you already have {already_in_cart} in cart)',
-                    'error_type': 'insufficient_stock',
-                    'available_stock': total_available_stock,
-                    'already_in_cart': already_in_cart,
-                    'remaining_stock': remaining_stock,
-                    'requested_quantity': quantity,
-                    'product_name': product.name
-                }), 400
-        
-        # ========== GET AVAILABLE STOCK ITEMS ==========
-        available_stock_items = []
-        barcodes_list = []
-        stock_items_used = []
-        
-        # If specific stock item provided, use it
+        # ========== HANDLE SPECIFIC STOCK ITEM ==========
         if stock_item_id:
-            stock_item = StockItem.query.filter_by(
-                id=stock_item_id,
-                product_id=product.id,
-                status='available'
-            ).first()
-            
-            if stock_item and stock_item.id not in already_used_stock_ids:
-                barcode = stock_item.item_barcode or stock_item.imei or f"STOCK-{stock_item.id}"
-                barcodes_list.append(barcode)
-                stock_items_used.append(stock_item.id)
-                print(f"DEBUG: Using specific stock item: {stock_item_id}, Barcode: {barcode}")
-            elif stock_item.id in already_used_stock_ids:
+            # Get the specific stock item
+            stock_item = StockItem.query.get(stock_item_id)
+            if not stock_item:
                 return jsonify({
                     'success': False,
-                    'message': f'This specific {product.name} item is already in your cart',
-                    'error_type': 'item_already_in_cart',
-                    'product_name': product.name
+                    'message': 'Stock item not found'
+                }), 404
+            
+            # Validate stock item belongs to the product
+            if stock_item.product_id != product.id:
+                return jsonify({
+                    'success': False,
+                    'message': f'Stock item does not belong to {product.name}'
                 }), 400
-        
-        # Get remaining available stock items (excluding those already in cart)
-        needed_from_db = quantity - len(barcodes_list)
-        
-        if needed_from_db > 0:
-            query = StockItem.query.filter_by(
+            
+            # Check if stock item is available
+            if stock_item.status != 'available':
+                return jsonify({
+                    'success': False,
+                    'message': f'This {product.name} item is not available (status: {stock_item.status})'
+                }), 400
+            
+            # ========== FIXED: Check if this specific stock item is already in cart ==========
+            # Look through all cart items to find if this stock_item_id already exists
+            stock_item_already_in_cart = False
+            for key, item in cart.items():
+                if item.get('stock_item_id') == stock_item_id:
+                    stock_item_already_in_cart = True
+                    break
+            
+            if stock_item_already_in_cart:
+                return jsonify({
+                    'success': False,
+                    'message': f'This specific {product.name} (Barcode: {stock_item.item_barcode or stock_item.imei}) is already in your cart'
+                }), 400
+            
+            # Also check by barcode (in case barcode was added differently)
+            barcode = stock_item.item_barcode or stock_item.imei
+            if barcode:
+                for key, item in cart.items():
+                    if item.get('barcodes') and barcode in item.get('barcodes', []):
+                        return jsonify({
+                            'success': False,
+                            'message': f'This specific {product.name} (Barcode: {barcode}) is already in your cart'
+                        }), 400
+            
+            # Get barcode/IMEI for this item
+            barcode = barcode or f"STOCK-{stock_item_id}"
+            
+            # Create unique key for this specific item
+            item_key = f"stock_{stock_item_id}"
+            
+            cart_item_data = {
+                'id': product.id,
+                'name': product.name,
+                'sku': product.sku,
+                'price': float(product.selling_price),
+                'purchase_price': float(product.purchase_price) if product.purchase_price else 0.0,
+                'quantity': 1,  # Always 1 for specific items
+                'has_imei': product.has_imei,
+                'stock_item_id': stock_item_id,
+                'stock_item_barcode': stock_item.item_barcode,
+                'imei': stock_item.imei,
+                'barcodes': [barcode],
+                'is_specific_item': True
+            }
+            
+            cart[item_key] = cart_item_data
+            print(f"DEBUG: Added specific stock item {stock_item_id} ({barcode}) to cart")
+            
+        # ========== HANDLE REGULAR PRODUCT (NON-SERIALIZED) ==========
+        else:
+            # For serialized products, you must scan each item individually
+            if product.has_imei:
+                return jsonify({
+                    'success': False,
+                    'message': f'{product.name} requires serialization. Please scan each item individually.'
+                }), 400
+            
+            # Check available stock
+            available_stock = StockItem.query.filter_by(
                 product_id=product.id,
                 status='available'
-            )
+            ).count()
             
-            if already_used_stock_ids:
-                query = query.filter(StockItem.id.notin_(already_used_stock_ids))
+            if available_stock <= 0:
+                return jsonify({
+                    'success': False,
+                    'message': f'{product.name} is out of stock'
+                }), 400
             
-            available_stock_items = query.limit(needed_from_db).all()
+            # Check how many are already in cart
+            already_in_cart = 0
+            for key, item in cart.items():
+                if item.get('id') == product.id and not item.get('is_specific_item'):
+                    already_in_cart += item.get('quantity', 0)
             
-            print(f"DEBUG: Found {len(available_stock_items)} available stock items from DB")
+            print(f"DEBUG: Available stock: {available_stock}, Already in cart: {already_in_cart}")
             
-            for stock_item in available_stock_items:
-                barcode = stock_item.item_barcode or stock_item.imei
-                if not barcode:
-                    # Generate a barcode if none exists
-                    barcode = f"PROD-{product.id}-{stock_item.id}"
-                
-                barcodes_list.append(barcode)
-                stock_items_used.append(stock_item.id)
-                print(f"DEBUG: Found stock item {stock_item.id} with barcode: {barcode}")
-        
-        # If we still need more items (shouldn't happen with our validation)
-        if len(barcodes_list) < quantity:
-            needed_more = quantity - len(barcodes_list)
-            print(f"DEBUG: Warning: Need {needed_more} more barcodes, generating placeholders")
+            # Check if we have enough stock
+            if already_in_cart + quantity > available_stock:
+                remaining = available_stock - already_in_cart
+                return jsonify({
+                    'success': False,
+                    'message': f'Only {remaining} more {product.name} available (you already have {already_in_cart} in cart)'
+                }), 400
             
-            for i in range(needed_more):
-                barcodes_list.append(f"{product.sku or product.name}-PLH-{len(barcodes_list) + 1}")
-        
-        print(f"DEBUG: Final barcodes list: {barcodes_list}")
-        
-        # ========== HANDLE CART UPDATES ==========
-        # For serialized products, each gets its own entry
-        if product.has_imei:
-            for i in range(quantity):
-                if i < len(stock_items_used):
-                    stock_item_id = stock_items_used[i]
-                    barcode = barcodes_list[i]
-                    
-                    product_key = f"item_{stock_item_id}"
-                    
-                    # Skip if somehow already in cart (shouldn't happen)
-                    if product_key in cart:
-                        print(f"DEBUG: Item {stock_item_id} already in cart, skipping")
-                        continue
-                    
-                    stock_item = StockItem.query.get(stock_item_id)
-                    
-                    cart_item_data = {
-                        'id': product.id,
-                        'name': product.name,
-                        'sku': product.sku,
-                        'price': float(product.selling_price),
-                        'purchase_price': float(product.purchase_price),
-                        'quantity': 1,
-                        'has_imei': product.has_imei,
-                        'stock_item_id': stock_item_id,
-                        'stock_item_barcode': stock_item.item_barcode if stock_item else None,
-                        'imei': stock_item.imei if stock_item else None,
-                        'barcodes': [barcode],
-                        'is_specific_item': True,
-                        'stock_available': total_available_stock
-                    }
-                    
-                    cart[product_key] = cart_item_data
-                    print(f"DEBUG: Added serialized item {stock_item_id}")
-        
-        # For non-serialized products
-        else:
-            product_key = str(product_id)
+            # Get barcodes for these items
+            barcodes = []
+            # Get stock items that are NOT already in cart
+            all_stock_items = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).all()
+            
+            # Get barcodes of items already in cart
+            barcodes_in_cart = []
+            for key, item in cart.items():
+                if item.get('id') == product.id and not item.get('is_specific_item'):
+                    barcodes_in_cart.extend(item.get('barcodes', []))
+            
+            # Filter out items already in cart
+            available_items = []
+            for stock_item in all_stock_items:
+                stock_barcode = stock_item.item_barcode or stock_item.imei or f"PROD-{product.id}-{stock_item.id}"
+                if stock_barcode not in barcodes_in_cart:
+                    available_items.append(stock_item)
+                    if len(available_items) >= quantity:
+                        break
+            
+            if len(available_items) < quantity:
+                return jsonify({
+                    'success': False,
+                    'message': f'Not enough unique items available for {product.name}'
+                }), 400
+            
+            # Get barcodes from available items
+            for stock_item in available_items:
+                barcode = stock_item.item_barcode or stock_item.imei or f"PROD-{product.id}-{stock_item.id}"
+                barcodes.append(barcode)
+            
+            # Create or update cart item
+            product_key = f"product_{product_id}"
             
             if product_key in cart:
                 # Update existing item
-                current_quantity = cart[product_key]['quantity']
-                new_quantity = current_quantity + quantity
-                
-                # Get existing barcodes
-                existing_barcodes = cart[product_key].get('barcodes', [])
-                
-                # Add new barcodes
-                all_barcodes = existing_barcodes + barcodes_list
-                
-                cart[product_key]['quantity'] = new_quantity
-                cart[product_key]['barcodes'] = all_barcodes
-                cart[product_key]['stock_available'] = total_available_stock
-                
-                print(f"DEBUG: Updated quantity from {current_quantity} to {new_quantity}")
+                cart[product_key]['quantity'] += quantity
+                cart[product_key]['barcodes'].extend(barcodes)
+                print(f"DEBUG: Updated {product.name} quantity to {cart[product_key]['quantity']}")
             else:
                 # Add new item
                 cart_item_data = {
@@ -375,16 +324,15 @@ def add_to_cart():
                     'name': product.name,
                     'sku': product.sku,
                     'price': float(product.selling_price),
-                    'purchase_price': float(product.purchase_price),
+                    'purchase_price': float(product.purchase_price) if product.purchase_price else 0.0,
                     'quantity': quantity,
                     'has_imei': product.has_imei,
-                    'stock_available': total_available_stock,
-                    'barcodes': barcodes_list,
+                    'barcodes': barcodes,
                     'is_specific_item': False
                 }
                 
                 cart[product_key] = cart_item_data
-                print(f"DEBUG: Added new item with quantity {quantity}")
+                print(f"DEBUG: Added {product.name} to cart with quantity {quantity}")
         
         # Update session
         session['cart'] = cart
@@ -404,37 +352,21 @@ def add_to_cart():
                 'item_count': item_count,
                 'subtotal': subtotal,
                 'tax': tax,
-                'total': total,
-                'tax_rate': 0.15
+                'total': total
             },
-            'product_added': {
-                'id': product.id,
-                'name': product.name,
-                'quantity': quantity,
-                'price': float(product.selling_price),
-                'available_stock': total_available_stock,
-                'remaining_stock': remaining_stock - quantity,
-                'barcodes': barcodes_list
-            },
-            'message': f'Added {quantity} × {product.name} to cart'
+            'message': f'Added to cart successfully'
         }
         
-        # Add warning if stock is low
-        if remaining_stock - quantity <= product.min_stock_level:
-            response_data['warning'] = f'Low stock! Only {remaining_stock - quantity} {product.name} remaining'
-        
-        print(f"DEBUG: Successfully added {quantity} items to cart")
+        print(f"DEBUG: Cart now has {item_count} items, total: Rs.{total:.2f}")
         return jsonify(response_data)
-    
+        
     except Exception as e:
-        print(f"DEBUG: Unexpected error: {str(e)}")
+        print(f"ERROR in add_to_cart: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
             'success': False,
-            'message': 'An unexpected error occurred',
-            'error_type': 'server_error',
-            'error_details': str(e)
+            'message': f'Error adding to cart: {str(e)}'
         }), 500
 
 @pos_bp.route('/get-cart', methods=['GET'])
@@ -476,7 +408,7 @@ def get_cart():
             'cart': {}
         }), 500
 
-@pos_bp.route('/remove-from-cart/<string:product_key>', methods=['POST'])  # Changed from int to string
+@pos_bp.route('/remove-from-cart/<string:product_key>', methods=['POST'])
 @login_required
 def remove_from_cart(product_key):
     """Remove item from cart"""
@@ -519,7 +451,7 @@ def update_cart():
         else:
             data = request.form
         
-        product_key = data.get('product_key')  # Changed from product_id
+        product_key = data.get('product_key')
         quantity_str = data.get('quantity', '1')
         
         # Validate input
@@ -540,17 +472,17 @@ def update_cart():
         
         item = session['cart'][product_key]
         
-        # Check if this is a specific stock item or regular product
-        if 'stock_item_id' in item:
+        # Check if this is a specific stock item
+        if item.get('is_specific_item') or item.get('stock_item_id'):
             # Specific stock item - always quantity 1
-            if quantity > 1:
+            if quantity != 1:
                 return jsonify({
                     'success': False,
                     'message': f'{item["name"]} is a specific serialized item, quantity must be 1'
                 }), 400
             item['quantity'] = 1
         else:
-            # Regular product - check stock availability
+            # Regular product
             product = Product.query.get(item['id'])
             if not product:
                 return jsonify({'success': False, 'message': 'Product not found'}), 404
@@ -622,7 +554,8 @@ def clear_cart():
 @login_required
 def find_customer():
     """Find customer by phone"""
-    phone = request.json.get('phone', '').strip()
+    data = request.get_json()
+    phone = data.get('phone', '').strip()
     
     if not phone:
         return jsonify({'success': False, 'message': 'Phone number required'})
@@ -674,18 +607,16 @@ def create_customer():
 @pos_bp.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
-    """Process checkout and create invoice"""
+    """Process checkout and create invoice - COMPLETE FIXED VERSION"""
     print("=" * 50)
-    print("DEBUG: /pos/checkout route called")
+    print("DEBUG: /pos/checkout - COMPLETE FIXED VERSION")
     print(f"DEBUG: Request method: {request.method}")
     print(f"DEBUG: Content-Type: {request.content_type}")
-    print(f"DEBUG: Current user: {current_user.username}")
     
     try:
         # Check if request is JSON
         if not request.is_json:
             print("DEBUG: Request is not JSON")
-            print(f"DEBUG: Content-Type header: {request.content_type}")
             return jsonify({
                 'success': False, 
                 'message': 'Request must be JSON',
@@ -693,25 +624,27 @@ def checkout():
             }), 415
         
         data = request.get_json()
-        print(f"DEBUG: Received data: {data}")
+        print(f"DEBUG: Received checkout data")
         
+        # Get cart from session
         cart = session.get('cart', {})
         if not cart:
             print("DEBUG: Cart is empty")
             return jsonify({'success': False, 'message': 'Cart is empty'}), 400
         
+        print(f"DEBUG: Cart has {len(cart)} items")
+        
+        # Get checkout data
         customer_id = data.get('customer_id')
-        customer_name = data.get('customer_name', '')
-        customer_phone = data.get('customer_phone', '')
+        customer_name = data.get('customer_name', '').strip() or 'Walk-in Customer'
+        customer_phone = data.get('customer_phone', '').strip()
         payment_method = data.get('payment_method', 'cash')
         discount = float(data.get('discount', 0))
         tax_rate = float(data.get('tax_rate', 0.15))
-        notes = data.get('notes', '')
-        payment_reference = data.get('payment_reference', '')
+        notes = data.get('notes', '').strip()
+        payment_reference = data.get('payment_reference', '').strip()
         
-        print(f"DEBUG: Customer Name: {customer_name}")
-        print(f"DEBUG: Payment Method: {payment_method}")
-        print(f"DEBUG: Discount: {discount}")
+        print(f"DEBUG: Customer: {customer_name}, Payment: {payment_method}, Discount: {discount}")
         
         # Calculate totals
         subtotal = 0
@@ -727,13 +660,70 @@ def checkout():
         invoice_number = generate_invoice_number()
         print(f"DEBUG: Generated invoice number: {invoice_number}")
         
-        # Start transaction
+        # Start database transaction
         try:
-            # Create invoice
+            # ========== VALIDATE STOCK AVAILABILITY ==========
+            print("DEBUG: Validating stock availability...")
+            stock_issues = []
+            stock_items_to_sell = []
+            
+            for product_key, item in cart.items():
+                product = Product.query.get(item['id'])
+                if not product:
+                    stock_issues.append(f"Product {item['id']} not found")
+                    continue
+                
+                # Handle specific stock items
+                if item.get('is_specific_item') and item.get('stock_item_id'):
+                    stock_item_id = item['stock_item_id']
+                    stock_item = StockItem.query.get(stock_item_id)
+                    
+                    if not stock_item:
+                        stock_issues.append(f"Stock item {stock_item_id} not found for {product.name}")
+                    elif stock_item.status != 'available':
+                        stock_issues.append(f"Stock item {stock_item_id} ({product.name}) is not available (status: {stock_item.status})")
+                    elif stock_item.product_id != product.id:
+                        stock_issues.append(f"Stock item {stock_item_id} does not belong to product {product.name}")
+                    else:
+                        stock_items_to_sell.append(stock_item)
+                
+                # Handle non-specific items
+                else:
+                    # Check total available stock
+                    available_stock = StockItem.query.filter_by(
+                        product_id=product.id,
+                        status='available'
+                    ).count()
+                    
+                    if available_stock < item['quantity']:
+                        stock_issues.append(f"Insufficient stock for {product.name}. Need {item['quantity']}, have {available_stock}")
+                    else:
+                        # Get available stock items
+                        stock_items = StockItem.query.filter_by(
+                            product_id=product.id,
+                            status='available'
+                        ).limit(item['quantity']).all()
+                        
+                        if len(stock_items) < item['quantity']:
+                            stock_issues.append(f"Not enough stock items for {product.name}. Need {item['quantity']}, found {len(stock_items)}")
+                        else:
+                            stock_items_to_sell.extend(stock_items)
+            
+            if stock_issues:
+                print(f"DEBUG: Stock validation failed: {stock_issues}")
+                return jsonify({
+                    'success': False,
+                    'message': 'Stock validation failed',
+                    'errors': stock_issues,
+                    'error_type': 'stock_validation'
+                }), 400
+            
+            # ========== CREATE INVOICE ==========
+            print("DEBUG: Creating invoice...")
             invoice = Invoice(
                 invoice_number=invoice_number,
                 customer_id=customer_id if customer_id else None,
-                customer_name=customer_name or 'Walk-in Customer',
+                customer_name=customer_name,
                 customer_phone=customer_phone,
                 subtotal=subtotal,
                 discount=discount,
@@ -745,56 +735,71 @@ def checkout():
                 created_by=current_user.id
             )
             
-            print(f"DEBUG: Created invoice object: {invoice}")
-            
             db.session.add(invoice)
             db.session.flush()  # Get invoice ID
+            print(f"DEBUG: Created invoice with ID: {invoice.id}")
             
-            print(f"DEBUG: Invoice ID: {invoice.id}")
+            # ========== PROCESS CART ITEMS AND UPDATE STOCK ==========
+            print("DEBUG: Processing cart items...")
             
-            # Process each item in cart
-            for product_id, item in cart.items():
+            for product_key, item in cart.items():
                 product = Product.query.get(item['id'])
-                print(f"DEBUG: Processing product: {product.name}, Quantity: {item['quantity']}")
+                if not product:
+                    continue
                 
-                for _ in range(item['quantity']):
-                    # Find available stock item
-                    stock_item = None
-                    if product.has_imei:
-                        # For products with IMEI, need to assign specific stock item
-                        stock_item = StockItem.query.filter_by(
-                            product_id=product.id,
-                            status='available'
-                        ).first()
+                print(f"DEBUG: Processing {product.name}, Quantity: {item['quantity']}")
+                
+                # Handle specific stock items
+                if item.get('is_specific_item') and item.get('stock_item_id'):
+                    stock_item_id = item['stock_item_id']
+                    stock_item = StockItem.query.get(stock_item_id)
+                    
+                    if stock_item and stock_item.status == 'available':
+                        # Mark as sold
+                        stock_item.status = 'sold'
                         
-                        if stock_item:
-                            stock_item.status = 'sold'
-                            print(f"DEBUG: Marked stock item {stock_item.id} as sold")
-                    else:
-                        # For non-IMEI products, create a stock record
-                        stock_item = StockItem(
+                        # Create invoice item
+                        invoice_item = InvoiceItem(
+                            invoice_id=invoice.id,
                             product_id=product.id,
-                            status='sold',
-                            notes=f"Sold in invoice {invoice_number}"
+                            stock_item_id=stock_item.id,
+                            quantity=1,
+                            unit_price=item['price'],
+                            total=item['price'],
+                            discount=0.0
                         )
-                        db.session.add(stock_item)
-                        db.session.flush()
-                        print(f"DEBUG: Created stock record for non-IMEI product")
-                    
-                    # Create invoice item
-                    invoice_item = InvoiceItem(
-                        invoice_id=invoice.id,
+                        
+                        db.session.add(invoice_item)
+                        print(f"DEBUG: Created invoice item for specific stock item {stock_item_id}")
+                
+                # Handle non-specific items
+                else:
+                    # Get stock items for this product
+                    stock_items = StockItem.query.filter_by(
                         product_id=product.id,
-                        stock_item_id=stock_item.id if stock_item else None,
-                        quantity=1,
-                        unit_price=item['price'],
-                        total=item['price']
-                    )
+                        status='available'
+                    ).limit(item['quantity']).all()
                     
-                    db.session.add(invoice_item)
-                    print(f"DEBUG: Created invoice item for {product.name}")
+                    for stock_item in stock_items:
+                        # Mark as sold
+                        stock_item.status = 'sold'
+                        
+                        # Create invoice item
+                        invoice_item = InvoiceItem(
+                            invoice_id=invoice.id,
+                            product_id=product.id,
+                            stock_item_id=stock_item.id,
+                            quantity=1,
+                            unit_price=item['price'],
+                            total=item['price'],
+                            discount=0.0
+                        )
+                        
+                        db.session.add(invoice_item)
+                    
+                    print(f"DEBUG: Marked {len(stock_items)} stock items as sold for {product.name}")
             
-            # Create payment record
+            # ========== CREATE PAYMENT RECORD ==========
             if payment_method != 'due':
                 payment = Payment(
                     invoice_id=invoice.id,
@@ -807,40 +812,52 @@ def checkout():
                 db.session.add(payment)
                 print(f"DEBUG: Created payment record")
             
+            # ========== COMMIT TRANSACTION ==========
             db.session.commit()
             print(f"DEBUG: Database commit successful")
             
-            # Clear cart
+            # ========== CLEAR CART ==========
             session.pop('cart', None)
             session.modified = True
-            
             print(f"DEBUG: Cleared cart from session")
             
-            return jsonify({
+            # ========== PREPARE SUCCESS RESPONSE ==========
+            response_data = {
                 'success': True,
                 'invoice_id': invoice.id,
                 'invoice_number': invoice_number,
                 'total': total,
+                'subtotal': subtotal,
+                'tax': tax,
+                'discount': discount,
+                'customer_name': customer_name,
                 'message': f'Sale completed successfully! Invoice #{invoice_number}'
-            })
+            }
+            
+            print(f"DEBUG: Checkout completed successfully")
+            return jsonify(response_data)
             
         except Exception as e:
             db.session.rollback()
-            print(f"DEBUG: Database error: {str(e)}")
+            print(f"DEBUG: Database error during checkout: {str(e)}")
             import traceback
             traceback.print_exc()
+            
             return jsonify({
                 'success': False,
-                'message': f'Error processing sale: {str(e)}'
+                'message': f'Error processing sale: {str(e)}',
+                'error_type': 'database_error'
             }), 500
             
     except Exception as e:
         print(f"DEBUG: General error in checkout: {str(e)}")
         import traceback
         traceback.print_exc()
+        
         return jsonify({
             'success': False,
-            'message': f'Error in checkout process: {str(e)}'
+            'message': f'Error in checkout process: {str(e)}',
+            'error_type': 'server_error'
         }), 500
 
 @pos_bp.route('/checkout-form')

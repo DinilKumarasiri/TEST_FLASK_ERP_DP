@@ -224,6 +224,37 @@
         opacity: 0.3;
     }
     
+    /* Stock Status */
+    .stock-available {
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .stock-low {
+        color: #ffc107;
+        font-weight: bold;
+    }
+    
+    .stock-out {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    /* Specific Item Indicator */
+    .specific-item {
+        background-color: rgba(13, 110, 253, 0.05);
+        border-left: 3px solid #0d6efd;
+    }
+    
+    .specific-item-indicator {
+        background-color: #0d6efd;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        margin-left: 5px;
+    }
+    
     /* Tablet Styles (768px and up) */
     @media (min-width: 768px) {
         .pos-container {
@@ -441,8 +472,11 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="mb-0"><i class="fas fa-cash-register me-2"></i>POS Terminal</h2>
     <div class="action-buttons">
+        <button class="btn btn-outline-secondary" onclick="loadCart()">
+            <i class="fas fa-sync me-1"></i>Refresh
+        </button>
         <button class="btn btn-outline-danger" onclick="clearCart()">
-            <i class="fas fa-trash me-1"></i>Clear
+            <i class="fas fa-trash me-1"></i>Clear Cart
         </button>
         <button class="btn btn-success" onclick="openCheckoutModal()">
             <i class="fas fa-credit-card me-1"></i>Checkout
@@ -462,9 +496,10 @@
                        placeholder="📱 Scan Barcode or Enter IMEI"
                        autofocus
                        autocapitalize="none"
-                       autocomplete="off">
+                       autocomplete="off"
+                       onkeypress="handleBarcodeEnter(event)">
                 <div class="form-text text-end mt-1">
-                    <small>Press Enter after scanning</small>
+                    <small>Press Enter or Scan to add product</small>
                 </div>
             </div>
             
@@ -472,13 +507,15 @@
             <div class="category-filters">
                 <button type="button" 
                         class="btn btn-outline-primary category-btn active" 
-                        data-category="all">
+                        data-category="all"
+                        onclick="filterProducts('all')">
                     All
                 </button>
                 {% for category in categories %}
                 <button type="button" 
                         class="btn btn-outline-primary category-btn" 
-                        data-category="{{ category.id }}">
+                        data-category="{{ category.id }}"
+                        onclick="filterProducts({{ category.id }})">
                     {{ category.name }}
                 </button>
                 {% endfor %}
@@ -487,6 +524,7 @@
             <!-- Product Grid -->
             <div class="product-grid" id="productGrid">
             {% for product in products %}
+            {% set stock_count = product.stock_items|selectattr('status', 'equalto', 'available')|list|length %}
             <div class="product-card" 
                 data-product-id="{{ product.id }}" 
                 data-category="{{ product.category_id if product.category_id else 'all' }}"
@@ -494,17 +532,32 @@
                 data-product-name="{{ product.name }}"
                 data-has-imei="{{ product.has_imei }}"
                 data-sku="{{ product.sku }}"
-                data-barcode="{{ product.barcode }}">
+                data-barcode="{{ product.barcode }}"
+                data-stock="{{ stock_count }}">
                 <h6 class="product-name mb-1">{{ product.name }}</h6>
                 <small class="text-muted d-block mb-1">{{ product.sku }}</small>
                 <div class="mt-2">
                     <strong class="text-primary">Rs.{{ "%.2f"|format(product.selling_price) }}</strong>
                 </div>
+                <div class="mt-1">
+                    {% if stock_count > 5 %}
+                    <small class="stock-available">
+                        <i class="fas fa-box"></i> {{ stock_count }} in stock
+                    </small>
+                    {% elif stock_count > 0 %}
+                    <small class="stock-low">
+                        <i class="fas fa-exclamation-triangle"></i> Low stock: {{ stock_count }}
+                    </small>
+                    {% else %}
+                    <small class="stock-out">
+                        <i class="fas fa-times-circle"></i> Out of stock
+                    </small>
+                    {% endif %}
+                </div>
                 {% if product.has_imei %}
-                <small class="text-info mt-1"><i class="fas fa-barcode"></i> Serialized</small>
-                {% endif %}
-                {% if product.barcode %}
-                <small class="text-muted mt-1"><i class="fas fa-barcode"></i> {{ product.barcode }}</small>
+                <small class="text-info mt-1">
+                    <i class="fas fa-barcode"></i> Serialized
+                </small>
                 {% endif %}
             </div>
             {% endfor %}
@@ -573,7 +626,7 @@
                 
                 <!-- Process Payment Button -->
                 <div class="d-grid">
-                    <button class="btn btn-primary btn-lg checkout-btn" onclick="openCheckoutModal()">
+                    <button class="btn btn-primary btn-lg checkout-btn" onclick="openCheckoutModal()" id="checkoutButton">
                         <i class="fas fa-credit-card me-2"></i>Process Payment
                     </button>
                 </div>
@@ -602,6 +655,24 @@
         </div>
     </div>
 </div>
+
+<!-- Alert Modal for Errors -->
+<div class="modal fade" id="alertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertModalTitle">Alert</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="alertModalBody">
+                <!-- Alert message will go here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -609,36 +680,36 @@
 // Global variables
 let cart = {};
 let customer = null;
-let barcodeTimer;
 let isProcessing = false;
 
-// CSRF Token handling - FIXED VERSION
+// CSRF Token handling
 function getCsrfToken() {
-    // Method 1: Try to get from hidden input
     let csrfToken = $('#csrf_token').val();
     if (csrfToken) {
-        console.log('CSRF token found in hidden input:', csrfToken.substring(0, 10) + '...');
         return csrfToken;
     }
     
-    // Method 2: Try to get from meta tag
     const metaTag = document.querySelector('meta[name="csrf-token"]');
     if (metaTag) {
         csrfToken = metaTag.getAttribute('content');
-        console.log('CSRF token found in meta tag:', csrfToken ? csrfToken.substring(0, 10) + '...' : 'empty');
         return csrfToken;
     }
     
-    // Method 3: Try to get from form input
     const csrfInput = document.querySelector('input[name="csrf_token"]');
     if (csrfInput) {
         csrfToken = csrfInput.value;
-        console.log('CSRF token found in form input:', csrfToken.substring(0, 10) + '...');
         return csrfToken;
     }
     
     console.warn('CSRF token not found');
     return '';
+}
+
+// Show alert modal
+function showAlertModal(title, message) {
+    $('#alertModalTitle').text(title);
+    $('#alertModalBody').html(message);
+    $('#alertModal').modal('show');
 }
 
 // Show toast notification
@@ -660,7 +731,6 @@ function showToast(message, type = 'success') {
     
     $('body').append(toastHtml);
     
-    // Auto remove after 5 seconds
     setTimeout(() => {
         $(`#${toastId}`).remove();
     }, 5000);
@@ -677,123 +747,44 @@ function showLoading(show = true) {
     }
 }
 
-// Show alert message
-function showAlert(message, type = 'info', duration = 5000) {
-    const alertId = 'alert-' + Date.now();
-    const alertHtml = `
-        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    `;
-    
-    $('#alertContainer').append(alertHtml);
-    
-    // Auto dismiss after duration
-    if (duration > 0) {
-        setTimeout(() => {
-            $(`#${alertId}`).alert('close');
-        }, duration);
-    }
-}
-
 // Initialize
 $(document).ready(function() {
     console.log('POS Terminal initialized');
     
-    // Debug info
-    const csrfToken = getCsrfToken();
-    console.log('CSRF Token available:', csrfToken ? 'Yes (' + csrfToken.substring(0, 10) + '...)' : 'No');
-    $('#debugCsrf').text(csrfToken ? 'Found (' + csrfToken.substring(0, 10) + '...)' : 'Not found');
-    
     // Load initial cart
     loadCart();
-    
-    // Setup event listeners
-    setupEventListeners();
     
     // Focus on barcode input
     setTimeout(() => {
         $('#barcodeInput').focus();
     }, 100);
-    
-    // Check for CSRF issues
-    if (!csrfToken) {
-        showAlert('Warning: CSRF token not found. Some features may not work.', 'warning');
-    }
 });
 
-function setupEventListeners() {
-    // Barcode scanner with debounce
-    $('#barcodeInput').on('input', function(e) {
-        clearTimeout(barcodeTimer);
-        barcodeTimer = setTimeout(() => {
-            const barcode = this.value.trim();
-            if (barcode.length >= 3) {
-                scanProduct(barcode);
-                this.value = '';
-            }
-        }, 300);
-    });
-    
-    // Enter key for barcode input
-$('#barcodeInput').on('keypress', function(e) {
-    if (e.which === 13) { // Enter key
-        e.preventDefault();
-        const barcode = this.value.trim();
+// Handle barcode input enter key
+function handleBarcodeEnter(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const barcode = $('#barcodeInput').val().trim();
         if (barcode.length > 0) {
             scanProduct(barcode);
         }
     }
-});
-
-// Debug function to manually trigger scan
-function manualScan(barcode) {
-    console.log('Manual scan:', barcode);
-    $('#barcodeInput').val(barcode);
-    scanProduct(barcode);
 }
 
-// Expose to console
-window.manualScan = manualScan;
+// Filter products by category
+function filterProducts(categoryId) {
+    $('.category-btn').removeClass('active');
+    $(`.category-btn[data-category="${categoryId}"]`).addClass('active');
     
-    // Category filter
-    $('.category-btn').on('click', function(e) {
-        e.preventDefault();
-        $('.category-btn').removeClass('active');
-        $(this).addClass('active');
-        const categoryId = $(this).data('category');
-        filterProducts(categoryId);
-    });
-    
-    // Keyboard shortcuts
-    $(document).on('keydown', function(e) {
-        // Escape to focus barcode input
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            $('#barcodeInput').focus().select();
-        }
-        // Ctrl+K to focus barcode input
-        if (e.ctrlKey && e.key === 'k') {
-            e.preventDefault();
-            $('#barcodeInput').focus().select();
-        }
-        // Ctrl+L to clear cart
-        if (e.ctrlKey && e.key === 'l') {
-            e.preventDefault();
-            clearCart();
-        }
-    });
-    
-    // Prevent form submission on Enter in non-barcode inputs
-    $(document).on('keypress', 'input:not(#barcodeInput)', function(e) {
-        if (e.which === 13) {
-            e.preventDefault();
-            return false;
-        }
-    });
+    if (categoryId === 'all') {
+        $('.product-card').show();
+    } else {
+        $('.product-card').hide();
+        $(`.product-card[data-category="${categoryId}"]`).show();
+    }
 }
 
+// Scan product barcode
 function scanProduct(barcode) {
     if (!barcode || isProcessing) return;
     
@@ -810,23 +801,31 @@ function scanProduct(barcode) {
             'X-Requested-With': 'XMLHttpRequest'
         },
         success: function(response) {
-            console.log('Full scan response:', response);
+            console.log('Scan response:', response);
             
             if (response.success && response.product) {
                 const product = response.product;
                 
-                // Create FormData with all product information
+                // Check if the response says it's already in cart
+                if (response.message && response.message.includes('already in your cart')) {
+                    showToast(response.message, 'warning');
+                    showLoading(false);
+                    $('#barcodeInput').val('').focus();
+                    return;
+                }
+                
+                // Create FormData with product info
                 const formData = new FormData();
                 formData.append('product_id', product.id);
                 formData.append('quantity', 1);
                 
-                // Add stock_item_id if available
+                // Add stock_item_id if it's a specific item
                 if (product.stock_item_id) {
                     formData.append('stock_item_id', product.stock_item_id);
                     console.log('Adding specific stock item:', product.stock_item_id);
                 }
                 
-                // Send to add-to-cart endpoint
+                // Add to cart
                 $.ajax({
                     url: '/pos/add-to-cart',
                     method: 'POST',
@@ -838,26 +837,24 @@ function scanProduct(barcode) {
                         'X-Requested-With': 'XMLHttpRequest'
                     },
                     success: function(addResponse) {
-                        console.log('Add to cart success:', addResponse);
+                        console.log('Add to cart response:', addResponse);
                         if (addResponse.success) {
                             cart = addResponse.cart || {};
                             updateCartDisplay();
                             
-                            if (product.stock_item_id) {
-                                showAlert(`✓ ${product.name} (Serial: ${product.stock_item_barcode}) added to cart!`, 'success');
-                            } else {
-                                showAlert(`✓ ${product.name} added to cart!`, 'success');
+                            let message = `✓ ${product.name} added to cart`;
+                            if (product.stock_item_barcode) {
+                                message += ` (Serial: ${product.stock_item_barcode})`;
                             }
                             
-                            // Focus on barcode input
-                            $('#barcodeInput').val('').focus();
+                            showToast(message, 'success');
                         } else {
-                            showAlert(addResponse.message || 'Failed to add to cart', 'error');
+                            showToast(addResponse.message || 'Failed to add to cart', 'error');
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Add to cart error:', error, xhr.responseText);
-                        showAlert('Error adding to cart', 'error');
+                        console.error('Add to cart error:', error);
+                        showToast('Error adding to cart', 'error');
                     },
                     complete: function() {
                         showLoading(false);
@@ -866,26 +863,38 @@ function scanProduct(barcode) {
                 });
                 
             } else {
-                showAlert(response.message || 'Product not found', 'warning');
+                showToast(response.message || 'Product not found', 'warning');
                 showLoading(false);
                 $('#barcodeInput').val('').focus();
             }
         },
         error: function(xhr, status, error) {
-            console.error('Scan error:', error, xhr.responseText);
-            showAlert('Error scanning barcode', 'error');
+            console.error('Scan error:', error);
+            showToast('Error scanning barcode', 'error');
             showLoading(false);
             $('#barcodeInput').val('').focus();
         }
     });
 }
 
-// FIXED: This version uses FormData instead of JSON to avoid CSRF issues
+// Add product to cart by clicking
 function addToCart(productId) {
     if (isProcessing) return;
     
     console.log('Adding to cart product ID:', productId);
     showLoading(true);
+    
+    // Get product details
+    const productCard = $(`.product-card[data-product-id="${productId}"]`);
+    const productName = productCard.data('product-name');
+    const hasImei = productCard.data('has-imei') === 'True';
+    
+    if (hasImei) {
+        showAlertModal('Serialized Product', 
+            `${productName} requires serialization. Please scan each item's barcode/IMEI individually.`);
+        showLoading(false);
+        return;
+    }
     
     // Create FormData
     const formData = new FormData();
@@ -908,41 +917,20 @@ function addToCart(productId) {
                 cart = response.cart || {};
                 updateCartDisplay();
                 
-                // Show success message
-                const productName = response.product_added.name;
-                const quantity = response.product_added.quantity;
-                const remainingStock = response.product_added.remaining_stock;
+                // Highlight the product
+                productCard.addClass('bg-success bg-opacity-10');
+                setTimeout(() => {
+                    productCard.removeClass('bg-success bg-opacity-10');
+                }, 1000);
                 
-                let message = `✓ Added ${quantity} × ${productName} to cart`;
-                if (remainingStock >= 0) {
-                    message += ` (${remainingStock} remaining in stock)`;
-                }
-                
-                showAlert(message, 'success');
-                
-                // Show low stock warning
-                if (response.warning) {
-                    setTimeout(() => {
-                        showAlert(response.warning, 'warning', 8000);
-                    }, 1000);
-                }
-                
+                showToast(`✓ ${productName} added to cart`, 'success');
             } else {
-                // Handle specific error types
-                let errorMessage = response.message || 'Error adding to cart';
-                
-                if (response.error_type === 'all_stock_in_cart') {
-                    errorMessage += `. Click the + button to increase quantity if needed.`;
-                } else if (response.error_type === 'insufficient_stock') {
-                    errorMessage += `. Try adding ${response.remaining_stock} or less.`;
-                }
-                
-                showAlert(errorMessage, 'error', 8000);
+                showToast(response.message || 'Error adding to cart', 'error');
             }
         },
         error: function(xhr, status, error) {
             console.error('Error adding to cart:', error);
-            showAlert('Error adding to cart. Please try again.', 'error');
+            showToast('Error adding to cart', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -950,166 +938,7 @@ function addToCart(productId) {
     });
 }
 
-function updateCartItem(productKey, newQuantity) {
-    if (isProcessing) return;
-    
-    const item = cart[productKey];
-    if (!item) return;
-    
-    if (newQuantity < 1) {
-        removeFromCart(productKey);
-        return;
-    }
-    
-    // Don't allow increasing beyond available stock
-    if (newQuantity > item.quantity && item.stock_available !== undefined) {
-        if (item.quantity >= item.stock_available) {
-            showAlert(`Cannot add more. Only ${item.stock_available} ${item.name} available in stock.`, 'warning');
-            return;
-        }
-    }
-    
-    showLoading(true);
-    
-    const formData = new FormData();
-    formData.append('product_key', productKey);
-    formData.append('quantity', newQuantity);
-    
-    $.ajax({
-        url: '/pos/update-cart',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            if (response.success) {
-                cart = response.cart || {};
-                updateCartDisplay();
-                
-                if (newQuantity > item.quantity) {
-                    showAlert(`Increased ${item.name} quantity to ${newQuantity}`, 'success');
-                } else if (newQuantity < item.quantity) {
-                    showAlert(`Decreased ${item.name} quantity to ${newQuantity}`, 'info');
-                }
-            } else {
-                showAlert(response.message || 'Error updating quantity', 'error');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error updating cart:', error);
-            showAlert('Error updating quantity', 'error');
-        },
-        complete: function() {
-            showLoading(false);
-        }
-    });
-}
-
-// Helper function to send the add-to-cart request
-function sendAddToCartRequest(formData, productId) {
-    $.ajax({
-        url: '/pos/add-to-cart',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            console.log('Add to cart response:', response);
-            if (response.success) {
-                cart = response.cart || {};
-                updateCartDisplay();
-                highlightAddedProduct(productId);
-                showAlert('Product added to cart!', 'success');
-            } else {
-                showAlert(response.message || 'Error adding to cart', 'error');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error adding to cart:', error);
-            let errorMsg = 'Error adding to cart. ';
-            
-            if (xhr.status === 400) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    errorMsg += response.message || '';
-                } catch (e) {
-                    errorMsg += xhr.responseText;
-                }
-            }
-            
-            showAlert(errorMsg, 'error');
-        },
-        complete: function() {
-            showLoading(false);
-        }
-    });
-}
-
-function highlightAddedProduct(productId) {
-    const productCard = $(`.product-card[data-product-id="${productId}"]`);
-    if (productCard.length) {
-        productCard.addClass('bg-success bg-opacity-10');
-        setTimeout(() => {
-            productCard.removeClass('bg-success bg-opacity-10');
-        }, 1000);
-    }
-}
-
-function updateCartItem(productKey, quantity) {
-    if (isProcessing) return;
-    
-    // Get the actual item to find the product ID
-    const item = cart[productKey];
-    if (!item) return;
-    
-    if (quantity < 1) {
-        removeFromCart(productKey);
-        return;
-    }
-    
-    showLoading(true);
-    
-    // Use FormData
-    const formData = new FormData();
-    formData.append('product_key', productKey); // Send the cart key, not product ID
-    formData.append('quantity', quantity);
-    
-    $.ajax({
-        url: '/pos/update-cart',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            if (response.success) {
-                cart = response.cart || {};
-                updateCartDisplay();
-            } else {
-                showAlert(response.message || 'Error updating cart', 'error');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error updating cart:', error);
-            showAlert('Error updating quantity', 'error');
-        },
-        complete: function() {
-            showLoading(false);
-        }
-    });
-}
-
+// Load cart from server
 function loadCart() {
     if (isProcessing) return;
     
@@ -1123,8 +952,6 @@ function loadCart() {
             console.log('Load cart response:', response);
             cart = response.cart || {};
             updateCartDisplay();
-            // Update debug panel
-            $('#debugCartCount').text(Object.keys(cart).length);
         },
         error: function(xhr, status, error) {
             console.error('Error loading cart:', error);
@@ -1134,9 +961,11 @@ function loadCart() {
     });
 }
 
+// Update cart display
 function updateCartDisplay() {
     const cartItems = $('#cartItems');
     const emptyCart = $('#emptyCart');
+    const checkoutButton = $('#checkoutButton');
     
     if (Object.keys(cart).length === 0) {
         emptyCart.show();
@@ -1146,6 +975,7 @@ function updateCartDisplay() {
         $('#cartTax').text('Rs.0.00');
         $('#cartDiscount').text('Rs.0.00');
         $('#cartTotal').text('Rs.0.00');
+        checkoutButton.prop('disabled', true).addClass('btn-secondary').removeClass('btn-primary');
         document.title = 'POS Terminal - Mobile Shop ERP';
         return;
     }
@@ -1166,17 +996,6 @@ function updateCartDisplay() {
         
         // Create barcode HTML
         let barcodeHtml = '';
-        let stockInfoHtml = '';
-        
-        // Show stock availability warning if applicable
-        if (item.stock_available !== undefined) {
-            const remaining = item.stock_available - item.quantity;
-            if (remaining <= 0) {
-                stockInfoHtml = `<small class="text-danger d-block"><i class="fas fa-exclamation-triangle"></i> All stock in cart</small>`;
-            } else if (remaining <= 3) {
-                stockInfoHtml = `<small class="text-warning d-block"><i class="fas fa-exclamation-triangle"></i> Low stock (${remaining} remaining)</small>`;
-            }
-        }
         
         if (barcodesList.length > 0) {
             if (item.quantity === 1) {
@@ -1190,7 +1009,7 @@ function updateCartDisplay() {
                         <div class="barcode-list">
                 `;
                 
-                // Show first 5 barcodes, then "and X more..."
+                // Show first 5 barcodes
                 const maxToShow = 5;
                 if (barcodesList.length > maxToShow) {
                     for (let i = 0; i < maxToShow; i++) {
@@ -1207,12 +1026,18 @@ function updateCartDisplay() {
             }
         }
         
+        // Check if it's a specific item
+        const isSpecificItem = item.is_specific_item || item.stock_item_id;
+        const itemClass = isSpecificItem ? 'specific-item' : '';
+        
         const cartItem = `
-            <div class="cart-item">
+            <div class="cart-item ${itemClass}">
                 <div class="flex-grow-1">
-                    <h6 class="mb-1 text-truncate">${item.name}</h6>
+                    <h6 class="mb-1 text-truncate">
+                        ${item.name}
+                        ${isSpecificItem ? '<span class="specific-item-indicator">Serialized</span>' : ''}
+                    </h6>
                     <small class="text-muted">Rs.${item.price.toFixed(2)} each</small>
-                    ${stockInfoHtml}
                     ${barcodeHtml}
                 </div>
                 <div class="cart-item-controls">
@@ -1249,13 +1074,72 @@ function updateCartDisplay() {
     $('#cartTax').text('Rs.' + tax.toFixed(2));
     $('#cartDiscount').text('Rs.' + discount.toFixed(2));
     $('#cartTotal').text('Rs.' + total.toFixed(2));
+    checkoutButton.prop('disabled', false).removeClass('btn-secondary').addClass('btn-primary');
     document.title = `(${itemCount}) POS Terminal - Mobile Shop ERP`;
 }
 
+// Update cart item quantity
+function updateCartItem(productKey, newQuantity) {
+    if (isProcessing) return;
+    
+    const item = cart[productKey];
+    if (!item) return;
+    
+    if (newQuantity < 1) {
+        removeFromCart(productKey);
+        return;
+    }
+    
+    // Don't allow changing quantity for specific items
+    if (item.is_specific_item || item.stock_item_id) {
+        showToast('Cannot change quantity of serialized items', 'warning');
+        return;
+    }
+    
+    showLoading(true);
+    
+    const formData = new FormData();
+    formData.append('product_key', productKey);
+    formData.append('quantity', newQuantity);
+    
+    $.ajax({
+        url: '/pos/update-cart',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            if (response.success) {
+                cart = response.cart || {};
+                updateCartDisplay();
+                
+                if (newQuantity > item.quantity) {
+                    showToast(`Increased ${item.name} quantity to ${newQuantity}`, 'success');
+                } else if (newQuantity < item.quantity) {
+                    showToast(`Decreased ${item.name} quantity to ${newQuantity}`, 'info');
+                }
+            } else {
+                showToast(response.message || 'Error updating quantity', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error updating cart:', error);
+            showToast('Error updating quantity', 'error');
+        },
+        complete: function() {
+            showLoading(false);
+        }
+    });
+}
+
+// Remove item from cart
 function removeFromCart(productKey) {
     if (isProcessing) return;
     
-    // Get item name for confirmation message
     const itemName = cart[productKey] ? cart[productKey].name : 'this item';
     
     if (!confirm(`Remove ${itemName} from cart?`)) {
@@ -1264,9 +1148,8 @@ function removeFromCart(productKey) {
     
     showLoading(true);
     
-    // Use FormData
     const formData = new FormData();
-    formData.append('product_key', productKey); // Send the cart key
+    formData.append('product_key', productKey);
     
     $.ajax({
         url: '/pos/remove-from-cart/' + encodeURIComponent(productKey),
@@ -1282,14 +1165,14 @@ function removeFromCart(productKey) {
             if (response.success) {
                 cart = response.cart || {};
                 updateCartDisplay();
-                showAlert(`${itemName} removed from cart`, 'info');
+                showToast(`${itemName} removed from cart`, 'info');
             } else {
-                showAlert(response.message || 'Error removing item', 'error');
+                showToast(response.message || 'Error removing item', 'error');
             }
         },
         error: function(xhr, status, error) {
             console.error('Error removing from cart:', error);
-            showAlert('Error removing item', 'error');
+            showToast('Error removing item', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1297,11 +1180,12 @@ function removeFromCart(productKey) {
     });
 }
 
+// Clear entire cart
 function clearCart() {
     if (isProcessing) return;
     
     if (Object.keys(cart).length === 0) {
-        showAlert('Cart is already empty', 'info');
+        showToast('Cart is already empty', 'info');
         return;
     }
     
@@ -1311,7 +1195,6 @@ function clearCart() {
     
     showLoading(true);
     
-    // Use FormData
     const formData = new FormData();
     
     $.ajax({
@@ -1328,14 +1211,14 @@ function clearCart() {
             if (response.success) {
                 cart = {};
                 updateCartDisplay();
-                showAlert('Cart cleared successfully', 'success');
+                showToast('Cart cleared successfully', 'success');
             } else {
-                showAlert(response.message || 'Error clearing cart', 'error');
+                showToast(response.message || 'Error clearing cart', 'error');
             }
         },
         error: function(xhr, status, error) {
             console.error('Error clearing cart:', error);
-            showAlert('Error clearing cart', 'error');
+            showToast('Error clearing cart', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1343,12 +1226,13 @@ function clearCart() {
     });
 }
 
+// Find customer by phone
 function findCustomer() {
     if (isProcessing) return;
     
     const phone = $('#customerPhone').val().trim();
     if (!phone || phone.length < 10) {
-        showAlert('Please enter a valid phone number (10+ digits)', 'warning');
+        showToast('Please enter a valid phone number (10+ digits)', 'warning');
         return;
     }
     
@@ -1369,7 +1253,7 @@ function findCustomer() {
                 $('#customerName').text(customer.name);
                 $('#customerPhoneDisplay').text(customer.phone);
                 $('#customerInfo').show();
-                showAlert('Customer found!', 'success');
+                showToast('Customer found!', 'success');
             } else {
                 $('#customerInfo').hide();
                 if (confirm('Customer not found. Create new customer?')) {
@@ -1379,7 +1263,7 @@ function findCustomer() {
         },
         error: function(xhr, status, error) {
             console.error('Error finding customer:', error);
-            showAlert('Error finding customer', 'error');
+            showToast('Error finding customer', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1387,6 +1271,7 @@ function findCustomer() {
     });
 }
 
+// Create new customer
 function createCustomer(phone) {
     const name = prompt('Enter customer name:');
     if (!name) return;
@@ -1395,7 +1280,7 @@ function createCustomer(phone) {
     const address = prompt('Enter address (optional):');
     
     if (!name.trim()) {
-        showAlert('Customer name is required', 'error');
+        showToast('Customer name is required', 'error');
         return;
     }
     
@@ -1422,14 +1307,14 @@ function createCustomer(phone) {
                 $('#customerPhoneDisplay').text(customer.phone);
                 $('#customerInfo').show();
                 $('#customerPhone').val(phone);
-                showAlert('Customer created successfully!', 'success');
+                showToast('Customer created successfully!', 'success');
             } else {
-                showAlert(response.message || 'Error creating customer', 'error');
+                showToast(response.message || 'Error creating customer', 'error');
             }
         },
         error: function(xhr, status, error) {
             console.error('Error creating customer:', error);
-            showAlert('Error creating customer', 'error');
+            showToast('Error creating customer', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1437,11 +1322,12 @@ function createCustomer(phone) {
     });
 }
 
+// Open checkout modal
 function openCheckoutModal() {
     if (isProcessing) return;
     
     if (Object.keys(cart).length === 0) {
-        showAlert('Cart is empty. Add some products first.', 'warning');
+        showToast('Cart is empty. Add some products first.', 'warning');
         return;
     }
     
@@ -1476,8 +1362,25 @@ function openCheckoutModal() {
                 $('#customerPhoneInput').val(customer.phone);
             }
             
-            // Initialize checkout form
-            initializeCheckoutForm();
+            // Populate checkout items
+            loadCheckoutItems();
+            
+            // Setup payment method change handler
+            $('#paymentMethod').on('change', function() {
+                if (this.value === 'card' || this.value === 'bank_transfer' || this.value === 'digital_wallet') {
+                    $('#paymentReferenceField').show();
+                    $('#paymentReference').prop('required', true);
+                } else {
+                    $('#paymentReferenceField').hide();
+                    $('#paymentReference').prop('required', false);
+                }
+            });
+            
+            // Setup checkout form submission
+            $('#checkoutForm').on('submit', function(e) {
+                e.preventDefault();
+                processCheckout();
+            });
         },
         error: function(xhr, status, error) {
             console.error('Error loading checkout form:', error);
@@ -1494,29 +1397,117 @@ function openCheckoutModal() {
     });
 }
 
-function initializeCheckoutForm() {
-    // This function will be called after checkout form is loaded
-    console.log('Checkout form loaded and ready');
+// Load items into checkout form
+function loadCheckoutItems() {
+    const itemsContainer = $('#checkoutItems');
+    if (!itemsContainer.length) return;
+    
+    itemsContainer.empty();
+    
+    let subtotal = 0;
+    
+    for (const productKey in cart) {
+        const item = cart[productKey];
+        const itemTotal = item.price * item.quantity;
+        subtotal += itemTotal;
+        
+        const row = `
+            <tr>
+                <td>${item.name}</td>
+                <td>Rs.${item.price.toFixed(2)}</td>
+                <td>${item.quantity}</td>
+                <td>Rs.${itemTotal.toFixed(2)}</td>
+            </tr>
+        `;
+        itemsContainer.append(row);
+    }
+    
+    const tax = subtotal * 0.15;
+    const discount = parseFloat($('#discount').val()) || 0;
+    const total = subtotal + tax - discount;
+    
+    $('#checkoutSubtotal').text('Rs.' + subtotal.toFixed(2));
+    $('#checkoutTax').text('Rs.' + tax.toFixed(2));
+    $('#checkoutTotal').text('Rs.' + total.toFixed(2));
 }
 
-function filterProducts(categoryId) {
-    if (categoryId === 'all') {
-        $('.product-card').show();
-    } else {
-        $('.product-card').hide();
-        $(`.product-card[data-category="${categoryId}"]`).show();
-    }
+// Calculate checkout total when discount changes
+function calculateCheckoutTotal() {
+    loadCheckoutItems();
 }
 
-// Handle page visibility change
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-        // Refresh cart when page becomes visible again
-        setTimeout(() => {
-            loadCart();
-        }, 500);
+// Process checkout
+function processCheckout() {
+    const form = $('#checkoutForm')[0];
+    const formData = new FormData(form);
+    
+    // Add tax rate
+    formData.append('tax_rate', 0.15);
+    
+    // Disable submit button
+    const submitBtn = $('button[type="submit"]');
+    submitBtn.prop('disabled', true).html(
+        '<i class="fas fa-spinner fa-spin me-1"></i>Processing...'
+    );
+    
+    // Convert FormData to object for JSON
+    const formDataObj = {};
+    for (let [key, value] of formData.entries()) {
+        formDataObj[key] = value;
     }
-});
+    
+    console.log('Checkout form data:', formDataObj);
+    
+    $.ajax({
+        url: '/pos/checkout',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formDataObj),
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            console.log('Checkout success response:', response);
+            
+            if (response.success) {
+                // Close modal
+                $('#checkoutModal').modal('hide');
+                
+                // Show success message
+                showToast(`Sale completed! Invoice: ${response.invoice_number}`, 'success');
+                
+                // Clear cart
+                cart = {};
+                updateCartDisplay();
+                
+                // Open receipt for printing
+                setTimeout(() => {
+                    const printWindow = window.open(`/pos/invoice/${response.invoice_id}/print`, '_blank');
+                    
+                    if (!printWindow || printWindow.closed || typeof printWindow.closed == 'undefined') {
+                        window.location.href = `/pos/invoice/${response.invoice_id}/receipt`;
+                    }
+                    
+                    $('#barcodeInput').focus();
+                }, 500);
+                
+            } else {
+                showToast(response.message || 'Checkout failed', 'error');
+                submitBtn.prop('disabled', false).html(
+                    '<i class="fas fa-check-circle me-1"></i>Complete Sale'
+                );
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error during checkout:', error, xhr.responseText);
+            showToast('Error completing sale. Please try again.', 'error');
+            submitBtn.prop('disabled', false).html(
+                '<i class="fas fa-check-circle me-1"></i>Complete Sale'
+            );
+        }
+    });
+}
 
 // Prevent accidental page refresh/close with items in cart
 window.addEventListener('beforeunload', function(e) {
@@ -1527,7 +1518,7 @@ window.addEventListener('beforeunload', function(e) {
     }
 });
 
-// Auto-refresh cart every 30 seconds (for multi-tab/device sync)
+// Auto-refresh cart every 30 seconds
 setInterval(() => {
     if (!document.hidden && Object.keys(cart).length > 0) {
         loadCart();
@@ -1537,55 +1528,23 @@ setInterval(() => {
 // Test function for debugging
 function testAjax() {
     console.log('Testing AJAX connection...');
-    console.log('CSRF Token:', getCsrfToken());
     
     $.ajax({
         url: '/pos/get-cart',
         method: 'GET',
         success: function(response) {
             console.log('Test successful:', response);
-            showAlert('AJAX connection test successful!', 'success');
+            showToast('AJAX connection test successful!', 'success');
         },
         error: function(xhr, status, error) {
             console.error('Test failed:', error, xhr.responseText);
-            showAlert('AJAX connection test failed: ' + error, 'error');
+            showToast('AJAX connection test failed: ' + error, 'error');
         }
     });
 }
 
-// Test add to cart with FormData (alternative method)
-function testAddToCartFormData(productId) {
-    console.log('Testing add to cart with FormData for product:', productId);
-    
-    const formData = new FormData();
-    formData.append('product_id', productId);
-    formData.append('quantity', 1);
-    
-    $.ajax({
-        url: '/pos/add-to-cart',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            console.log('Test success with FormData:', response);
-            showAlert('FormData test successful!', 'success');
-            loadCart();
-        },
-        error: function(xhr, status, error) {
-            console.error('FormData test error:', error, xhr.responseText);
-            showAlert('FormData test failed: ' + error, 'error');
-        }
-    });
-}
-
-// Expose test functions for debugging
+// Expose functions for debugging
 window.testAjax = testAjax;
-window.testAddToCartFormData = testAddToCartFormData;
 window.getCsrfToken = getCsrfToken;
 </script>
 {% endblock %}
