@@ -288,6 +288,7 @@ def add_to_cart():
         response_data = {
             'success': True,
             'cart': cart,
+            'product_key': product_key,
             'cart_summary': {
                 'item_count': item_count,
                 'subtotal': subtotal,
@@ -361,22 +362,23 @@ def get_cart():
             'cart': {}
         }), 500
 
-@pos_bp.route('/remove-from-cart/<int:product_id>', methods=['POST'])
+@pos_bp.route('/remove-from-cart/<string:product_key>', methods=['POST'])  # Changed from int to string
 @login_required
-def remove_from_cart(product_id):
+def remove_from_cart(product_key):
     """Remove item from cart"""
-    print(f"DEBUG: /pos/remove-from-cart/{product_id} route called")
+    print(f"DEBUG: /pos/remove-from-cart/{product_key} route called")
     
     try:
-        if 'cart' in session and str(product_id) in session['cart']:
+        if 'cart' in session and product_key in session['cart']:
             # Get product name before removing (for response message)
-            product_name = session['cart'][str(product_id)].get('name', 'Product')
+            item = session['cart'][product_key]
+            product_name = item.get('name', 'Product')
             
             # Remove item
-            del session['cart'][str(product_id)]
+            del session['cart'][product_key]
             session.modified = True
             
-            print(f"DEBUG: Removed {product_name} from cart")
+            print(f"DEBUG: Removed {product_name} from cart (key: {product_key})")
             
             return jsonify({
                 'success': True, 
@@ -403,12 +405,12 @@ def update_cart():
         else:
             data = request.form
         
-        product_id = data.get('product_id')
+        product_key = data.get('product_key')  # Changed from product_id
         quantity_str = data.get('quantity', '1')
         
         # Validate input
-        if not product_id:
-            return jsonify({'success': False, 'message': 'Product ID is required'}), 400
+        if not product_key:
+            return jsonify({'success': False, 'message': 'Product key is required'}), 400
         
         try:
             quantity = int(quantity_str)
@@ -418,36 +420,49 @@ def update_cart():
         if quantity < 0:
             return jsonify({'success': False, 'message': 'Quantity cannot be negative'}), 400
         
-        # Check if cart exists
-        if 'cart' not in session or str(product_id) not in session['cart']:
+        # Check if cart exists and item exists
+        if 'cart' not in session or product_key not in session['cart']:
             return jsonify({'success': False, 'message': 'Item not found in cart'}), 404
         
-        product = Product.query.get(product_id)
-        if not product:
-            return jsonify({'success': False, 'message': 'Product not found'}), 404
+        item = session['cart'][product_key]
         
-        # Check stock availability
-        available_stock = StockItem.query.filter_by(
-            product_id=product.id,
-            status='available'
-        ).count()
+        # Check if this is a specific stock item or regular product
+        if 'stock_item_id' in item:
+            # Specific stock item - always quantity 1
+            if quantity > 1:
+                return jsonify({
+                    'success': False,
+                    'message': f'{item["name"]} is a specific serialized item, quantity must be 1'
+                }), 400
+            item['quantity'] = 1
+        else:
+            # Regular product - check stock availability
+            product = Product.query.get(item['id'])
+            if not product:
+                return jsonify({'success': False, 'message': 'Product not found'}), 404
+            
+            # Check stock availability
+            available_stock = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+            
+            # If quantity is 0, remove from cart
+            if quantity == 0:
+                del session['cart'][product_key]
+                session.modified = True
+                return jsonify({'success': True, 'cart': session.get('cart', {})})
+            
+            # Check if requested quantity exceeds available stock
+            if quantity > available_stock:
+                return jsonify({
+                    'success': False, 
+                    'message': f'Only {available_stock} items available',
+                    'available_stock': available_stock
+                }), 400
+            
+            item['quantity'] = quantity
         
-        # If quantity is 0, remove from cart
-        if quantity == 0:
-            del session['cart'][str(product_id)]
-            session.modified = True
-            return jsonify({'success': True, 'cart': session.get('cart', {})})
-        
-        # Check if requested quantity exceeds available stock
-        if quantity > available_stock:
-            return jsonify({
-                'success': False, 
-                'message': f'Only {available_stock} items available',
-                'available_stock': available_stock
-            }), 400
-        
-        # Update cart
-        session['cart'][str(product_id)]['quantity'] = quantity
         session.modified = True
         
         return jsonify({'success': True, 'cart': session['cart']})

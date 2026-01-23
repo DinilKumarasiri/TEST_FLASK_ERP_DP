@@ -807,6 +807,9 @@ function scanProduct(barcode) {
                             } else {
                                 showAlert(`✓ ${product.name} added to cart!`, 'success');
                             }
+                            
+                            // Focus on barcode input
+                            $('#barcodeInput').val('').focus();
                         } else {
                             showAlert(addResponse.message || 'Failed to add to cart', 'error');
                         }
@@ -913,19 +916,23 @@ function highlightAddedProduct(productId) {
     }
 }
 
-function updateCartItem(productId, quantity) {
+function updateCartItem(productKey, quantity) {
     if (isProcessing) return;
     
+    // Get the actual item to find the product ID
+    const item = cart[productKey];
+    if (!item) return;
+    
     if (quantity < 1) {
-        removeFromCart(productId);
+        removeFromCart(productKey);
         return;
     }
     
     showLoading(true);
     
-    // Use FormData for consistency
+    // Use FormData
     const formData = new FormData();
-    formData.append('product_id', productId);
+    formData.append('product_key', productKey); // Send the cart key, not product ID
     formData.append('quantity', quantity);
     
     $.ajax({
@@ -1004,27 +1011,32 @@ function updateCartDisplay() {
     let itemCount = 0;
     let subtotal = 0;
     
-    for (const productId in cart) {
-        const item = cart[productId];
+    for (const productKey in cart) {
+        const item = cart[productKey];
         itemCount += item.quantity;
         subtotal += item.price * item.quantity;
+        
+        // Determine the correct ID to use for removal
+        const removeId = item.stock_item_id || item.id;
         
         const cartItem = `
             <div class="cart-item">
                 <div class="flex-grow-1">
                     <h6 class="mb-1 text-truncate">${item.name}</h6>
                     <small class="text-muted">Rs.${item.price.toFixed(2)} each</small>
+                    ${item.stock_item_barcode ? 
+                      `<small class="text-info d-block"><i class="fas fa-barcode"></i> ${item.stock_item_barcode}</small>` : ''}
                 </div>
                 <div class="cart-item-controls">
                     <div class="quantity-control">
                         <button class="btn btn-sm btn-outline-secondary quantity-btn" 
-                                onclick="updateCartItem(${item.id}, ${item.quantity - 1})"
+                                onclick="updateCartItem('${productKey}', ${item.quantity - 1})"
                                 aria-label="Decrease quantity">
                             <i class="fas fa-minus"></i>
                         </button>
                         <span class="quantity-display px-2">${item.quantity}</span>
                         <button class="btn btn-sm btn-outline-secondary quantity-btn" 
-                                onclick="updateCartItem(${item.id}, ${item.quantity + 1})"
+                                onclick="updateCartItem('${productKey}', ${item.quantity + 1})"
                                 aria-label="Increase quantity">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -1032,7 +1044,7 @@ function updateCartDisplay() {
                     <div class="text-end ms-2" style="min-width: 70px;">
                         <div class="fw-bold">Rs.${(item.price * item.quantity).toFixed(2)}</div>
                         <button class="btn btn-sm btn-link text-danger p-0" 
-                                onclick="removeFromCart(${item.id})"
+                                onclick="removeFromCart('${productKey}')"
                                 aria-label="Remove item">
                             <small><i class="fas fa-trash"></i> Remove</small>
                         </button>
@@ -1057,10 +1069,13 @@ function updateCartDisplay() {
     document.title = `(${itemCount}) POS Terminal - Mobile Shop ERP`;
 }
 
-function removeFromCart(productId) {
+function removeFromCart(productKey) {
     if (isProcessing) return;
     
-    if (!confirm('Remove this item from cart?')) {
+    // Get item name for confirmation message
+    const itemName = cart[productKey] ? cart[productKey].name : 'this item';
+    
+    if (!confirm(`Remove ${itemName} from cart?`)) {
         return;
     }
     
@@ -1068,10 +1083,10 @@ function removeFromCart(productId) {
     
     // Use FormData
     const formData = new FormData();
-    formData.append('_method', 'DELETE'); // Some frameworks use this
+    formData.append('product_key', productKey); // Send the cart key
     
     $.ajax({
-        url: '/pos/remove-from-cart/' + productId,
+        url: '/pos/remove-from-cart/' + encodeURIComponent(productKey),
         method: 'POST',
         data: formData,
         processData: false,
@@ -1082,8 +1097,9 @@ function removeFromCart(productId) {
         },
         success: function(response) {
             if (response.success) {
-                loadCart();
-                showAlert('Item removed from cart', 'info');
+                cart = response.cart || {};
+                updateCartDisplay();
+                showAlert(`${itemName} removed from cart`, 'info');
             } else {
                 showAlert(response.message || 'Error removing item', 'error');
             }
