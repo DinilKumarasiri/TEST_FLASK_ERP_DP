@@ -133,6 +133,48 @@
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
     }
     
+    /* Barcode list styling */
+    .barcode-list {
+        max-height: 120px;
+        overflow-y: auto;
+        padding: 5px 0 5px 15px;
+        margin-top: 5px;
+        border-left: 2px solid #dee2e6;
+    }
+
+    .barcode-list small {
+        display: block;
+        padding: 2px 0;
+        line-height: 1.4;
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+    }
+
+    /* Make cart items scrollable if too many */
+    .cart-items {
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 5px;
+    }
+
+    .cart-items::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .cart-items::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .cart-items::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+
+    .cart-items::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
     /* Category Filters */
     .category-filters {
         display: flex;
@@ -444,29 +486,28 @@
             
             <!-- Product Grid -->
             <div class="product-grid" id="productGrid">
-                {% for product in products %}
-                <div class="product-card" 
-                     data-product-id="{{ product.id }}" 
-                     data-category="{{ product.category_id if product.category_id else 'all' }}"
-                     onclick="addToCart({{ product.id }})"
-                     data-product-name="{{ product.name }}">
-                    <h6 class="product-name mb-1">{{ product.name }}</h6>
-                    <small class="text-muted d-block mb-1">{{ product.sku }}</small>
-                    <div class="mt-2">
-                        <strong class="text-primary">Rs.{{ "%.2f"|format(product.selling_price) }}</strong>
-                    </div>
-                    {% if product.has_imei %}
-                    <small class="text-info mt-1"><i class="fas fa-barcode"></i> IMEI</small>
-                    {% endif %}
-                    {% set stock_count = namespace(value=0) %}
-                    {% for stock in product.stock_items if stock.status == 'available' %}
-                        {% set stock_count.value = stock_count.value + 1 %}
-                    {% endfor %}
-                    {% if stock_count.value <= 5 %}
-                    <small class="text-danger mt-1"><i class="fas fa-exclamation-triangle"></i> Low Stock</small>
-                    {% endif %}
+            {% for product in products %}
+            <div class="product-card" 
+                data-product-id="{{ product.id }}" 
+                data-category="{{ product.category_id if product.category_id else 'all' }}"
+                onclick="addToCart({{ product.id }})"
+                data-product-name="{{ product.name }}"
+                data-has-imei="{{ product.has_imei }}"
+                data-sku="{{ product.sku }}"
+                data-barcode="{{ product.barcode }}">
+                <h6 class="product-name mb-1">{{ product.name }}</h6>
+                <small class="text-muted d-block mb-1">{{ product.sku }}</small>
+                <div class="mt-2">
+                    <strong class="text-primary">Rs.{{ "%.2f"|format(product.selling_price) }}</strong>
                 </div>
-                {% endfor %}
+                {% if product.has_imei %}
+                <small class="text-info mt-1"><i class="fas fa-barcode"></i> Serialized</small>
+                {% endif %}
+                {% if product.barcode %}
+                <small class="text-muted mt-1"><i class="fas fa-barcode"></i> {{ product.barcode }}</small>
+                {% endif %}
+            </div>
+            {% endfor %}
             </div>
         </div>
         
@@ -844,10 +885,9 @@ function addToCart(productId) {
     if (isProcessing) return;
     
     console.log('Adding to cart product ID:', productId);
-    console.log('Using CSRF token:', getCsrfToken().substring(0, 10) + '...');
     showLoading(true);
     
-    // Create FormData instead of JSON
+    // Create FormData
     const formData = new FormData();
     formData.append('product_id', productId);
     formData.append('quantity', 1);
@@ -867,7 +907,125 @@ function addToCart(productId) {
             if (response.success) {
                 cart = response.cart || {};
                 updateCartDisplay();
-                // Also update product grid to reflect stock changes
+                
+                // Show success message
+                const productName = response.product_added.name;
+                const quantity = response.product_added.quantity;
+                const remainingStock = response.product_added.remaining_stock;
+                
+                let message = `✓ Added ${quantity} × ${productName} to cart`;
+                if (remainingStock >= 0) {
+                    message += ` (${remainingStock} remaining in stock)`;
+                }
+                
+                showAlert(message, 'success');
+                
+                // Show low stock warning
+                if (response.warning) {
+                    setTimeout(() => {
+                        showAlert(response.warning, 'warning', 8000);
+                    }, 1000);
+                }
+                
+            } else {
+                // Handle specific error types
+                let errorMessage = response.message || 'Error adding to cart';
+                
+                if (response.error_type === 'all_stock_in_cart') {
+                    errorMessage += `. Click the + button to increase quantity if needed.`;
+                } else if (response.error_type === 'insufficient_stock') {
+                    errorMessage += `. Try adding ${response.remaining_stock} or less.`;
+                }
+                
+                showAlert(errorMessage, 'error', 8000);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error adding to cart:', error);
+            showAlert('Error adding to cart. Please try again.', 'error');
+        },
+        complete: function() {
+            showLoading(false);
+        }
+    });
+}
+
+function updateCartItem(productKey, newQuantity) {
+    if (isProcessing) return;
+    
+    const item = cart[productKey];
+    if (!item) return;
+    
+    if (newQuantity < 1) {
+        removeFromCart(productKey);
+        return;
+    }
+    
+    // Don't allow increasing beyond available stock
+    if (newQuantity > item.quantity && item.stock_available !== undefined) {
+        if (item.quantity >= item.stock_available) {
+            showAlert(`Cannot add more. Only ${item.stock_available} ${item.name} available in stock.`, 'warning');
+            return;
+        }
+    }
+    
+    showLoading(true);
+    
+    const formData = new FormData();
+    formData.append('product_key', productKey);
+    formData.append('quantity', newQuantity);
+    
+    $.ajax({
+        url: '/pos/update-cart',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            if (response.success) {
+                cart = response.cart || {};
+                updateCartDisplay();
+                
+                if (newQuantity > item.quantity) {
+                    showAlert(`Increased ${item.name} quantity to ${newQuantity}`, 'success');
+                } else if (newQuantity < item.quantity) {
+                    showAlert(`Decreased ${item.name} quantity to ${newQuantity}`, 'info');
+                }
+            } else {
+                showAlert(response.message || 'Error updating quantity', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error updating cart:', error);
+            showAlert('Error updating quantity', 'error');
+        },
+        complete: function() {
+            showLoading(false);
+        }
+    });
+}
+
+// Helper function to send the add-to-cart request
+function sendAddToCartRequest(formData, productId) {
+    $.ajax({
+        url: '/pos/add-to-cart',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            console.log('Add to cart response:', response);
+            if (response.success) {
+                cart = response.cart || {};
+                updateCartDisplay();
                 highlightAddedProduct(productId);
                 showAlert('Product added to cart!', 'success');
             } else {
@@ -875,27 +1033,16 @@ function addToCart(productId) {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error adding to cart:', error, xhr.responseText);
+            console.error('Error adding to cart:', error);
             let errorMsg = 'Error adding to cart. ';
             
             if (xhr.status === 400) {
-                errorMsg += 'Bad request (400). ';
-                if (xhr.responseText) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        errorMsg += response.message || '';
-                    } catch (e) {
-                        errorMsg += xhr.responseText;
-                    }
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    errorMsg += response.message || '';
+                } catch (e) {
+                    errorMsg += xhr.responseText;
                 }
-            } else if (xhr.status === 401) {
-                errorMsg = 'Session expired. Please login again.';
-            } else if (xhr.status === 403) {
-                errorMsg = 'CSRF token missing or invalid. Please refresh the page.';
-            } else if (xhr.status === 404) {
-                errorMsg = 'Product not found.';
-            } else if (xhr.status === 500) {
-                errorMsg = 'Server error. Please try again later.';
             }
             
             showAlert(errorMsg, 'error');
@@ -999,8 +1146,6 @@ function updateCartDisplay() {
         $('#cartTax').text('Rs.0.00');
         $('#cartDiscount').text('Rs.0.00');
         $('#cartTotal').text('Rs.0.00');
-        
-        // Update tab title
         document.title = 'POS Terminal - Mobile Shop ERP';
         return;
     }
@@ -1016,36 +1161,76 @@ function updateCartDisplay() {
         itemCount += item.quantity;
         subtotal += item.price * item.quantity;
         
-        // Determine the correct ID to use for removal
-        const removeId = item.stock_item_id || item.id;
+        // Get barcodes
+        let barcodesList = item.barcodes || [];
+        
+        // Create barcode HTML
+        let barcodeHtml = '';
+        let stockInfoHtml = '';
+        
+        // Show stock availability warning if applicable
+        if (item.stock_available !== undefined) {
+            const remaining = item.stock_available - item.quantity;
+            if (remaining <= 0) {
+                stockInfoHtml = `<small class="text-danger d-block"><i class="fas fa-exclamation-triangle"></i> All stock in cart</small>`;
+            } else if (remaining <= 3) {
+                stockInfoHtml = `<small class="text-warning d-block"><i class="fas fa-exclamation-triangle"></i> Low stock (${remaining} remaining)</small>`;
+            }
+        }
+        
+        if (barcodesList.length > 0) {
+            if (item.quantity === 1) {
+                barcodeHtml = `<small class="text-info d-block"><i class="fas fa-barcode"></i> ${barcodesList[0]}</small>`;
+            } else {
+                barcodeHtml = `
+                    <div class="mt-1">
+                        <small class="text-muted d-block mb-1">
+                            <i class="fas fa-barcode"></i> ${item.quantity} items:
+                        </small>
+                        <div class="barcode-list">
+                `;
+                
+                // Show first 5 barcodes, then "and X more..."
+                const maxToShow = 5;
+                if (barcodesList.length > maxToShow) {
+                    for (let i = 0; i < maxToShow; i++) {
+                        barcodeHtml += `<small class="text-info d-block">${i + 1}. ${barcodesList[i]}</small>`;
+                    }
+                    barcodeHtml += `<small class="text-muted d-block">... and ${barcodesList.length - maxToShow} more</small>`;
+                } else {
+                    barcodesList.forEach((barcode, index) => {
+                        barcodeHtml += `<small class="text-info d-block">${index + 1}. ${barcode}</small>`;
+                    });
+                }
+                
+                barcodeHtml += `</div></div>`;
+            }
+        }
         
         const cartItem = `
             <div class="cart-item">
                 <div class="flex-grow-1">
                     <h6 class="mb-1 text-truncate">${item.name}</h6>
                     <small class="text-muted">Rs.${item.price.toFixed(2)} each</small>
-                    ${item.stock_item_barcode ? 
-                      `<small class="text-info d-block"><i class="fas fa-barcode"></i> ${item.stock_item_barcode}</small>` : ''}
+                    ${stockInfoHtml}
+                    ${barcodeHtml}
                 </div>
                 <div class="cart-item-controls">
                     <div class="quantity-control">
                         <button class="btn btn-sm btn-outline-secondary quantity-btn" 
-                                onclick="updateCartItem('${productKey}', ${item.quantity - 1})"
-                                aria-label="Decrease quantity">
+                                onclick="updateCartItem('${productKey}', ${item.quantity - 1})">
                             <i class="fas fa-minus"></i>
                         </button>
                         <span class="quantity-display px-2">${item.quantity}</span>
                         <button class="btn btn-sm btn-outline-secondary quantity-btn" 
-                                onclick="updateCartItem('${productKey}', ${item.quantity + 1})"
-                                aria-label="Increase quantity">
+                                onclick="updateCartItem('${productKey}', ${item.quantity + 1})">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
                     <div class="text-end ms-2" style="min-width: 70px;">
                         <div class="fw-bold">Rs.${(item.price * item.quantity).toFixed(2)}</div>
                         <button class="btn btn-sm btn-link text-danger p-0" 
-                                onclick="removeFromCart('${productKey}')"
-                                aria-label="Remove item">
+                                onclick="removeFromCart('${productKey}')">
                             <small><i class="fas fa-trash"></i> Remove</small>
                         </button>
                     </div>
@@ -1064,8 +1249,6 @@ function updateCartDisplay() {
     $('#cartTax').text('Rs.' + tax.toFixed(2));
     $('#cartDiscount').text('Rs.' + discount.toFixed(2));
     $('#cartTotal').text('Rs.' + total.toFixed(2));
-    
-    // Update tab title with cart count
     document.title = `(${itemCount}) POS Terminal - Mobile Shop ERP`;
 }
 
