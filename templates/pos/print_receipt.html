@@ -75,7 +75,7 @@
             <p>
                 <strong>#{{ invoice.invoice_number }}</strong><br>
                 {{ invoice.date.strftime('%d/%m/%Y %I:%M %p') }}<br>
-                Cashier: {{ invoice.created_by_user.username }}
+                Cashier: {{ invoice.creator.username if invoice.creator else 'System' }}
             </p>
         </div>
         

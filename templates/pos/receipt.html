@@ -99,7 +99,7 @@
                     <p>
                         <strong>Invoice #:</strong> {{ invoice.invoice_number }}<br>
                         <strong>Date:</strong> {{ invoice.date.strftime('%d/%m/%Y %I:%M %p') }}<br>
-                        <strong>Cashier:</strong> {{ invoice.created_by_user.username }}
+                        <strong>Cashier:</strong> {{ invoice.creator.username if invoice.creator else 'System' }}
                     </p>
                 </div>
                 
