@@ -73,12 +73,6 @@
         transform: translateY(0);
     }
     
-    .product-card.highlight {
-        background-color: rgba(40, 167, 69, 0.15) !important;
-        border-color: #28a745 !important;
-        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
-    }
-    
     /* Cart Styles */
     .cart-items {
         flex: 1;
@@ -132,24 +126,11 @@
         border: 2px solid #ddd;
         border-radius: 8px;
         transition: border-color 0.3s;
-        font-family: 'Courier New', monospace;
     }
     
     .barcode-input:focus {
         border-color: var(--primary-color);
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    }
-    
-    .barcode-input.scanning {
-        border-color: #28a745;
-        background-color: rgba(40, 167, 69, 0.05);
-        animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-        0% { border-color: #28a745; }
-        50% { border-color: #20c997; }
-        100% { border-color: #28a745; }
     }
     
     /* Category Filters */
@@ -201,40 +182,6 @@
         opacity: 0.3;
     }
     
-    /* Loading Overlay */
-    .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.9);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        backdrop-filter: blur(2px);
-    }
-    
-    /* Toast Notifications */
-    .toast-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9998;
-    }
-    
-    /* Barcode Badge */
-    .barcode-badge {
-        font-family: 'Courier New', monospace;
-        font-size: 0.8rem;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        padding: 2px 6px;
-        margin-top: 3px;
-    }
-    
     /* Tablet Styles (768px and up) */
     @media (min-width: 768px) {
         .pos-container {
@@ -279,6 +226,18 @@
         .category-btn {
             padding: 8px 16px;
             font-size: 1rem;
+        }
+    }
+    
+    /* Large Desktop Styles (1200px and up) */
+    @media (min-width: 1200px) {
+        .product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        }
+        
+        .product-card {
+            padding: 20px 15px;
+            min-height: 150px;
         }
     }
     
@@ -327,6 +286,13 @@
         }
     }
     
+    /* Modal Responsive */
+    @media (max-width: 768px) {
+        .modal-dialog {
+            margin: 10px;
+        }
+    }
+    
     /* Touch-friendly adjustments */
     @media (hover: none) and (pointer: coarse) {
         .product-card:hover {
@@ -342,6 +308,58 @@
         .btn {
             padding: 10px 16px;
         }
+    }
+    
+    /* Landscape Mode for Mobile */
+    @media (max-height: 600px) and (orientation: landscape) {
+        .pos-container {
+            min-height: auto;
+        }
+        
+        .product-grid {
+            max-height: 50vh;
+        }
+        
+        .cart-items {
+            max-height: 150px;
+        }
+    }
+    
+    /* Loading Animation */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    
+    /* Alert Styles */
+    .alert-fixed {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9998;
+        max-width: 400px;
+    }
+    
+    /* Debug Panel */
+    .debug-panel {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        z-index: 9997;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        max-width: 300px;
     }
 </style>
 {% endblock %}
@@ -360,8 +378,23 @@
     </div>
 </div>
 
-<!-- Toast Container -->
-<div class="toast-container" id="toastContainer"></div>
+<!-- Fixed Alert Container -->
+<div id="alertContainer" class="alert-fixed"></div>
+
+<!-- Debug Panel (Visible only in development) -->
+{% if config.DEBUG %}
+<div class="debug-panel" style="display: none;" id="debugPanel">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong>Debug Info</strong>
+        <button class="btn btn-sm btn-light" onclick="$('#debugPanel').hide()">×</button>
+    </div>
+    <div class="mb-1">CSRF: <span id="debugCsrf"></span></div>
+    <div class="mb-1">Cart Items: <span id="debugCartCount">0</span></div>
+    <button class="btn btn-sm btn-warning btn-block mt-2" onclick="testAjax()">Test AJAX</button>
+</div>
+<button class="btn btn-sm btn-info" style="position: fixed; bottom: 10px; left: 10px; z-index: 9996;" 
+        onclick="$('#debugPanel').toggle()">Debug</button>
+{% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="mb-0"><i class="fas fa-cash-register me-2"></i>POS Terminal</h2>
@@ -387,11 +420,9 @@
                        placeholder="📱 Scan Barcode or Enter IMEI"
                        autofocus
                        autocapitalize="none"
-                       autocomplete="off"
-                       spellcheck="false"
-                       inputmode="text">
+                       autocomplete="off">
                 <div class="form-text text-end mt-1">
-                    <small><i class="fas fa-lightbulb me-1"></i> Press Enter after scanning or typing</small>
+                    <small>Press Enter after scanning</small>
                 </div>
             </div>
             
@@ -399,15 +430,13 @@
             <div class="category-filters">
                 <button type="button" 
                         class="btn btn-outline-primary category-btn active" 
-                        data-category="all"
-                        onclick="filterProducts('all')">
+                        data-category="all">
                     All
                 </button>
                 {% for category in categories %}
                 <button type="button" 
                         class="btn btn-outline-primary category-btn" 
-                        data-category="{{ category.id }}"
-                        onclick="filterProducts('{{ category.id }}')">
+                        data-category="{{ category.id }}">
                     {{ category.name }}
                 </button>
                 {% endfor %}
@@ -419,15 +448,10 @@
                 <div class="product-card" 
                      data-product-id="{{ product.id }}" 
                      data-category="{{ product.category_id if product.category_id else 'all' }}"
-                     data-product-sku="{{ product.sku }}"
-                     data-product-name="{{ product.name }}"
-                     onclick="addProductToCart('{{ product.id }}')"
-                     title="Click to add {{ product.name }} to cart">
+                     onclick="addToCart({{ product.id }})"
+                     data-product-name="{{ product.name }}">
                     <h6 class="product-name mb-1">{{ product.name }}</h6>
                     <small class="text-muted d-block mb-1">{{ product.sku }}</small>
-                    {% if product.barcode %}
-                    <small class="barcode-badge">{{ product.barcode|truncate(10) }}</small>
-                    {% endif %}
                     <div class="mt-2">
                         <strong class="text-primary">Rs.{{ "%.2f"|format(product.selling_price) }}</strong>
                     </div>
@@ -438,15 +462,9 @@
                     {% for stock in product.stock_items if stock.status == 'available' %}
                         {% set stock_count.value = stock_count.value + 1 %}
                     {% endfor %}
-                    <div class="mt-1">
-                        {% if stock_count.value == 0 %}
-                        <small class="text-danger"><i class="fas fa-times-circle"></i> Out of Stock</small>
-                        {% elif stock_count.value <= 5 %}
-                        <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> {{ stock_count.value }} left</small>
-                        {% else %}
-                        <small class="text-success"><i class="fas fa-check-circle"></i> In Stock</small>
-                        {% endif %}
-                    </div>
+                    {% if stock_count.value <= 5 %}
+                    <small class="text-danger mt-1"><i class="fas fa-exclamation-triangle"></i> Low Stock</small>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -496,7 +514,7 @@
                                placeholder="Enter phone number"
                                inputmode="tel"
                                onchange="findCustomer()">
-                        <button class="btn btn-outline-primary" type="button" onclick="findCustomer()">
+                        <button class="btn btn-outline-primary" onclick="findCustomer()">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
@@ -550,26 +568,31 @@
 // Global variables
 let cart = {};
 let customer = null;
+let barcodeTimer;
 let isProcessing = false;
-let barcodeScanner = null;
 
-// CSRF Token handling
+// CSRF Token handling - FIXED VERSION
 function getCsrfToken() {
-    // Try multiple ways to get CSRF token
+    // Method 1: Try to get from hidden input
     let csrfToken = $('#csrf_token').val();
     if (csrfToken) {
+        console.log('CSRF token found in hidden input:', csrfToken.substring(0, 10) + '...');
         return csrfToken;
     }
     
+    // Method 2: Try to get from meta tag
     const metaTag = document.querySelector('meta[name="csrf-token"]');
     if (metaTag) {
         csrfToken = metaTag.getAttribute('content');
+        console.log('CSRF token found in meta tag:', csrfToken ? csrfToken.substring(0, 10) + '...' : 'empty');
         return csrfToken;
     }
     
+    // Method 3: Try to get from form input
     const csrfInput = document.querySelector('input[name="csrf_token"]');
     if (csrfInput) {
         csrfToken = csrfInput.value;
+        console.log('CSRF token found in form input:', csrfToken.substring(0, 10) + '...');
         return csrfToken;
     }
     
@@ -577,104 +600,132 @@ function getCsrfToken() {
     return '';
 }
 
+// Show toast notification
+function showToast(message, type = 'success') {
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+            <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-${type} text-white">
+                    <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('body').append(toastHtml);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        $(`#${toastId}`).remove();
+    }, 5000);
+}
+
+// Show/hide loading overlay
+function showLoading(show = true) {
+    if (show) {
+        $('#loadingOverlay').show();
+        isProcessing = true;
+    } else {
+        $('#loadingOverlay').hide();
+        isProcessing = false;
+    }
+}
+
+// Show alert message
+function showAlert(message, type = 'info', duration = 5000) {
+    const alertId = 'alert-' + Date.now();
+    const alertHtml = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    $('#alertContainer').append(alertHtml);
+    
+    // Auto dismiss after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            $(`#${alertId}`).alert('close');
+        }, duration);
+    }
+}
+
 // Initialize
 $(document).ready(function() {
     console.log('POS Terminal initialized');
+    
+    // Debug info
+    const csrfToken = getCsrfToken();
+    console.log('CSRF Token available:', csrfToken ? 'Yes (' + csrfToken.substring(0, 10) + '...)' : 'No');
+    $('#debugCsrf').text(csrfToken ? 'Found (' + csrfToken.substring(0, 10) + '...)' : 'Not found');
+    
+    // Load initial cart
+    loadCart();
+    
+    // Setup event listeners
+    setupEventListeners();
     
     // Focus on barcode input
     setTimeout(() => {
         $('#barcodeInput').focus();
     }, 100);
     
-    // Load initial cart
-    loadCart();
-    
-    // Setup barcode scanner
-    setupBarcodeScanner();
-    
-    // Setup keyboard shortcuts
-    setupKeyboardShortcuts();
-    
-    // Check for existing barcode scanner
-    checkForBarcodeScanner();
+    // Check for CSRF issues
+    if (!csrfToken) {
+        showAlert('Warning: CSRF token not found. Some features may not work.', 'warning');
+    }
 });
 
-// Setup barcode scanner functionality
-function setupBarcodeScanner() {
-    const barcodeInput = $('#barcodeInput');
-    let barcodeBuffer = '';
-    let lastKeyTime = 0;
-    const SCANNER_TIMEOUT = 100; // milliseconds
-    
-    // Handle keydown events (for scanner detection)
-    barcodeInput.on('keydown', function(e) {
-        const currentTime = new Date().getTime();
-        
-        // If Enter is pressed, process the barcode
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const barcode = $(this).val().trim();
-            if (barcode) {
-                processBarcode(barcode);
-                $(this).val('');
+function setupEventListeners() {
+    // Barcode scanner with debounce
+    $('#barcodeInput').on('input', function(e) {
+        clearTimeout(barcodeTimer);
+        barcodeTimer = setTimeout(() => {
+            const barcode = this.value.trim();
+            if (barcode.length >= 3) {
+                scanProduct(barcode);
+                this.value = '';
             }
-            barcodeBuffer = '';
-            return;
-        }
-        
-        // Handle scanner input (fast typing)
-        if (currentTime - lastKeyTime > SCANNER_TIMEOUT) {
-            barcodeBuffer = ''; // Reset buffer if too slow (manual typing)
-        }
-        
-        lastKeyTime = currentTime;
-        
-        // Skip special keys
-        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            barcodeBuffer += e.key;
-        }
+        }, 300);
     });
     
-    // Handle keyup for scanner detection
-    barcodeInput.on('keyup', function(e) {
-        // Skip Enter key
-        if (e.key === 'Enter') return;
-        
-        const currentTime = new Date().getTime();
-        
-        // If scanner finished (pause after fast input)
-        if (barcodeBuffer.length > 0 && currentTime - lastKeyTime > SCANNER_TIMEOUT) {
-            if (barcodeBuffer.length >= 8) { // Minimum barcode length
-                console.log('Scanner detected barcode:', barcodeBuffer);
-                processBarcode(barcodeBuffer);
-                $(this).val('');
-                barcodeBuffer = '';
-            }
+    // Enter key for barcode input
+$('#barcodeInput').on('keypress', function(e) {
+    if (e.which === 13) { // Enter key
+        e.preventDefault();
+        const barcode = this.value.trim();
+        if (barcode.length > 0) {
+            scanProduct(barcode);
         }
-    });
-    
-    // Handle paste event
-    barcodeInput.on('paste', function(e) {
-        setTimeout(() => {
-            const barcode = $(this).val().trim();
-            if (barcode && barcode.length >= 3) {
-                processBarcode(barcode);
-                $(this).val('');
-            }
-        }, 10);
-    });
-    
-    // Add scanning animation
-    barcodeInput.on('focus', function() {
-        $(this).addClass('scanning');
-    });
-    
-    barcodeInput.on('blur', function() {
-        $(this).removeClass('scanning');
-    });
+    }
+});
+
+// Debug function to manually trigger scan
+function manualScan(barcode) {
+    console.log('Manual scan:', barcode);
+    $('#barcodeInput').val(barcode);
+    scanProduct(barcode);
 }
 
-function setupKeyboardShortcuts() {
+// Expose to console
+window.manualScan = manualScan;
+    
+    // Category filter
+    $('.category-btn').on('click', function(e) {
+        e.preventDefault();
+        $('.category-btn').removeClass('active');
+        $(this).addClass('active');
+        const categoryId = $(this).data('category');
+        filterProducts(categoryId);
+    });
+    
+    // Keyboard shortcuts
     $(document).on('keydown', function(e) {
         // Escape to focus barcode input
         if (e.key === 'Escape') {
@@ -691,45 +742,22 @@ function setupKeyboardShortcuts() {
             e.preventDefault();
             clearCart();
         }
-        // F2 to open checkout
-        if (e.key === 'F2') {
+    });
+    
+    // Prevent form submission on Enter in non-barcode inputs
+    $(document).on('keypress', 'input:not(#barcodeInput)', function(e) {
+        if (e.which === 13) {
             e.preventDefault();
-            openCheckoutModal();
+            return false;
         }
     });
 }
 
-function checkForBarcodeScanner() {
-    // Check if QuaggaJS or other scanner is available
-    if (typeof Quagga !== 'undefined') {
-        console.log('QuaggaJS barcode scanner detected');
-        initQuaggaScanner();
-    }
-}
-
-function initQuaggaScanner() {
-    // Optional: Initialize QuaggaJS if needed
-    // This is for advanced barcode scanner support
-}
-
-// Process barcode
-function processBarcode(barcode) {
-    if (isProcessing) {
-        showToast('Please wait, processing previous request...', 'warning');
-        return;
-    }
+function scanProduct(barcode) {
+    if (!barcode || isProcessing) return;
     
-    if (!barcode || barcode.trim() === '') {
-        showToast('Please enter a barcode', 'warning');
-        return;
-    }
-    
-    console.log('Processing barcode:', barcode);
+    console.log('Scanning barcode:', barcode);
     showLoading(true);
-    isProcessing = true;
-    
-    // Add scanning effect to input
-    $('#barcodeInput').addClass('scanning');
     
     $.ajax({
         url: '/pos/scan-product',
@@ -741,62 +769,85 @@ function processBarcode(barcode) {
             'X-Requested-With': 'XMLHttpRequest'
         },
         success: function(response) {
-            console.log('Scan response:', response);
+            console.log('Full scan response:', response);
             
             if (response.success && response.product) {
-                // Check if this is a specific stock item
-                const stockItemId = response.product.stock_item_id;
-                const productId = response.product.id;
+                const product = response.product;
                 
-                if (stockItemId) {
-                    // Add specific stock item to cart
-                    addProductToCartWithStockItem(productId, 1, stockItemId, barcode);
-                } else {
-                    // Add regular product to cart
-                    addProductToCart(productId, 1);
+                // Create FormData with all product information
+                const formData = new FormData();
+                formData.append('product_id', product.id);
+                formData.append('quantity', 1);
+                
+                // Add stock_item_id if available
+                if (product.stock_item_id) {
+                    formData.append('stock_item_id', product.stock_item_id);
+                    console.log('Adding specific stock item:', product.stock_item_id);
                 }
+                
+                // Send to add-to-cart endpoint
+                $.ajax({
+                    url: '/pos/add-to-cart',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(addResponse) {
+                        console.log('Add to cart success:', addResponse);
+                        if (addResponse.success) {
+                            cart = addResponse.cart || {};
+                            updateCartDisplay();
+                            
+                            if (product.stock_item_id) {
+                                showAlert(`✓ ${product.name} (Serial: ${product.stock_item_barcode}) added to cart!`, 'success');
+                            } else {
+                                showAlert(`✓ ${product.name} added to cart!`, 'success');
+                            }
+                        } else {
+                            showAlert(addResponse.message || 'Failed to add to cart', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Add to cart error:', error, xhr.responseText);
+                        showAlert('Error adding to cart', 'error');
+                    },
+                    complete: function() {
+                        showLoading(false);
+                        $('#barcodeInput').val('').focus();
+                    }
+                });
+                
             } else {
-                showToast(response.message || 'Product not found', 'error');
-                // Try manual search in product grid
-                searchProductInGrid(barcode);
+                showAlert(response.message || 'Product not found', 'warning');
+                showLoading(false);
+                $('#barcodeInput').val('').focus();
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error scanning product:', error, xhr.responseText);
-            
-            let errorMsg = 'Error scanning product';
-            if (xhr.status === 401) {
-                errorMsg = 'Session expired. Please login again.';
-            } else if (xhr.status === 403) {
-                errorMsg = 'Security error. Please refresh the page.';
-            } else if (xhr.status === 404) {
-                errorMsg = 'Product not found.';
-            }
-            
-            showToast(errorMsg, 'error');
-        },
-        complete: function() {
+            console.error('Scan error:', error, xhr.responseText);
+            showAlert('Error scanning barcode', 'error');
             showLoading(false);
-            isProcessing = false;
-            $('#barcodeInput').removeClass('scanning');
-            setTimeout(() => {
-                $('#barcodeInput').focus();
-            }, 100);
+            $('#barcodeInput').val('').focus();
         }
     });
 }
 
-// Add product to cart
-function addProductToCart(productId, quantity) {
+// FIXED: This version uses FormData instead of JSON to avoid CSRF issues
+function addToCart(productId) {
     if (isProcessing) return;
     
-    console.log('Adding product to cart:', productId, quantity);
+    console.log('Adding to cart product ID:', productId);
+    console.log('Using CSRF token:', getCsrfToken().substring(0, 10) + '...');
     showLoading(true);
-    isProcessing = true;
     
+    // Create FormData instead of JSON
     const formData = new FormData();
     formData.append('product_id', productId);
-    formData.append('quantity', quantity || 1);
+    formData.append('quantity', 1);
     
     $.ajax({
         url: '/pos/add-to-cart',
@@ -810,61 +861,75 @@ function addProductToCart(productId, quantity) {
         },
         success: function(response) {
             console.log('Add to cart response:', response);
-            
             if (response.success) {
                 cart = response.cart || {};
                 updateCartDisplay();
-                
-                // Show success message
-                const productName = response.product_added?.name || 'Product';
-                const qty = response.product_added?.quantity || 1;
-                showToast(`✓ Added ${qty} × ${productName} to cart`, 'success');
-                
-                // Highlight the product card
-                highlightProductCard(productId);
+                // Also update product grid to reflect stock changes
+                highlightAddedProduct(productId);
+                showAlert('Product added to cart!', 'success');
             } else {
-                showToast(response.message || 'Error adding to cart', 'error');
+                showAlert(response.message || 'Error adding to cart', 'error');
             }
         },
         error: function(xhr, status, error) {
             console.error('Error adding to cart:', error, xhr.responseText);
+            let errorMsg = 'Error adding to cart. ';
             
-            let errorMsg = 'Error adding to cart';
             if (xhr.status === 400) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    errorMsg = response.message || errorMsg;
-                } catch (e) {
-                    // Keep default message
+                errorMsg += 'Bad request (400). ';
+                if (xhr.responseText) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        errorMsg += response.message || '';
+                    } catch (e) {
+                        errorMsg += xhr.responseText;
+                    }
                 }
+            } else if (xhr.status === 401) {
+                errorMsg = 'Session expired. Please login again.';
+            } else if (xhr.status === 403) {
+                errorMsg = 'CSRF token missing or invalid. Please refresh the page.';
             } else if (xhr.status === 404) {
-                errorMsg = 'Product not found';
+                errorMsg = 'Product not found.';
+            } else if (xhr.status === 500) {
+                errorMsg = 'Server error. Please try again later.';
             }
             
-            showToast(errorMsg, 'error');
+            showAlert(errorMsg, 'error');
         },
         complete: function() {
             showLoading(false);
-            isProcessing = false;
         }
     });
 }
 
-// Add product with specific stock item
-function addProductToCartWithStockItem(productId, quantity, stockItemId, barcode) {
+function highlightAddedProduct(productId) {
+    const productCard = $(`.product-card[data-product-id="${productId}"]`);
+    if (productCard.length) {
+        productCard.addClass('bg-success bg-opacity-10');
+        setTimeout(() => {
+            productCard.removeClass('bg-success bg-opacity-10');
+        }, 1000);
+    }
+}
+
+function updateCartItem(productId, quantity) {
     if (isProcessing) return;
     
-    console.log('Adding product with stock item:', {productId, quantity, stockItemId, barcode});
-    showLoading(true);
-    isProcessing = true;
+    if (quantity < 1) {
+        removeFromCart(productId);
+        return;
+    }
     
+    showLoading(true);
+    
+    // Use FormData for consistency
     const formData = new FormData();
     formData.append('product_id', productId);
-    formData.append('quantity', quantity || 1);
-    formData.append('stock_item_id', stockItemId);
+    formData.append('quantity', quantity);
     
     $.ajax({
-        url: '/pos/add-to-cart',
+        url: '/pos/update-cart',
         method: 'POST',
         data: formData,
         processData: false,
@@ -874,86 +939,16 @@ function addProductToCartWithStockItem(productId, quantity, stockItemId, barcode
             'X-Requested-With': 'XMLHttpRequest'
         },
         success: function(response) {
-            console.log('Add to cart with stock item response:', response);
-            
             if (response.success) {
                 cart = response.cart || {};
                 updateCartDisplay();
-                
-                const productName = response.product_added?.name || 'Product';
-                const qty = response.product_added?.quantity || 1;
-                showToast(`✓ Added ${qty} × ${productName} (Barcode: ${barcode})`, 'success');
-                
-                highlightProductCard(productId);
             } else {
-                showToast(response.message || 'Error adding to cart', 'error');
+                showAlert(response.message || 'Error updating cart', 'error');
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error adding to cart with stock item:', error, xhr.responseText);
-            showToast('Error adding specific item to cart', 'error');
-        },
-        complete: function() {
-            showLoading(false);
-            isProcessing = false;
-        }
-    });
-}
-
-// Search product in grid manually
-function searchProductInGrid(barcode) {
-    const searchTerm = barcode.toLowerCase().trim();
-    let foundProduct = null;
-    let foundProductName = '';
-    
-    $('.product-card').each(function() {
-        const productSku = $(this).data('product-sku')?.toString().toLowerCase() || '';
-        const productName = $(this).data('product-name')?.toString().toLowerCase() || '';
-        
-        if (productSku.includes(searchTerm) || productName.includes(searchTerm)) {
-            foundProduct = $(this).data('product-id');
-            foundProductName = $(this).data('product-name');
-            return false; // Break loop
-        }
-    });
-    
-    if (foundProduct) {
-        if (confirm(`Found product "${foundProductName}" matching "${barcode}". Add to cart?`)) {
-            addProductToCart(foundProduct, 1);
-        }
-    } else {
-        showToast(`No product found for "${barcode}"`, 'warning');
-        // Ask if user wants to search by barcode in products table
-        if (confirm('Product not found. Search in all products?')) {
-            searchAllProducts(barcode);
-        }
-    }
-}
-
-// Search all products by barcode
-function searchAllProducts(barcode) {
-    showLoading(true);
-    
-    // This would require a new endpoint to search products by barcode
-    $.ajax({
-        url: '/pos/search-product',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ search: barcode }),
-        headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            if (response.success && response.products && response.products.length > 0) {
-                // Show products in a modal or dropdown
-                showProductSearchResults(response.products, barcode);
-            } else {
-                showToast('No products found with that barcode', 'warning');
-            }
-        },
-        error: function() {
-            showToast('Error searching products', 'error');
+            console.error('Error updating cart:', error);
+            showAlert('Error updating quantity', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -961,145 +956,83 @@ function searchAllProducts(barcode) {
     });
 }
 
-function showProductSearchResults(products, barcode) {
-    // Create a modal to show search results
-    const modalHtml = `
-        <div class="modal fade" id="searchResultsModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Search Results for "${barcode}"</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>SKU</th>
-                                        <th>Barcode</th>
-                                        <th>Price</th>
-                                        <th>Stock</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${products.map(product => `
-                                        <tr>
-                                            <td>${product.name}</td>
-                                            <td>${product.sku}</td>
-                                            <td>${product.barcode || '-'}</td>
-                                            <td>Rs.${product.selling_price}</td>
-                                            <td>${product.stock_available}</td>
-                                            <td>
-                                                <button class="btn btn-sm btn-success" onclick="addProductToCart(${product.id}, 1); $('#searchResultsModal').modal('hide');">
-                                                    Add to Cart
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if any
-    $('#searchResultsModal').remove();
-    
-    // Add modal to body
-    $('body').append(modalHtml);
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('searchResultsModal'));
-    modal.show();
-}
-
-// Highlight product card when added
-function highlightProductCard(productId) {
-    const productCard = $(`.product-card[data-product-id="${productId}"]`);
-    if (productCard.length) {
-        productCard.addClass('highlight');
-        setTimeout(() => {
-            productCard.removeClass('highlight');
-        }, 1000);
-    }
-}
-
-// Load cart from server
 function loadCart() {
+    if (isProcessing) return;
+    
     $.ajax({
         url: '/pos/get-cart',
         method: 'GET',
-        success: function(response) {
-            if (response.success) {
-                cart = response.cart || {};
-                updateCartDisplay();
-            }
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
         },
-        error: function() {
-            console.log('Error loading cart');
+        success: function(response) {
+            console.log('Load cart response:', response);
+            cart = response.cart || {};
+            updateCartDisplay();
+            // Update debug panel
+            $('#debugCartCount').text(Object.keys(cart).length);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading cart:', error);
+            cart = {};
+            updateCartDisplay();
         }
     });
 }
 
-// Update cart display
 function updateCartDisplay() {
-    const cartItemsContainer = $('#cartItems');
+    const cartItems = $('#cartItems');
     const emptyCart = $('#emptyCart');
-    const cartCount = Object.keys(cart).length;
     
-    $('#cartCount').text(cartCount);
-    
-    if (cartCount === 0) {
+    if (Object.keys(cart).length === 0) {
         emptyCart.show();
-        cartItemsContainer.html('');
-        updateCartTotals(0, 0, 0, 0);
+        cartItems.html('');
+        $('#cartCount').text('0');
+        $('#cartSubtotal').text('Rs.0.00');
+        $('#cartTax').text('Rs.0.00');
+        $('#cartDiscount').text('Rs.0.00');
+        $('#cartTotal').text('Rs.0.00');
+        
+        // Update tab title
+        document.title = 'POS Terminal - Mobile Shop ERP';
         return;
     }
     
     emptyCart.hide();
-    cartItemsContainer.html('');
+    cartItems.empty();
     
+    let itemCount = 0;
     let subtotal = 0;
     
-    for (const productKey in cart) {
-        const item = cart[productKey];
-        const itemTotal = item.price * item.quantity;
-        subtotal += itemTotal;
-        
-        // Check if this is a specific stock item
-        const hasStockItem = item.stock_item_barcode ? true : false;
+    for (const productId in cart) {
+        const item = cart[productId];
+        itemCount += item.quantity;
+        subtotal += item.price * item.quantity;
         
         const cartItem = `
             <div class="cart-item">
                 <div class="flex-grow-1">
                     <h6 class="mb-1 text-truncate">${item.name}</h6>
                     <small class="text-muted">Rs.${item.price.toFixed(2)} each</small>
-                    ${hasStockItem ? `<br><small class="text-info"><i class="fas fa-barcode"></i> ${item.stock_item_barcode}</small>` : ''}
                 </div>
                 <div class="cart-item-controls">
                     <div class="quantity-control">
                         <button class="btn btn-sm btn-outline-secondary quantity-btn" 
-                                onclick="updateCartItem('${productKey}', ${item.quantity - 1})"
+                                onclick="updateCartItem(${item.id}, ${item.quantity - 1})"
                                 aria-label="Decrease quantity">
                             <i class="fas fa-minus"></i>
                         </button>
                         <span class="quantity-display px-2">${item.quantity}</span>
                         <button class="btn btn-sm btn-outline-secondary quantity-btn" 
-                                onclick="updateCartItem('${productKey}', ${item.quantity + 1})"
+                                onclick="updateCartItem(${item.id}, ${item.quantity + 1})"
                                 aria-label="Increase quantity">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
                     <div class="text-end ms-2" style="min-width: 70px;">
-                        <div class="fw-bold">Rs.${itemTotal.toFixed(2)}</div>
+                        <div class="fw-bold">Rs.${(item.price * item.quantity).toFixed(2)}</div>
                         <button class="btn btn-sm btn-link text-danger p-0" 
-                                onclick="removeFromCart('${productKey}')"
+                                onclick="removeFromCart(${item.id})"
                                 aria-label="Remove item">
                             <small><i class="fas fa-trash"></i> Remove</small>
                         </button>
@@ -1107,78 +1040,38 @@ function updateCartDisplay() {
                 </div>
             </div>
         `;
-        cartItemsContainer.append(cartItem);
+        cartItems.append(cartItem);
     }
     
     const tax = subtotal * 0.15;
     const discount = 0;
     const total = subtotal + tax - discount;
     
-    updateCartTotals(subtotal, tax, discount, total);
-}
-
-// Update cart totals
-function updateCartTotals(subtotal, tax, discount, total) {
+    $('#cartCount').text(itemCount);
     $('#cartSubtotal').text('Rs.' + subtotal.toFixed(2));
     $('#cartTax').text('Rs.' + tax.toFixed(2));
     $('#cartDiscount').text('Rs.' + discount.toFixed(2));
     $('#cartTotal').text('Rs.' + total.toFixed(2));
+    
+    // Update tab title with cart count
+    document.title = `(${itemCount}) POS Terminal - Mobile Shop ERP`;
 }
 
-// Update cart item quantity
-function updateCartItem(productKey, quantity) {
-    if (quantity < 1) {
-        removeFromCart(productKey);
-        return;
-    }
+function removeFromCart(productId) {
+    if (isProcessing) return;
     
-    showLoading(true);
-    
-    const formData = new FormData();
-    formData.append('product_key', productKey);
-    formData.append('quantity', quantity);
-    
-    $.ajax({
-        url: '/pos/update-cart-item',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRFToken': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        success: function(response) {
-            if (response.success) {
-                cart = response.cart || {};
-                updateCartDisplay();
-                showToast('Cart updated', 'success');
-            } else {
-                showToast(response.message || 'Error updating cart', 'error');
-            }
-        },
-        error: function() {
-            showToast('Error updating cart', 'error');
-        },
-        complete: function() {
-            showLoading(false);
-        }
-    });
-}
-
-// Remove item from cart
-function removeFromCart(productKey) {
     if (!confirm('Remove this item from cart?')) {
         return;
     }
     
     showLoading(true);
     
+    // Use FormData
     const formData = new FormData();
-    formData.append('product_key', productKey);
+    formData.append('_method', 'DELETE'); // Some frameworks use this
     
     $.ajax({
-        url: '/pos/remove-from-cart',
+        url: '/pos/remove-from-cart/' + productId,
         method: 'POST',
         data: formData,
         processData: false,
@@ -1190,13 +1083,14 @@ function removeFromCart(productKey) {
         success: function(response) {
             if (response.success) {
                 loadCart();
-                showToast('Item removed from cart', 'success');
+                showAlert('Item removed from cart', 'info');
             } else {
-                showToast(response.message || 'Error removing item', 'error');
+                showAlert(response.message || 'Error removing item', 'error');
             }
         },
-        error: function() {
-            showToast('Error removing item', 'error');
+        error: function(xhr, status, error) {
+            console.error('Error removing from cart:', error);
+            showAlert('Error removing item', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1204,10 +1098,11 @@ function removeFromCart(productKey) {
     });
 }
 
-// Clear entire cart
 function clearCart() {
+    if (isProcessing) return;
+    
     if (Object.keys(cart).length === 0) {
-        showToast('Cart is already empty', 'info');
+        showAlert('Cart is already empty', 'info');
         return;
     }
     
@@ -1217,6 +1112,7 @@ function clearCart() {
     
     showLoading(true);
     
+    // Use FormData
     const formData = new FormData();
     
     $.ajax({
@@ -1233,13 +1129,14 @@ function clearCart() {
             if (response.success) {
                 cart = {};
                 updateCartDisplay();
-                showToast('Cart cleared successfully', 'success');
+                showAlert('Cart cleared successfully', 'success');
             } else {
-                showToast(response.message || 'Error clearing cart', 'error');
+                showAlert(response.message || 'Error clearing cart', 'error');
             }
         },
-        error: function() {
-            showToast('Error clearing cart', 'error');
+        error: function(xhr, status, error) {
+            console.error('Error clearing cart:', error);
+            showAlert('Error clearing cart', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1247,11 +1144,12 @@ function clearCart() {
     });
 }
 
-// Find customer by phone
 function findCustomer() {
+    if (isProcessing) return;
+    
     const phone = $('#customerPhone').val().trim();
     if (!phone || phone.length < 10) {
-        showToast('Please enter a valid phone number (10+ digits)', 'warning');
+        showAlert('Please enter a valid phone number (10+ digits)', 'warning');
         return;
     }
     
@@ -1267,12 +1165,12 @@ function findCustomer() {
             'X-Requested-With': 'XMLHttpRequest'
         },
         success: function(response) {
-            if (response.success && response.customer) {
+            if (response.success) {
                 customer = response.customer;
                 $('#customerName').text(customer.name);
                 $('#customerPhoneDisplay').text(customer.phone);
                 $('#customerInfo').show();
-                showToast('Customer found!', 'success');
+                showAlert('Customer found!', 'success');
             } else {
                 $('#customerInfo').hide();
                 if (confirm('Customer not found. Create new customer?')) {
@@ -1280,8 +1178,9 @@ function findCustomer() {
                 }
             }
         },
-        error: function() {
-            showToast('Error finding customer', 'error');
+        error: function(xhr, status, error) {
+            console.error('Error finding customer:', error);
+            showAlert('Error finding customer', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1289,16 +1188,17 @@ function findCustomer() {
     });
 }
 
-// Create new customer
 function createCustomer(phone) {
     const name = prompt('Enter customer name:');
-    if (!name || name.trim() === '') {
-        showToast('Customer name is required', 'error');
+    if (!name) return;
+    
+    const email = prompt('Enter email (optional):');
+    const address = prompt('Enter address (optional):');
+    
+    if (!name.trim()) {
+        showAlert('Customer name is required', 'error');
         return;
     }
-    
-    const email = prompt('Enter email (optional):') || '';
-    const address = prompt('Enter address (optional):') || '';
     
     showLoading(true);
     
@@ -1309,27 +1209,28 @@ function createCustomer(phone) {
         data: JSON.stringify({
             name: name.trim(),
             phone: phone.trim(),
-            email: email.trim(),
-            address: address.trim()
+            email: (email || '').trim(),
+            address: (address || '').trim()
         }),
         headers: {
             'X-CSRFToken': getCsrfToken(),
             'X-Requested-With': 'XMLHttpRequest'
         },
         success: function(response) {
-            if (response.success && response.customer) {
+            if (response.success) {
                 customer = response.customer;
                 $('#customerName').text(customer.name);
                 $('#customerPhoneDisplay').text(customer.phone);
                 $('#customerInfo').show();
                 $('#customerPhone').val(phone);
-                showToast('Customer created successfully!', 'success');
+                showAlert('Customer created successfully!', 'success');
             } else {
-                showToast(response.message || 'Error creating customer', 'error');
+                showAlert(response.message || 'Error creating customer', 'error');
             }
         },
-        error: function() {
-            showToast('Error creating customer', 'error');
+        error: function(xhr, status, error) {
+            console.error('Error creating customer:', error);
+            showAlert('Error creating customer', 'error');
         },
         complete: function() {
             showLoading(false);
@@ -1337,10 +1238,11 @@ function createCustomer(phone) {
     });
 }
 
-// Open checkout modal
 function openCheckoutModal() {
+    if (isProcessing) return;
+    
     if (Object.keys(cart).length === 0) {
-        showToast('Cart is empty. Add some products first.', 'warning');
+        showAlert('Cart is empty. Add some products first.', 'warning');
         return;
     }
     
@@ -1362,6 +1264,9 @@ function openCheckoutModal() {
     $.ajax({
         url: '/pos/checkout-form',
         method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
         success: function(html) {
             $('#checkoutModalBody').html(html);
             
@@ -1371,8 +1276,12 @@ function openCheckoutModal() {
                 $('#customerNameInput').val(customer.name);
                 $('#customerPhoneInput').val(customer.phone);
             }
+            
+            // Initialize checkout form
+            initializeCheckoutForm();
         },
-        error: function() {
+        error: function(xhr, status, error) {
+            console.error('Error loading checkout form:', error);
             $('#checkoutModalBody').html(`
                 <div class="alert alert-danger">
                     <h5>Failed to load checkout form</h5>
@@ -1386,12 +1295,12 @@ function openCheckoutModal() {
     });
 }
 
-// Filter products by category
+function initializeCheckoutForm() {
+    // This function will be called after checkout form is loaded
+    console.log('Checkout form loaded and ready');
+}
+
 function filterProducts(categoryId) {
-    // Update active button
-    $('.category-btn').removeClass('active');
-    $(`.category-btn[data-category="${categoryId}"]`).addClass('active');
-    
     if (categoryId === 'all') {
         $('.product-card').show();
     } else {
@@ -1400,83 +1309,84 @@ function filterProducts(categoryId) {
     }
 }
 
-// Show toast notification
-function showToast(message, type = 'info') {
-    const toastId = 'toast-' + Date.now();
-    const toastHtml = `
-        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-${type} text-white">
-                <strong class="me-auto">${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-                ${message}
-            </div>
-        </div>
-    `;
-    
-    $('#toastContainer').append(toastHtml);
-    
-    // Initialize and show toast
-    const toastElement = document.getElementById(toastId);
-    const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
-    toast.show();
-    
-    // Remove after hide
-    toastElement.addEventListener('hidden.bs.toast', function () {
-        $(this).remove();
-    });
-}
-
-// Show/hide loading overlay
-function showLoading(show = true) {
-    if (show) {
-        $('#loadingOverlay').show();
-        $('body').css('overflow', 'hidden');
-    } else {
-        $('#loadingOverlay').hide();
-        $('body').css('overflow', 'auto');
+// Handle page visibility change
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        // Refresh cart when page becomes visible again
+        setTimeout(() => {
+            loadCart();
+        }, 500);
     }
-}
+});
 
-// For manual product click (used in product card onclick)
-window.addProductToCart = function(productId) {
-    addProductToCart(productId, 1);
-};
-
-// Expose functions for HTML onclick handlers
-window.updateCartItem = updateCartItem;
-window.removeFromCart = removeFromCart;
-window.clearCart = clearCart;
-window.filterProducts = filterProducts;
-
-// Prevent accidental page close with items in cart
+// Prevent accidental page refresh/close with items in cart
 window.addEventListener('beforeunload', function(e) {
     if (Object.keys(cart).length > 0) {
         e.preventDefault();
         e.returnValue = 'You have items in your cart. Are you sure you want to leave?';
+        return e.returnValue;
     }
 });
 
-// Auto-refresh cart periodically (for multi-tab sync)
+// Auto-refresh cart every 30 seconds (for multi-tab/device sync)
 setInterval(() => {
     if (!document.hidden && Object.keys(cart).length > 0) {
         loadCart();
     }
-}, 30000); // Every 30 seconds
+}, 30000);
 
-// Handle page visibility change
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-        // Page became visible, refresh cart
-        loadCart();
-    }
-});
+// Test function for debugging
+function testAjax() {
+    console.log('Testing AJAX connection...');
+    console.log('CSRF Token:', getCsrfToken());
+    
+    $.ajax({
+        url: '/pos/get-cart',
+        method: 'GET',
+        success: function(response) {
+            console.log('Test successful:', response);
+            showAlert('AJAX connection test successful!', 'success');
+        },
+        error: function(xhr, status, error) {
+            console.error('Test failed:', error, xhr.responseText);
+            showAlert('AJAX connection test failed: ' + error, 'error');
+        }
+    });
+}
 
-// Test barcode scanning
-window.testBarcodeScan = function(barcode) {
-    $('#barcodeInput').val(barcode);
-    processBarcode(barcode);
-};
+// Test add to cart with FormData (alternative method)
+function testAddToCartFormData(productId) {
+    console.log('Testing add to cart with FormData for product:', productId);
+    
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('quantity', 1);
+    
+    $.ajax({
+        url: '/pos/add-to-cart',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            console.log('Test success with FormData:', response);
+            showAlert('FormData test successful!', 'success');
+            loadCart();
+        },
+        error: function(xhr, status, error) {
+            console.error('FormData test error:', error, xhr.responseText);
+            showAlert('FormData test failed: ' + error, 'error');
+        }
+    });
+}
+
+// Expose test functions for debugging
+window.testAjax = testAjax;
+window.testAddToCartFormData = testAddToCartFormData;
+window.getCsrfToken = getCsrfToken;
 </script>
 {% endblock %}

@@ -64,18 +64,4 @@ def dashboard():
                          recent_invoices=recent_invoices,
                          title='Dashboard')
 
-@pos_bp.route('/debug-cart', methods=['GET'])
-@login_required
-def debug_cart():
-    """Debug endpoint to check cart and session state"""
-    debug_info = {
-        'user': current_user.username,
-        'has_cart': 'cart' in session,
-        'cart_size': len(session.get('cart', {})),
-        'cart_contents': session.get('cart', {}),
-        'session_modified': session.modified,
-        'session_keys': list(session.keys()),
-        'csrf_token': 'Check via /csrf-token endpoint'
-    }
-    
-    return jsonify(debug_info)
+

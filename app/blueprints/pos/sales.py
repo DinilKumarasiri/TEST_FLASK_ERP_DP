@@ -23,7 +23,7 @@ def generate_invoice_number():
 @pos_bp.route('/scan-product', methods=['POST'])
 @login_required
 def scan_product():
-    """Scan barcode and find product - FIXED VERSION"""
+    """Scan barcode and find product - IMPROVED VERSION"""
     data = request.get_json()
     barcode = data.get('barcode', '').strip()
     
@@ -42,18 +42,23 @@ def scan_product():
         print(f"DEBUG: Found stock item with barcode: {barcode}")
         product = stock_item.product
         if product and product.is_active:
+            # Calculate available stock
+            available_stock = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+            
             product_data = {
                 'id': product.id,
                 'sku': product.sku,
                 'name': product.name,
                 'selling_price': float(product.selling_price),
                 'has_imei': product.has_imei,
-                'stock_available': StockItem.query.filter_by(
-                    product_id=product.id,
-                    status='available'
-                ).count(),
-                'stock_item_id': stock_item.id,
-                'stock_item_barcode': stock_item.item_barcode
+                'stock_available': available_stock,
+                'stock_item_id': stock_item.id,  # Include stock item ID
+                'stock_item_barcode': stock_item.item_barcode,
+                'is_specific_item': True,  # Flag that this is a specific stock item
+                'message': 'Found specific stock item'
             }
             return jsonify({'success': True, 'product': product_data})
     
@@ -69,6 +74,25 @@ def scan_product():
         stock_item = StockItem.query.filter_by(imei=barcode, status='available').first()
         if stock_item:
             product = stock_item.product
+            # This is also a specific stock item
+            available_stock = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+            
+            product_data = {
+                'id': product.id,
+                'sku': product.sku,
+                'name': product.name,
+                'selling_price': float(product.selling_price),
+                'has_imei': product.has_imei,
+                'stock_available': available_stock,
+                'stock_item_id': stock_item.id,
+                'stock_item_barcode': stock_item.imei,
+                'is_specific_item': True,
+                'message': 'Found by IMEI'
+            }
+            return jsonify({'success': True, 'product': product_data})
     
     if not product:
         print(f"DEBUG: Product not found for barcode: {barcode}")
@@ -89,7 +113,9 @@ def scan_product():
         'name': product.name,
         'selling_price': float(product.selling_price),
         'has_imei': product.has_imei,
-        'stock_available': available_stock
+        'stock_available': available_stock,
+        'is_specific_item': False,  # Not a specific stock item
+        'message': 'Found by product barcode/SKU'
     }
     
     return jsonify({'success': True, 'product': product_data})
@@ -110,13 +136,13 @@ def add_to_cart():
             data = request.get_json()
             product_id = data.get('product_id')
             quantity_str = data.get('quantity', '1')
-            stock_item_id = data.get('stock_item_id')  # New: handle specific stock item
+            stock_item_id = data.get('stock_item_id')  # Handle specific stock item
         else:
             print("DEBUG: Processing as FormData request")
             data = request.form
             product_id = data.get('product_id')
             quantity_str = data.get('quantity', '1')
-            stock_item_id = data.get('stock_item_id')  # New: handle specific stock item
+            stock_item_id = data.get('stock_item_id')  # Handle specific stock item
         
         # Convert quantity to int
         try:
@@ -204,7 +230,10 @@ def add_to_cart():
         print(f"DEBUG: Current cart before update (items: {len(cart)}): {cart}")
         
         # Generate product key - include stock_item_id if specified
-        product_key = f"{product_id}_{stock_item_id}" if stock_item_id else str(product_id)
+        if stock_item_id:
+            product_key = f"item_{stock_item_id}"  # Unique key for specific item
+        else:
+            product_key = str(product_id)  # Regular product key
         
         # Check if product is already in cart
         if product_key in cart:
@@ -239,6 +268,7 @@ def add_to_cart():
             if stock_item_id:
                 cart_item_data['stock_item_id'] = stock_item_id
                 cart_item_data['stock_item_barcode'] = stock_item.item_barcode if stock_item else None
+                cart_item_data['is_specific_item'] = True
             
             cart[product_key] = cart_item_data
             print(f"DEBUG: Added new item to cart: {product.name}")
