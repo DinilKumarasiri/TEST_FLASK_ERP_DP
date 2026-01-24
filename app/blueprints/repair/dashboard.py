@@ -101,11 +101,10 @@ def technician_dashboard():
 @repair_bp.route('/job-card/<int:job_id>')
 @login_required
 def job_card(job_id):
+    """Redirect to job detail page or create a print view"""
     try:
-        job = RepairJob.query.get_or_404(job_id)
-        return render_template('repair/job_card.html',
-                             job=job,
-                             title=f'Job Card - {job.job_number}')
+        # Instead of rendering a separate template, redirect to job detail
+        return redirect(url_for('repair.job_detail', job_id=job_id))
     except Exception as e:
-        flash(f'Error loading job card: {str(e)}', 'danger')
+        flash(f'Error loading job: {str(e)}', 'danger')
         return redirect(url_for('repair.job_list'))

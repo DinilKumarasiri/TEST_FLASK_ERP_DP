@@ -186,21 +186,22 @@
                        class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-eye me-1"></i> View Details
                     </a>
-                    {% if current_user.role in ['admin', 'manager'] or current_user.id == job.technician_id %}
+                    <!-- In the jobs.html template, find this section and update it: -->
+                    {% if current_user.role in ['admin', 'manager', 'technician'] %}
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-success" 
                                 onclick="updateStatus({{ job.id }}, 'repairing')"
-                                {% if job.status not in ['diagnostic', 'waiting_parts'] %}disabled{% endif %}>
+                                {% if job.status not in ['diagnostic', 'waiting_parts'] or (current_user.role == 'technician' and current_user.id != job.technician_id) %}disabled{% endif %}>
                             <i class="fas fa-play me-1"></i> Start Repair
                         </button>
                         <button class="btn btn-outline-warning" 
                                 onclick="updateStatus({{ job.id }}, 'waiting_parts')"
-                                {% if job.status not in ['diagnostic', 'repairing'] %}disabled{% endif %}>
+                                {% if job.status not in ['diagnostic', 'repairing'] or (current_user.role == 'technician' and current_user.id != job.technician_id) %}disabled{% endif %}>
                             <i class="fas fa-clock me-1"></i> Wait Parts
                         </button>
                         <button class="btn btn-outline-info" 
                                 onclick="updateStatus({{ job.id }}, 'completed')"
-                                {% if job.status != 'repairing' %}disabled{% endif %}>
+                                {% if job.status != 'repairing' or (current_user.role == 'technician' and current_user.id != job.technician_id) %}disabled{% endif %}>
                             <i class="fas fa-check me-1"></i> Complete
                         </button>
                     </div>

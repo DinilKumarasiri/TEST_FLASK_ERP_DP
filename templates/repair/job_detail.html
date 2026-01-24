@@ -1,186 +1,605 @@
 {% extends "base.html" %}
 
-{% block title %}Job Card - {{ job.job_number }}{% endblock %}
+{% block title %}Job Detail - {{ job.job_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #dee2e6;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -25px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #0d6efd;
+        border: 2px solid white;
+    }
+    
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    .part-used-card {
+        border-left: 4px solid #0d6efd;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h4 class="mb-0 text-center">Repair Job Card</h4>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tools me-2"></i>Repair Job Details</h2>
+    <div>
+        <a href="{{ url_for('repair.job_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Jobs
+        </a>
+        <a href="{{ url_for('repair.job_card', job_id=job.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-print me-1"></i> Print Job Card
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column - Job Info -->
+    <div class="col-lg-8">
+        <!-- Job Header -->
+        <div class="card mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Job #{{ job.job_number }}</h5>
+                <div>
+                    <span class="badge 
+                        {% if job.status == 'completed' %}bg-success
+                        {% elif job.status == 'delivered' %}bg-info
+                        {% elif job.status == 'diagnostic' %}bg-warning
+                        {% elif job.status == 'repairing' %}bg-primary
+                        {% elif job.status == 'waiting_parts' %}bg-danger
+                        {% else %}bg-secondary{% endif %} fs-6">
+                        {{ job.status|title }}
+                    </span>
                 </div>
-                <div class="card-body">
-                    <!-- Job Header -->
-                    <div class="text-center mb-4">
-                        <h3>{{ job.job_number }}</h3>
-                        <p class="text-muted">Mobile Shop ERP</p>
-                    </div>
-                    
-                    <!-- Customer Info -->
-                    <div class="mb-4">
-                        <h5>Customer Information</h5>
-                        <table class="table table-bordered">
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user me-2"></i>Customer Information</h6>
+                        <table class="table table-sm">
                             <tr>
-                                <th width="30%">Name</th>
+                                <th width="40%">Name:</th>
                                 <td>{{ job.customer.name if job.customer else 'N/A' }}</td>
                             </tr>
                             <tr>
-                                <th>Phone</th>
+                                <th>Phone:</th>
                                 <td>{{ job.customer.phone if job.customer else 'N/A' }}</td>
                             </tr>
                             <tr>
-                                <th>Email</th>
+                                <th>Email:</th>
                                 <td>{{ job.customer.email if job.customer else 'N/A' }}</td>
                             </tr>
                             <tr>
-                                <th>Address</th>
+                                <th>Address:</th>
                                 <td>{{ job.customer.address if job.customer else 'N/A' }}</td>
                             </tr>
                         </table>
                     </div>
                     
-                    <!-- Device Info -->
-                    <div class="mb-4">
-                        <h5>Device Information</h5>
-                        <table class="table table-bordered">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-mobile-alt me-2"></i>Device Information</h6>
+                        <table class="table table-sm">
                             <tr>
-                                <th width="30%">Device Type</th>
+                                <th width="40%">Device Type:</th>
                                 <td>{{ job.device_type|title }}</td>
                             </tr>
                             <tr>
-                                <th>Brand/Model</th>
+                                <th>Brand/Model:</th>
                                 <td>{{ job.brand }} {{ job.model }}</td>
                             </tr>
                             <tr>
-                                <th>IMEI</th>
+                                <th>IMEI:</th>
                                 <td>{{ job.imei or 'N/A' }}</td>
                             </tr>
                             <tr>
-                                <th>Serial Number</th>
+                                <th>Serial No:</th>
                                 <td>{{ job.serial_number or 'N/A' }}</td>
                             </tr>
                         </table>
                     </div>
-                    
-                    <!-- Issue Description -->
-                    <div class="mb-4">
-                        <h5>Issue Description</h5>
-                        <div class="border p-3">
-                            {{ job.issue_description|replace('\n', '<br>')|safe }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Issue Description -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Issue Description</h6>
+            </div>
+            <div class="card-body">
+                <p>{{ job.issue_description }}</p>
+                {% if job.accessories_received %}
+                <div class="mt-3">
+                    <strong>Accessories Received:</strong>
+                    <p class="mb-0">{{ job.accessories_received }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Repair Details -->
+        {% if job.diagnosis_details or job.repair_details %}
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Repair Details</h6>
+            </div>
+            <div class="card-body">
+                {% if job.diagnosis_details %}
+                <div class="mb-3">
+                    <h6>Diagnosis:</h6>
+                    <p>{{ job.diagnosis_details }}</p>
+                </div>
+                {% endif %}
+                
+                {% if job.repair_details %}
+                <div>
+                    <h6>Repair Work Done:</h6>
+                    <p>{{ job.repair_details }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Parts Used -->
+        {% if job.repair_items %}
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-box-open me-2"></i>Parts Used</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Part</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in job.repair_items %}
+                            <tr>
+                                <td>{{ item.product.name if item.product else 'Unknown' }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                                <td>Rs.{{ "%.2f"|format(item.total_price) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-active">
+                                <td colspan="3" class="text-end"><strong>Total Parts Cost:</strong></td>
+                                <td><strong>Rs.{{ "%.2f"|format(job.final_cost) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Right Column - Actions & Timeline -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <!-- Status Update Buttons - Fixed Logic -->
+                {% if current_user.role in ['admin', 'manager', 'technician'] and job.technician_id == current_user.id %}
+                    <div class="btn-group w-100 mb-3">
+                        <!-- Start Repair button -->
+                        <button class="btn btn-outline-success" 
+                                onclick="updateStatus({{ job.id }}, 'repairing')"
+                                {% if job.status not in ['diagnostic', 'waiting_parts'] %}disabled{% endif %}>
+                            <i class="fas fa-play me-1"></i> Start Repair
+                        </button>
+                        
+                        <!-- Wait Parts button -->
+                        <button class="btn btn-outline-warning" 
+                                onclick="updateStatus({{ job.id }}, 'waiting_parts')"
+                                {% if job.status not in ['diagnostic', 'repairing'] %}disabled{% endif %}>
+                            <i class="fas fa-clock me-1"></i> Wait Parts
+                        </button>
+                        
+                        <!-- Complete button -->
+                        <button class="btn btn-outline-info" 
+                                onclick="updateStatus({{ job.id }}, 'completed')"
+                                {% if job.status != 'repairing' %}disabled{% endif %}>
+                            <i class="fas fa-check me-1"></i> Complete
+                        </button>
+                    </div>
+                {% endif %}
+                
+                <!-- Assign Technician (Admin/Manager only) -->
+                {% if current_user.role in ['admin', 'manager'] %}
+                <div class="mb-3">
+                    <form method="POST" action="{{ url_for('repair.assign_technician', job_id=job.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label class="form-label small">Assign Technician:</label>
+                        <div class="input-group">
+                            <select name="technician_id" class="form-select form-select-sm">
+                                <option value="">Unassigned</option>
+                                {% for tech in technicians %}
+                                <option value="{{ tech.id }}" {% if job.technician_id == tech.id %}selected{% endif %}>
+                                    {{ tech.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-check"></i>
+                            </button>
                         </div>
+                    </form>
+                </div>
+                {% endif %}
+                
+                <!-- Customer Approval Status -->
+                {% if job.status in ['diagnostic', 'waiting_parts'] %}
+                <div class="mb-3">
+                    <label class="form-label small">Customer Approval:</label>
+                    {% if job.customer_approval %}
+                    <div class="alert alert-success py-2 mb-0">
+                        <i class="fas fa-check-circle me-1"></i> Approved on {{ job.approval_date.strftime('%Y-%m-%d') }}
+                    </div>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('repair.customer_approval', job_id=job.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="btn-group w-100">
+                            <button type="submit" name="approval" value="yes" class="btn btn-sm btn-success">
+                                <i class="fas fa-check me-1"></i> Approved
+                            </button>
+                            <button type="submit" name="approval" value="no" class="btn btn-sm btn-danger">
+                                <i class="fas fa-times me-1"></i> Rejected
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Add Diagnosis (Technician only) -->
+                {% if current_user.role == 'technician' and job.technician_id == current_user.id and job.status == 'diagnostic' %}
+                <div class="mb-3">
+                    <button class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#diagnosisModal">
+                        <i class="fas fa-stethoscope me-1"></i> Add Diagnosis
+                    </button>
+                </div>
+                {% endif %}
+                
+                <!-- Add Spare Part -->
+                {% if job.status in ['repairing', 'waiting_parts'] %}
+                <div class="mb-3">
+                    <button class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#sparePartModal">
+                        <i class="fas fa-plus-circle me-1"></i> Add Spare Part
+                    </button>
+                </div>
+                {% endif %}
+                
+                <!-- Complete Job (Technician/Admin) -->
+                {% if current_user.role in ['admin', 'manager', 'technician'] and job.technician_id == current_user.id and job.status == 'repairing' %}
+                <div class="mb-3">
+                    <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#completeJobModal">
+                        <i class="fas fa-flag-checkered me-1"></i> Complete Job
+                    </button>
+                </div>
+                {% endif %}
+                
+                <!-- Deliver Job (Admin/Manager) -->
+                {% if current_user.role in ['admin', 'manager'] and job.status == 'completed' %}
+                <div class="mb-3">
+                    <button class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#deliverJobModal">
+                        <i class="fas fa-truck me-1"></i> Deliver to Customer
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Job Timeline -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-history me-2"></i>Job Timeline</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <small class="text-muted">{{ job.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                        <p class="mb-1"><strong>Job Created</strong></p>
+                        <p class="small mb-0">Status: Received</p>
                     </div>
                     
-                    <!-- Accessories -->
-                    {% if job.accessories_received %}
-                    <div class="mb-4">
-                        <h5>Accessories Received</h5>
-                        <div class="border p-3">
-                            {{ job.accessories_received|replace('\n', '<br>')|safe }}
-                        </div>
+                    {% if job.technician_id %}
+                    <div class="timeline-item">
+                        <small class="text-muted">Assigned to technician</small>
+                        <p class="mb-1"><strong>Technician Assigned</strong></p>
+                        <p class="small mb-0">{{ job.technician.username }}</p>
                     </div>
                     {% endif %}
                     
-                    <!-- Financial Info -->
-                    <div class="mb-4">
-                        <h5>Financial Information</h5>
-                        <table class="table table-bordered">
-                            <tr>
-                                <th width="30%">Estimated Cost</th>
-                                <td>Rs.{{ "%.2f"|format(job.estimated_cost) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Final Cost</th>
-                                <td>Rs.{{ "%.2f"|format(job.final_cost) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Warranty</th>
-                                <td>{{ job.warranty_period }} months</td>
-                            </tr>
-                            <tr>
-                                <th>Status</th>
-                                <td>{{ job.status|title }}</td>
-                            </tr>
-                        </table>
+                    {% if job.diagnosis_details %}
+                    <div class="timeline-item">
+                        <small class="text-muted">Diagnosis completed</small>
+                        <p class="mb-1"><strong>Diagnosis Added</strong></p>
                     </div>
+                    {% endif %}
                     
-                    <!-- Dates -->
-                    <div class="mb-4">
-                        <h5>Important Dates</h5>
-                        <table class="table table-bordered">
-                            <tr>
-                                <th width="30%">Created Date</th>
-                                <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% if job.approval_date %}
-                            <tr>
-                                <th>Approval Date</th>
-                                <td>{{ job.approval_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if job.completed_date %}
-                            <tr>
-                                <th>Completed Date</th>
-                                <td>{{ job.completed_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if job.delivered_date %}
-                            <tr>
-                                <th>Delivered Date</th>
-                                <td>{{ job.delivered_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% endif %}
-                        </table>
+                    {% if job.customer_approval %}
+                    <div class="timeline-item">
+                        <small class="text-muted">{{ job.approval_date.strftime('%b %d, %Y') if job.approval_date else '' }}</small>
+                        <p class="mb-1"><strong>Customer Approved Estimate</strong></p>
                     </div>
+                    {% endif %}
                     
-                    <!-- Signatures -->
-                    <div class="row mt-5">
-                        <div class="col-6 text-center">
-                            <p class="border-top pt-2">Customer Signature</p>
-                        </div>
-                        <div class="col-6 text-center">
-                            <p class="border-top pt-2">Technician Signature</p>
-                        </div>
+                    {% if job.completed_date %}
+                    <div class="timeline-item">
+                        <small class="text-muted">{{ job.completed_date.strftime('%b %d, %Y %I:%M %p') if job.completed_date else '' }}</small>
+                        <p class="mb-1"><strong>Job Completed</strong></p>
                     </div>
+                    {% endif %}
                     
-                    <!-- Print Button -->
-                    <div class="text-center mt-4">
-                        <button class="btn btn-primary" onclick="window.print()">
-                            <i class="fas fa-print me-2"></i> Print Job Card
-                        </button>
-                        <a href="{{ url_for('repair.job_detail', job_id=job.id) }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i> Back to Job Details
-                        </a>
+                    {% if job.delivered_date %}
+                    <div class="timeline-item">
+                        <small class="text-muted">{{ job.delivered_date.strftime('%b %d, %Y %I:%M %p') if job.delivered_date else '' }}</small>
+                        <p class="mb-1"><strong>Delivered to Customer</strong></p>
                     </div>
+                    {% endif %}
                 </div>
-                <div class="card-footer text-center text-muted">
-                    <small>Generated on {{ now.strftime('%Y-%m-%d %H:%M') }}</small>
-                </div>
+            </div>
+        </div>
+        
+        <!-- Financial Summary -->
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Financial Summary</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td>Estimated Cost:</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(job.estimated_cost) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Final Cost:</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(job.final_cost) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Warranty:</td>
+                        <td class="text-end">{{ job.warranty_period }} months</td>
+                    </tr>
+                    <tr class="table-active">
+                        <td><strong>Balance:</strong></td>
+                        <td class="text-end"><strong>Rs.{{ "%.2f"|format(job.final_cost - job.estimated_cost) }}</strong></td>
+                    </tr>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-@media print {
-    .sidebar, .main-content > :not(.container) {
-        display: none !important;
-    }
-    .container {
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: 100% !important;
-    }
-    .card {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    .btn {
-        display: none !important;
-    }
-    .card-footer {
-        display: none !important;
+<!-- Modals -->
+<!-- Diagnosis Modal -->
+<div class="modal fade" id="diagnosisModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('repair.add_diagnosis', job_id=job.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Diagnosis</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Diagnosis Details</label>
+                        <textarea name="diagnosis_details" class="form-control" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Estimated Cost</label>
+                        <input type="number" name="estimated_cost" class="form-control" step="0.01" value="{{ job.estimated_cost }}" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="needs_parts" id="needsParts">
+                        <label class="form-check-label" for="needsParts">
+                            Needs spare parts
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Diagnosis</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Spare Part Modal -->
+<div class="modal fade" id="sparePartModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('repair.add_spare_part', job_id=job.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Spare Part</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Part</label>
+                        <select name="product_id" class="form-select" required>
+                            <option value="">Choose a part...</option>
+                            {% for part in spare_parts %}
+                            <option value="{{ part.id }}">{{ part.name }} (Stock: {{ part.stock_items|selectattr('status', 'equalto', 'available')|list|length }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Part</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Job Modal -->
+<div class="modal fade" id="completeJobModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('repair.complete_job', job_id=job.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Repair Job</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Repair Details (Work Done)</label>
+                        <textarea name="repair_details" class="form-control" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warranty Period (Months)</label>
+                        <input type="number" name="warranty_period" class="form-control" value="{{ job.warranty_period or 0 }}" min="0">
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Completing the job will calculate final costs and update inventory.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Complete Job</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Deliver Job Modal -->
+<div class="modal fade" id="deliverJobModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('repair.deliver_job', job_id=job.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Deliver to Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-select" required>
+                            <option value="cash">Cash</option>
+                            <option value="card">Credit/Debit Card</option>
+                            <option value="online">Online Payment</option>
+                            <option value="due">Due</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount Paid</label>
+                        <input type="number" name="amount_paid" class="form-control" value="{{ job.final_cost }}" step="0.01" required>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        This will mark the job as delivered and create an invoice.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Deliver & Create Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateStatus(jobId, status) {
+    if (confirm('Are you sure you want to update the job status to: ' + status + '?')) {
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/repair/update-status/${jobId}`;
+        
+        // Add CSRF token
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+        
+        // Add status field
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        statusInput.value = status;
+        form.appendChild(statusInput);
+        
+        // Submit the form
+        document.body.appendChild(form);
+        form.submit();
     }
 }
-</style>
+
+// Initialize tooltips
+$(document).ready(function() {
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Show active status in timeline
+    const statusMap = {
+        'received': 0,
+        'diagnostic': 1,
+        'repairing': 2,
+        'waiting_parts': 2,
+        'completed': 3,
+        'delivered': 4
+    };
+    
+    const currentStatus = '{{ job.status }}';
+    const timelineItems = document.querySelectorAll('.timeline-item');
+    if (timelineItems.length > 0 && currentStatus in statusMap) {
+        const activeIndex = statusMap[currentStatus];
+        if (activeIndex < timelineItems.length) {
+            timelineItems[activeIndex].classList.add('active');
+        }
+    }
+});
+</script>
 {% endblock %}

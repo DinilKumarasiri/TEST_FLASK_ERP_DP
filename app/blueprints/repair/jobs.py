@@ -104,6 +104,25 @@ def update_status(job_id):
         valid_statuses = ['received', 'diagnostic', 'repairing', 'waiting_parts', 'completed', 'delivered']
         
         if new_status in valid_statuses:
+            # Check permissions
+            if current_user.role == 'technician' and current_user.id != job.technician_id:
+                flash('You are not assigned to this job', 'danger')
+                return redirect(url_for('repair.job_detail', job_id=job_id))
+            
+            # Check valid status transitions
+            valid_transitions = {
+                'received': ['diagnostic'],
+                'diagnostic': ['repairing', 'waiting_parts'],
+                'repairing': ['completed', 'waiting_parts'],
+                'waiting_parts': ['repairing'],
+                'completed': ['delivered'],
+                'delivered': []
+            }
+            
+            if new_status not in valid_transitions.get(job.status, []):
+                flash(f'Cannot change status from {job.status} to {new_status}', 'danger')
+                return redirect(url_for('repair.job_detail', job_id=job_id))
+            
             job.status = new_status
             
             # Set dates based on status
