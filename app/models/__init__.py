@@ -7,7 +7,7 @@ from .product import ProductCategory, Product
 from .supplier import Supplier
 from .stock import StockItem
 from .purchase_order import PurchaseOrder, PurchaseOrderItem
-from .repair import RepairJob, RepairItem
+from .repair import RepairJob, RepairItem, RepairInvoice, RepairInvoiceItem, RepairPayment
 from .pos import Invoice, InvoiceItem, Payment
 
 # Export all models
@@ -26,6 +26,9 @@ __all__ = [
     'PurchaseOrderItem',
     'RepairJob',
     'RepairItem',
+    'RepairInvoice',
+    'RepairInvoiceItem',
+    'RepairPayment',
     'Invoice',
     'InvoiceItem',
     'Payment'

@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block title %}Repair Invoice {{ invoice.invoice_number }} - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoice-header {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .company-logo {
+        font-size: 2rem;
+        color: var(--primary-color);
+    }
+    
+    .invoice-table th {
+        background-color: #f8f9fa;
+    }
+    
+    .totals-table {
+        width: 300px;
+        margin-left: auto;
+    }
+    
+    .warranty-card {
+        border-left: 4px solid #0d6efd;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        body {
+            font-size: 12px;
+        }
+        
+        .invoice-table th, 
+        .invoice-table td {
+            padding: 4px 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <!-- Header -->
+        <div class="invoice-header">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="company-logo">
+                        <i class="fas fa-tools"></i> Mobile Repair Center
+                    </div>
+                    <p class="mb-1">123 Repair Street</p>
+                    <p class="mb-1">City, State 12345</p>
+                    <p class="mb-0">Phone: (123) 456-7890 | GST: 27ABCDE1234F1Z5</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h1 class="display-6 mb-2">REPAIR INVOICE</h1>
+                    <p class="mb-1"><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
+                    <p class="mb-1"><strong>Date:</strong> {{ invoice.date.strftime('%B %d, %Y') }}</p>
+                    <p class="mb-0"><strong>Job #:</strong> {{ invoice.repair_job.job_number if invoice.repair_job else 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bill To -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5>Bill To:</h5>
+                <p class="mb-1"><strong>{{ invoice.customer_name }}</strong></p>
+                {% if invoice.customer_phone %}
+                <p class="mb-1">Phone: {{ invoice.customer_phone }}</p>
+                {% endif %}
+                {% if invoice.customer and invoice.customer.address %}
+                <p class="mb-0">{{ invoice.customer.address }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <h5>Device Information:</h5>
+                <p class="mb-1"><strong>{{ invoice.brand }} {{ invoice.model }}</strong></p>
+                <p class="mb-1">Type: {{ invoice.device_type|title }}</p>
+                {% if invoice.imei %}
+                <p class="mb-0">IMEI: {{ invoice.imei }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Issue Summary -->
+        <div class="mb-4">
+            <h5>Issue Description:</h5>
+            <div class="border p-3 bg-light">
+                {{ invoice.issue_description|replace('\n', '<br>')|safe }}
+            </div>
+        </div>
+        
+        <!-- Work Done -->
+        {% if invoice.work_done %}
+        <div class="mb-4">
+            <h5>Work Performed:</h5>
+            <div class="border p-3 bg-light">
+                {{ invoice.work_done|replace('\n', '<br>')|safe }}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Items Table -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered invoice-table">
+                <thead>
+                    <tr>
+                        <th width="50">#</th>
+                        <th>Item Description</th>
+                        <th width="100" class="text-center">Qty</th>
+                        <th width="120" class="text-end">Unit Price</th>
+                        <th width="120" class="text-end">Total</th>
+                        <th width="150">Warranty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in invoice.items %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <strong>{{ item.description }}</strong>
+                            {% if item.notes %}
+                            <br><small class="text-muted">{{ item.notes }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ item.quantity }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(item.total) }}</td>
+                        <td>
+                            {% if item.warranty_info %}
+                            <small>{{ item.warranty_info }}</small>
+                            {% else %}
+                            <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Totals & Payment -->
+        <div class="row">
+            <div class="col-md-6">
+                <!-- Warranty Information -->
+                {% if invoice.warranty_period > 0 %}
+                <div class="card warranty-card mb-4">
+                    <div class="card-body">
+                        <h6><i class="fas fa-shield-alt me-2"></i>Warranty Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Period:</strong> {{ invoice.warranty_period }} months</p>
+                                <p class="mb-1"><strong>Start Date:</strong> {{ invoice.warranty_start.strftime('%Y-%m-%d') if invoice.warranty_start else 'N/A' }}</p>
+                                <p class="mb-0"><strong>End Date:</strong> {{ invoice.warranty_end.strftime('%Y-%m-%d') if invoice.warranty_end else 'N/A' }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-0"><strong>Coverage:</strong></p>
+                                <small class="text-muted">Parts and labor for original repair issue</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Payment History -->
+                {% if invoice.payments %}
+                <div class="mb-4">
+                    <h6>Payment History:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in invoice.payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>Rs.{{ "%.2f"|format(payment.amount) }}</td>
+                                    <td>{{ payment.payment_method|title }}</td>
+                                    <td>{{ payment.reference_number or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6">
+                <!-- Totals -->
+                <table class="table table-bordered totals-table">
+                    <tr>
+                        <td><strong>Parts Cost</strong></td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.parts_cost) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Labor Cost</strong></td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.labor_cost) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Cost</strong></td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.total_cost) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tax ({{ (invoice.tax_rate)|int }}%)</strong></td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.tax_amount) }}</td>
+                    </tr>
+                    <tr class="table-active">
+                        <td><strong>Grand Total</strong></td>
+                        <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.grand_total) }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Advance Paid</strong></td>
+                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.advance_paid) }}</td>
+                    </tr>
+                    <tr class="table-{{ 'success' if invoice.balance_due == 0 else 'warning' }}">
+                        <td><strong>Balance Due</strong></td>
+                        <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.balance_due) }}</strong></td>
+                    </tr>
+                </table>
+                <!-- Payment Status -->
+                <div class="mt-3">
+                    <p class="mb-1">
+                        <strong>Payment Status:</strong> 
+                        <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' if invoice.payment_status == 'pending' else 'primary' if invoice.payment_status == 'partial' else 'secondary' }}">
+                            {{ invoice.payment_status|title }}
+                        </span>
+                    </p>
+                    <p class="mb-0">
+                        <strong>Payment Method:</strong> {{ invoice.payment_method|title }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Terms & Conditions -->
+        <div class="mt-4 pt-4 border-top">
+            <h6>Terms & Conditions:</h6>
+            <div class="bg-light p-3">
+                {{ invoice.terms_conditions|replace('\n', '<br>')|safe }}
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-4 pt-4 border-top text-center">
+            <p class="mb-1">Thank you for choosing our repair service!</p>
+            <p class="text-muted small mb-0">
+                For warranty claims or queries, contact: repair@mobileshop.com | Phone: (123) 456-7890
+            </p>
+        </div>
+        
+        <!-- Actions -->
+        <div class="mt-4 pt-4 border-top no-print">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <a href="{{ url_for('repair.repair_invoices_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+                <div>
+                    <a href="{{ url_for('repair.print_repair_invoice', invoice_id=invoice.id) }}" 
+                       class="btn btn-outline-primary me-2" target="_blank">
+                        <i class="fas fa-print me-1"></i> Print Invoice
+                    </a>
+                    <button class="btn btn-outline-success me-2" onclick="downloadPDF()">
+                        <i class="fas fa-file-pdf me-1"></i> Download PDF
+                    </button>
+                    
+                    {% if invoice.payment_status != 'paid' and invoice.payment_status != 'voided' %}
+                    <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+                        <i class="fas fa-credit-card me-1"></i> Add Payment
+                    </button>
+                    {% endif %}
+                    
+                    {% if current_user.role in ['admin', 'manager'] %}
+                    <div class="btn-group">
+                        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#emailModal">
+                            <i class="fas fa-envelope me-1"></i> Email
+                        </button>
+                        {% if invoice.payment_status != 'voided' %}
+                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#voidModal">
+                            <i class="fas fa-ban me-1"></i> Void
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Payment Modal -->
+{% if invoice.payment_status != 'paid' and invoice.payment_status != 'voided' %}
+<div class="modal fade" id="addPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('repair.add_repair_payment', invoice_id=invoice.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Balance Due</label>
+                        <input type="text" class="form-control" value="Rs.{{ "%.2f"|format(invoice.balance_due) }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount Received *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">Rs.</span>
+                            <input type="number" class="form-control" name="amount" 
+                                   step="0.01" min="0.01" max="{{ invoice.balance_due }}" 
+                                   value="{{ invoice.balance_due }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method *</label>
+                        <select class="form-select" name="payment_method" required>
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="online">Online</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference Number (Optional)</label>
+                        <input type="text" class="form-control" name="reference_number" 
+                               placeholder="e.g., Card last 4 digits, Transaction ID">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" name="notes" rows="2" 
+                                  placeholder="Additional payment notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Process Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Email Modal -->
+<div class="modal fade" id="emailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Email Invoice</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('repair.email_repair_invoice', invoice_id=invoice.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">To Email *</label>
+                        <input type="email" class="form-control" name="email" 
+                               value="{{ invoice.customer.email if invoice.customer else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <input type="text" class="form-control" name="subject" 
+                               value="Repair Invoice {{ invoice.invoice_number }} - Mobile Repair Center">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" name="message" rows="4">
+Dear {{ invoice.customer_name }},
+
+Please find attached your repair invoice for {{ invoice.brand }} {{ invoice.model }}.
+
+Invoice Number: {{ invoice.invoice_number }}
+Total Amount: Rs.{{ "%.2f"|format(invoice.grand_total) }}
+
+Thank you for choosing our repair service!
+
+Best regards,
+Mobile Repair Center
+                        </textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="include_pdf" id="includePDF" checked>
+                        <label class="form-check-label" for="includePDF">
+                            Attach PDF copy of invoice
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Void Modal -->
+{% if current_user.role in ['admin', 'manager'] and invoice.payment_status != 'voided' %}
+<div class="modal fade" id="voidModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Void Invoice</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('repair.void_repair_invoice', invoice_id=invoice.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Voiding this invoice cannot be undone!
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Voiding *</label>
+                        <select class="form-select" name="reason" required>
+                            <option value="">Select reason</option>
+                            <option value="cancelled">Repair Cancelled</option>
+                            <option value="duplicate">Duplicate Invoice</option>
+                            <option value="error">Pricing Error</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Additional Notes</label>
+                        <textarea class="form-control" name="notes" rows="3" 
+                                  placeholder="Explain why this invoice is being voided..."></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="confirm" id="confirmVoid" required>
+                        <label class="form-check-label" for="confirmVoid">
+                            I understand this action cannot be undone
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Void Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function downloadPDF() {
+    alert('PDF download feature would be implemented here');
+    // This would typically make an API call to generate PDF
+}
+
+// Initialize modals
+$(document).ready(function() {
+    // Auto-calculate payment amount
+    $('#addPaymentModal input[name="amount"]').on('change', function() {
+        const maxAmount = parseFloat($(this).attr('max'));
+        const currentAmount = parseFloat($(this).val());
+        
+        if (currentAmount > maxAmount) {
+            alert('Payment amount cannot exceed balance due');
+            $(this).val(maxAmount);
+        }
+    });
+    
+    // Validate email
+    $('#emailModal form').on('submit', function(e) {
+        const email = $('input[name="email"]').val();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (!emailRegex.test(email)) {
+            alert('Please enter a valid email address');
+            e.preventDefault();
+            return;
+        }
+    });
+    
+    // Validate void confirmation
+    $('#voidModal form').on('submit', function(e) {
+        if (!$('#confirmVoid').is(':checked')) {
+            alert('You must confirm that you understand this action cannot be undone');
+            e.preventDefault();
+            return;
+        }
+        
+        const reason = $('select[name="reason"]').val();
+        if (!reason) {
+            alert('Please select a reason for voiding');
+            e.preventDefault();
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to void this invoice? This action cannot be undone.')) {
+            e.preventDefault();
+            return;
+        }
+    });
+});
+</script>
+{% endblock %}

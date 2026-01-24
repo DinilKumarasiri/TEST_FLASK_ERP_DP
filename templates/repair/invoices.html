@@ -1,0 +1,194 @@
+<!-- templates/repair/invoices.html -->
+{% extends "base.html" %}
+
+{% block title %}Repair Invoices - Mobile Shop ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoice-card {
+        border-left: 4px solid;
+        transition: all 0.3s;
+    }
+    
+    .invoice-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .status-paid { border-color: #198754; }
+    .status-pending { border-color: #fd7e14; }
+    .status-partial { border-color: #0d6efd; }
+    .status-voided { border-color: #6c757d; }
+    
+    .filter-badge {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .filter-badge:hover {
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-invoice me-2"></i>Repair Invoices</h2>
+    <div>
+        <a href="{{ url_for('repair.repair_dashboard') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+        <a href="{{ url_for('repair.job_list') }}?status=completed" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Create Invoice from Job
+        </a>
+    </div>
+</div>
+
+<!-- Stats Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ total_invoices }}</h3>
+                <p class="mb-0 text-muted">Total Invoices</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h3 class="mb-1">Rs.{{ "%.2f"|format(total_amount) }}</h3>
+                <p class="mb-0 text-muted">Total Amount</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ paid_invoices }}</h3>
+                <p class="mb-0 text-muted">Paid Invoices</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h3 class="mb-1">{{ pending_invoices }}</h3>
+                <p class="mb-0 text-muted">Pending Invoices</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invoices List -->
+{% if invoices.items %}
+<div class="row">
+    {% for invoice in invoices.items %}
+    <div class="col-md-6 mb-4">
+        <div class="card invoice-card status-{{ invoice.payment_status }} h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">
+                            <a href="{{ url_for('repair.repair_invoice_detail', invoice_id=invoice.id) }}" class="text-decoration-none">
+                                {{ invoice.invoice_number }}
+                            </a>
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-user me-1"></i> {{ invoice.customer_name or 'N/A' }}
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-mobile-alt me-1"></i> {{ invoice.brand }} {{ invoice.model }}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' if invoice.payment_status == 'pending' else 'primary' if invoice.payment_status == 'partial' else 'secondary' }}">
+                            {{ invoice.payment_status|title }}
+                        </span>
+                        <div>
+                            <small class="text-muted">{{ invoice.date.strftime('%b %d, %Y') }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Total:</span>
+                        <span class="fw-bold">Rs.{{ "%.2f"|format(invoice.grand_total) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Balance:</span>
+                        <span class="text-{{ 'success' if invoice.balance_due == 0 else 'danger' }}">
+                            Rs.{{ "%.2f"|format(invoice.balance_due) }}
+                        </span>
+                    </div>
+                    {% if invoice.warranty_period > 0 %}
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Warranty:</span>
+                        <span>{{ invoice.warranty_period }} months</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('repair.repair_invoice_detail', invoice_id=invoice.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i> View Invoice
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if invoices.pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if invoices.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('repair.repair_invoices_list', page=invoices.prev_num) }}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in invoices.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                <li class="page-item {% if page_num == invoices.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('repair.repair_invoices_list', page=page_num) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if invoices.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('repair.repair_invoices_list', page=invoices.next_num) }}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No repair invoices found</h5>
+        <p class="text-muted">Create an invoice from a completed repair job</p>
+        <a href="{{ url_for('repair.job_list') }}?status=completed" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Create Invoice from Job
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
