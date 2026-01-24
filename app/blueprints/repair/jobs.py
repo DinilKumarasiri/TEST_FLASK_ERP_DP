@@ -4,6 +4,7 @@ from ... import db
 from ...models import RepairJob, RepairItem, Product, StockItem, User
 from datetime import datetime
 from . import repair_bp
+from datetime import datetime, timedelta  # Add timedelta here
 
 @repair_bp.route('/jobs')
 @login_required
@@ -280,15 +281,27 @@ def deliver_job(job_id):
         
         payment_method = request.form.get('payment_method', 'cash')
         amount_paid = request.form.get('amount_paid', type=float, default=job.final_cost or 0)
+        warranty_period = request.form.get('warranty_period', type=int, default=0)
+        delivery_notes = request.form.get('delivery_notes', '')
+        
+        # Handle custom warranty
+        if warranty_period == 'custom':
+            custom_warranty = request.form.get('custom_warranty', type=int, default=0)
+            warranty_period = custom_warranty
         
         # Mark as delivered
         job.status = 'delivered'
         job.delivered_date = datetime.utcnow()
         
-        # TODO: Create invoice for repair job
+        # Update warranty if provided
+        if warranty_period:
+            job.warranty_period = warranty_period
+        
+        # TODO: Create invoice for repair job with warranty info
+        # Include payment_method, amount_paid, and delivery_notes in invoice
         
         db.session.commit()
-        flash('Device delivered to customer', 'success')
+        flash(f'Device delivered to customer. Warranty: {warranty_period} months', 'success')
         
         return redirect(url_for('repair.job_detail', job_id=job_id))
     except Exception as e:
@@ -322,3 +335,47 @@ def debug_jobs_list():
             'success': False,
             'error': str(e)
         })
+
+@repair_bp.route('/file-warranty-claim/<int:job_id>', methods=['POST'])
+@login_required
+def file_warranty_claim(job_id):
+    try:
+        job = RepairJob.query.get_or_404(job_id)
+        
+        # Check if warranty is still valid
+        if not job.delivered_date or job.warranty_period <= 0:
+            flash('This job has no warranty or has not been delivered', 'danger')
+            return redirect(url_for('repair.job_detail', job_id=job_id))
+        
+        warranty_end = job.delivered_date + timedelta(days=30 * job.warranty_period)
+        if datetime.utcnow() > warranty_end:
+            flash('Warranty has expired', 'danger')
+            return redirect(url_for('repair.job_detail', job_id=job_id))
+        
+        # TODO: Create WarrantyClaim model and save claim
+        # For now, just show a success message
+        flash('Warranty claim submitted successfully', 'success')
+        
+        return redirect(url_for('repair.job_detail', job_id=job_id))
+    except Exception as e:
+        flash(f'Error filing warranty claim: {str(e)}', 'danger')
+        return redirect(url_for('repair.job_detail', job_id=job_id))
+    
+
+
+@repair_bp.route('/complete-warranty-claim/<int:job_id>', methods=['POST'])
+@login_required
+def complete_warranty_claim(job_id):
+    try:
+        claim_id = request.form.get('claim_id')
+        final_status = request.form.get('final_status')
+        final_resolution = request.form.get('final_resolution')
+        parts_used = request.form.get('parts_used')
+        customer_cost = request.form.get('customer_cost', type=float, default=0)
+        
+        # TODO: Complete claim logic here
+        flash(f'Warranty claim #{claim_id} marked as {final_status}', 'success')
+        return redirect(url_for('repair.job_detail', job_id=job_id))
+    except Exception as e:
+        flash(f'Error completing warranty claim: {str(e)}', 'danger')
+        return redirect(url_for('repair.job_detail', job_id=job_id))

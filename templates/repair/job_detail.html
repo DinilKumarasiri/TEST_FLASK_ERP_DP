@@ -45,6 +45,42 @@
         border-left: 4px solid #0d6efd;
         margin-bottom: 10px;
     }
+    
+    .warranty-badge {
+        font-size: 0.75rem;
+    }
+    
+    .warranty-active {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border-color: #badbcc;
+    }
+    
+    .warranty-expired {
+        background-color: #f8d7da;
+        color: #842029;
+        border-color: #f5c2c7;
+    }
+    
+    .claim-card {
+        border-left: 4px solid;
+        transition: all 0.3s;
+    }
+    
+    .claim-pending { border-color: #ffc107; }
+    .claim-approved { border-color: #198754; }
+    .claim-rejected { border-color: #dc3545; }
+    .claim-in_progress { border-color: #0d6efd; }
+    .claim-completed { border-color: #20c997; }
+    
+    .claim-actions {
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .claim-card:hover .claim-actions {
+        opacity: 1;
+    }
 </style>
 {% endblock %}
 
@@ -60,6 +96,29 @@
         </a>
     </div>
 </div>
+
+<!-- Warranty Status Alert -->
+{% if job.warranty_period > 0 and job.delivered_date %}
+    {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+    {% set is_warranty_active = now <= warranty_end %}
+    {% if is_warranty_active %}
+    <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <i class="fas fa-shield-alt me-2"></i>
+            <strong>Warranty Active:</strong> This device has {{ job.warranty_period }} month(s) warranty. 
+            Expires on {{ warranty_end.strftime('%Y-%m-%d') }} ({{ (warranty_end - now).days }} days remaining).
+        </div>
+        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#warrantyClaimModal">
+            <i class="fas fa-flag me-1"></i> File Warranty Claim
+        </button>
+    </div>
+    {% elif job.status == 'delivered' %}
+    <div class="alert alert-secondary mb-4">
+        <i class="fas fa-clock me-2"></i>
+        <strong>Warranty Expired:</strong> This device's warranty expired on {{ warranty_end.strftime('%Y-%m-%d') }}
+    </div>
+    {% endif %}
+{% endif %}
 
 <div class="row">
     <!-- Left Column - Job Info -->
@@ -78,6 +137,13 @@
                         {% else %}bg-secondary{% endif %} fs-6">
                         {{ job.status|title }}
                     </span>
+                    {% if job.warranty_period > 0 and job.delivered_date %}
+                        {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+                        {% set is_warranty_active = now <= warranty_end %}
+                        <span class="badge {% if is_warranty_active %}warranty-active{% else %}warranty-expired{% endif %} warranty-badge ms-2">
+                            <i class="fas fa-shield-alt me-1"></i> {{ job.warranty_period }} month{% if job.warranty_period > 1 %}s{% endif %}
+                        </span>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-body">
@@ -184,6 +250,7 @@
                                 <th>Quantity</th>
                                 <th>Unit Price</th>
                                 <th>Total</th>
+                                <th>Warranty</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -193,17 +260,143 @@
                                 <td>{{ item.quantity }}</td>
                                 <td>Rs.{{ "%.2f"|format(item.unit_price) }}</td>
                                 <td>Rs.{{ "%.2f"|format(item.total_price) }}</td>
+                                <td>
+                                    {% if job.warranty_period > 0 %}
+                                    <span class="badge bg-info">Covered</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">No Warranty</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                             <tr class="table-active">
                                 <td colspan="3" class="text-end"><strong>Total Parts Cost:</strong></td>
                                 <td><strong>Rs.{{ "%.2f"|format(job.final_cost) }}</strong></td>
+                                <td></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+        {% endif %}
+        
+        <!-- Active Warranty Claims -->
+        {% if job.warranty_claims %}
+            {% set active_claims = job.warranty_claims|selectattr('status', 'in', ['pending', 'approved', 'in_progress'])|list %}
+            {% if active_claims %}
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-tasks me-2"></i>Active Warranty Claims</h6>
+                    <span class="badge bg-warning">{{ active_claims|length }} Active</span>
+                </div>
+                <div class="card-body">
+                    {% for claim in active_claims %}
+                    <div class="card claim-card claim-{{ claim.status }} mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-1">Claim #{{ claim.id }}</h6>
+                                    <small class="text-muted">Filed: {{ claim.claim_date.strftime('%Y-%m-%d') }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge 
+                                        {% if claim.status == 'pending' %}bg-warning
+                                        {% elif claim.status == 'approved' %}bg-success
+                                        {% elif claim.status == 'rejected' %}bg-danger
+                                        {% elif claim.status == 'in_progress' %}bg-primary
+                                        {% elif claim.status == 'completed' %}bg-info
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ claim.status|title }}
+                                    </span>
+                                    <div class="claim-actions mt-2">
+                                        {% if claim.status in ['pending', 'approved', 'in_progress'] %}
+                                        <button class="btn btn-sm btn-outline-primary me-1" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#updateClaimModal"
+                                                onclick="loadClaimData({{ claim.id }}, '{{ claim.status }}', '{{ claim.issue_description|replace("'", "\\'")|replace('"', '\\"') }}', '{{ claim.action_taken|replace("'", "\\'")|replace('"', '\\"') if claim.action_taken else "" }}', '{{ claim.resolution_notes|replace("'", "\\'")|replace('"', '\\"') if claim.resolution_notes else "" }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#completeClaimModal"
+                                                onclick="setCompleteClaimId({{ claim.id }})">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mb-2"><strong>Issue:</strong> {{ claim.issue_description }}</p>
+                            {% if claim.action_taken %}
+                            <p class="mb-2"><strong>Action Taken:</strong> {{ claim.action_taken }}</p>
+                            {% endif %}
+                            {% if claim.resolution_notes %}
+                            <p class="mb-2"><strong>Resolution:</strong> {{ claim.resolution_notes }}</p>
+                            {% endif %}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small><strong>Type:</strong> {{ claim.claim_type|title }}</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small><strong>Priority:</strong> {{ claim.priority|title }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+        
+        <!-- Previous Warranty Claims -->
+        {% if job.warranty_claims %}
+            {% set completed_claims = job.warranty_claims|selectattr('status', 'in', ['completed', 'rejected'])|list %}
+            {% if completed_claims %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Previous Warranty Claims</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Claim #</th>
+                                    <th>Claim Date</th>
+                                    <th>Issue</th>
+                                    <th>Status</th>
+                                    <th>Action Taken</th>
+                                    <th>Completed Date</th>
+                                    <th>Technician</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for claim in completed_claims|sort(attribute='claim_date', reverse=true) %}
+                                <tr>
+                                    <td>{{ claim.id }}</td>
+                                    <td>{{ claim.claim_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ claim.issue_description|truncate(50) }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if claim.status == 'completed' %}bg-success
+                                            {% elif claim.status == 'rejected' %}bg-danger
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ claim.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ claim.action_taken|truncate(50) if claim.action_taken else 'N/A' }}</td>
+                                    <td>{{ claim.completed_date.strftime('%Y-%m-%d') if claim.completed_date else 'N/A' }}</td>
+                                    <td>{{ claim.technician.username if claim.technician else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         {% endif %}
     </div>
     
@@ -215,30 +408,50 @@
                 <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
             </div>
             <div class="card-body">
-                <!-- Status Update Buttons - Fixed Logic -->
-                {% if current_user.role in ['admin', 'manager', 'technician'] and job.technician_id == current_user.id %}
-                    <div class="btn-group w-100 mb-3">
-                        <!-- Start Repair button -->
+                <!-- Status Update Buttons -->
+                {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                    <div class="btn-group btn-group-sm w-100 mb-3">
                         <button class="btn btn-outline-success" 
                                 onclick="updateStatus({{ job.id }}, 'repairing')"
-                                {% if job.status not in ['diagnostic', 'waiting_parts'] %}disabled{% endif %}>
+                                {% if job.status not in ['diagnostic', 'waiting_parts'] or (current_user.role == 'technician' and current_user.id != job.technician_id) %}disabled{% endif %}>
                             <i class="fas fa-play me-1"></i> Start Repair
                         </button>
-                        
-                        <!-- Wait Parts button -->
                         <button class="btn btn-outline-warning" 
                                 onclick="updateStatus({{ job.id }}, 'waiting_parts')"
-                                {% if job.status not in ['diagnostic', 'repairing'] %}disabled{% endif %}>
+                                {% if job.status not in ['diagnostic', 'repairing'] or (current_user.role == 'technician' and current_user.id != job.technician_id) %}disabled{% endif %}>
                             <i class="fas fa-clock me-1"></i> Wait Parts
                         </button>
-                        
-                        <!-- Complete button -->
                         <button class="btn btn-outline-info" 
                                 onclick="updateStatus({{ job.id }}, 'completed')"
-                                {% if job.status != 'repairing' %}disabled{% endif %}>
+                                {% if job.status != 'repairing' or (current_user.role == 'technician' and current_user.id != job.technician_id) %}disabled{% endif %}>
                             <i class="fas fa-check me-1"></i> Complete
                         </button>
                     </div>
+                {% endif %}
+                
+                <!-- File Warranty Claim Button -->
+                {% if job.warranty_period > 0 and job.delivered_date %}
+                    {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+                    {% set is_warranty_active = now <= warranty_end %}
+                    {% if is_warranty_active and current_user.role in ['admin', 'manager', 'technician'] %}
+                    <div class="mb-3">
+                        <button class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#warrantyClaimModal">
+                            <i class="fas fa-flag me-1"></i> File Warranty Claim
+                        </button>
+                    </div>
+                    {% endif %}
+                {% endif %}
+                
+                <!-- Manage Active Claims Button -->
+                {% if job.warranty_claims %}
+                    {% set active_claims = job.warranty_claims|selectattr('status', 'in', ['pending', 'approved', 'in_progress'])|list %}
+                    {% if active_claims and current_user.role in ['admin', 'manager', 'technician'] %}
+                    <div class="mb-3">
+                        <button class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#manageClaimsModal">
+                            <i class="fas fa-cogs me-1"></i> Manage Active Claims ({{ active_claims|length }})
+                        </button>
+                    </div>
+                    {% endif %}
                 {% endif %}
                 
                 <!-- Assign Technician (Admin/Manager only) -->
@@ -326,6 +539,57 @@
             </div>
         </div>
         
+        <!-- Warranty Information -->
+        {% if job.warranty_period > 0 and job.delivered_date %}
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Warranty Information</h6>
+            </div>
+            <div class="card-body">
+                {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+                {% set is_warranty_active = now <= warranty_end %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Warranty Period:</span>
+                        <strong>{{ job.warranty_period }} month{% if job.warranty_period > 1 %}s{% endif %}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Delivered Date:</span>
+                        <strong>{{ job.delivered_date.strftime('%Y-%m-%d') }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Warranty End:</span>
+                        <strong>{{ warranty_end.strftime('%Y-%m-%d') }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Status:</span>
+                        <span class="badge {% if is_warranty_active %}warranty-active{% else %}warranty-expired{% endif %}">
+                            {% if is_warranty_active %}
+                            Active ({{ (warranty_end - now).days }} days left)
+                            {% else %}
+                            Expired
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% if job.warranty_claims %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Claims:</span>
+                    <strong>{{ job.warranty_claims|length }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Active Claims:</span>
+                    <strong>{{ job.warranty_claims|selectattr('status', 'in', ['pending', 'approved', 'in_progress'])|list|length }}</strong>
+                </div>
+                {% endif %}
+                <div class="alert alert-info small mb-0 mt-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Warranty covers original repair issues. Does not cover physical damage, liquid damage, or unauthorized modifications.
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Job Timeline -->
         <div class="card mb-4">
             <div class="card-header bg-light">
@@ -372,6 +636,9 @@
                     <div class="timeline-item">
                         <small class="text-muted">{{ job.delivered_date.strftime('%b %d, %Y %I:%M %p') if job.delivered_date else '' }}</small>
                         <p class="mb-1"><strong>Delivered to Customer</strong></p>
+                        {% if job.warranty_period > 0 %}
+                        <p class="small mb-0">Warranty: {{ job.warranty_period }} months</p>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -393,10 +660,12 @@
                         <td>Final Cost:</td>
                         <td class="text-end">Rs.{{ "%.2f"|format(job.final_cost) }}</td>
                     </tr>
+                    {% if job.warranty_period > 0 %}
                     <tr>
                         <td>Warranty:</td>
                         <td class="text-end">{{ job.warranty_period }} months</td>
                     </tr>
+                    {% endif %}
                     <tr class="table-active">
                         <td><strong>Balance:</strong></td>
                         <td class="text-end"><strong>Rs.{{ "%.2f"|format(job.final_cost - job.estimated_cost) }}</strong></td>
@@ -521,22 +790,67 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Payment Method</label>
-                        <select name="payment_method" class="form-select" required>
-                            <option value="cash">Cash</option>
-                            <option value="card">Credit/Debit Card</option>
-                            <option value="online">Online Payment</option>
-                            <option value="due">Due</option>
-                        </select>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Method *</label>
+                            <select name="payment_method" class="form-select" required>
+                                <option value="cash">Cash</option>
+                                <option value="card">Credit/Debit Card</option>
+                                <option value="online">Online Payment</option>
+                                <option value="due">Due</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Warranty Period *</label>
+                            <select name="warranty_period" class="form-select" required id="warrantySelect">
+                                <option value="0">No Warranty</option>
+                                <option value="1" {% if job.warranty_period == 1 %}selected{% endif %}>1 Month</option>
+                                <option value="3" {% if job.warranty_period == 3 %}selected{% endif %}>3 Months</option>
+                                <option value="6" {% if job.warranty_period == 6 %}selected{% endif %}>6 Months</option>
+                                <option value="12" {% if job.warranty_period == 12 %}selected{% endif %}>12 Months</option>
+                                <option value="custom">Custom (enter below)</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Amount Paid</label>
-                        <input type="number" name="amount_paid" class="form-control" value="{{ job.final_cost }}" step="0.01" required>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Amount Paid *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" name="amount_paid" class="form-control" 
+                                       value="{{ job.final_cost }}" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="customWarrantyContainer" style="display: none;">
+                            <label class="form-label">Custom Warranty (Months)</label>
+                            <input type="number" name="custom_warranty" class="form-control" 
+                                   min="0" max="24" placeholder="Enter months" id="customWarrantyInput">
+                        </div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Warranty Terms</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="warranty_terms" id="warrantyTerms" required>
+                            <label class="form-check-label" for="warrantyTerms">
+                                Customer agrees to warranty terms
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            Warranty covers parts and labor for the specified period. Does not cover physical damage or liquid damage.
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Delivery Notes (Optional)</label>
+                        <textarea name="delivery_notes" class="form-control" rows="2" 
+                                  placeholder="Any special instructions or notes..."></textarea>
+                    </div>
+                    
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        This will mark the job as delivered and create an invoice.
+                        This will mark the job as delivered, set warranty period, and create an invoice.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -547,35 +861,387 @@
         </div>
     </div>
 </div>
+
+<!-- Warranty Claim Modal -->
+<div class="modal fade" id="warrantyClaimModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('repair.file_warranty_claim', job_id=job.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">File Warranty Claim</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Warranty Status -->
+                    <div class="alert alert-info mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Job:</strong> {{ job.job_number }}</p>
+                                <p class="mb-1"><strong>Device:</strong> {{ job.brand }} {{ job.model }}</p>
+                                <p class="mb-0"><strong>Customer:</strong> {{ job.customer.name if job.customer else 'N/A' }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Warranty Period:</strong> {{ job.warranty_period }} months</p>
+                                <p class="mb-1"><strong>Delivered:</strong> {{ job.delivered_date.strftime('%Y-%m-%d') }}</p>
+                                {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+                                <p class="mb-0"><strong>Expires:</strong> {{ warranty_end.strftime('%Y-%m-%d') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Claim Details -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Claim Date *</label>
+                                <input type="date" name="claim_date" class="form-control" 
+                                       value="{{ now.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Claim Type *</label>
+                                <select name="claim_type" class="form-select" required>
+                                    <option value="">Select type</option>
+                                    <option value="same_issue">Same Issue as Original</option>
+                                    <option value="new_issue">New Issue</option>
+                                    <option value="part_failure">Part Failure</option>
+                                    <option value="workmanship">Workmanship Issue</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Issue Description *</label>
+                        <textarea name="issue_description" class="form-control" rows="4" 
+                                  placeholder="Describe the issue in detail..." required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Customer Reported Date</label>
+                                <input type="date" name="reported_date" class="form-control" 
+                                       value="{{ now.strftime('%Y-%m-%d') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <select name="priority" class="form-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Initial Assessment</label>
+                        <textarea name="initial_assessment" class="form-control" rows="3" 
+                                  placeholder="Initial technician assessment..."></textarea>
+                    </div>
+                    
+                    <!-- Warranty Coverage Check -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Warranty Coverage Check</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="coverage_check[]" value="within_warranty" id="withinWarranty" checked disabled>
+                                <label class="form-check-label" for="withinWarranty">
+                                    Claim is within warranty period
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="coverage_check[]" value="original_issue" id="originalIssue">
+                                <label class="form-check-label" for="originalIssue">
+                                    Related to original repair issue
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="coverage_check[]" value="no_physical_damage" id="noPhysicalDamage">
+                                <label class="form-check-label" for="noPhysicalDamage">
+                                    No physical damage present
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="coverage_check[]" value="no_liquid_damage" id="noLiquidDamage">
+                                <label class="form-check-label" for="noLiquidDamage">
+                                    No liquid damage present
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Warranty claims will be reviewed. Customer may be charged if the issue is not covered by warranty.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Submit Warranty Claim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Claim Modal -->
+<div class="modal fade" id="updateClaimModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="" id="updateClaimForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="claim_id" id="updateClaimId">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Warranty Claim</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Status *</label>
+                        <select name="status" class="form-select" required id="updateClaimStatus">
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Action Taken</label>
+                        <textarea name="action_taken" class="form-control" rows="3" 
+                                  placeholder="What action was taken..." id="updateActionTaken"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Resolution Notes</label>
+                        <textarea name="resolution_notes" class="form-control" rows="3" 
+                                  placeholder="Resolution details..." id="updateResolutionNotes"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Technician Notes</label>
+                        <textarea name="technician_notes" class="form-control" rows="2" 
+                                  placeholder="Additional notes from technician..."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Updating the claim will notify the customer if email is available.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Claim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Claim Modal -->
+<div class="modal fade" id="completeClaimModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('repair.complete_warranty_claim', job_id=job.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="claim_id" id="completeClaimId">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Warranty Claim</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Final Status *</label>
+                        <select name="final_status" class="form-select" required>
+                            <option value="completed">Completed - Issue Resolved</option>
+                            <option value="rejected">Rejected - Not Covered by Warranty</option>
+                            <option value="cancelled">Cancelled - Customer Cancelled</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Final Resolution *</label>
+                        <textarea name="final_resolution" class="form-control" rows="4" 
+                                  placeholder="Describe the final resolution..." required></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Parts Used (if any)</label>
+                            <input type="text" name="parts_used" class="form-control" 
+                                   placeholder="List parts used...">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Cost to Customer</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" name="customer_cost" class="form-control" 
+                                       value="0" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Completion Date</label>
+                        <input type="date" name="completion_date" class="form-control" 
+                               value="{{ now.strftime('%Y-%m-%d') }}">
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Completing the claim will close it and update warranty records.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Complete Claim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Claims Modal -->
+<div class="modal fade" id="manageClaimsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manage Warranty Claims</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if job.warranty_claims %}
+                    {% set active_claims = job.warranty_claims|selectattr('status', 'in', ['pending', 'approved', 'in_progress'])|list %}
+                    {% if active_claims %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Claim #</th>
+                                    <th>Filed</th>
+                                    <th>Issue</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for claim in active_claims %}
+                                <tr>
+                                    <td>{{ claim.id }}</td>
+                                    <td>{{ claim.claim_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ claim.issue_description|truncate(40) }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if claim.status == 'pending' %}bg-warning
+                                            {% elif claim.status == 'approved' %}bg-success
+                                            {% elif claim.status == 'in_progress' %}bg-primary
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ claim.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if claim.priority == 'urgent' %}bg-danger
+                                            {% elif claim.priority == 'high' %}bg-warning
+                                            {% elif claim.priority == 'medium' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ claim.priority|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#updateClaimModal"
+                                                    onclick="loadClaimData({{ claim.id }}, '{{ claim.status }}', '{{ claim.issue_description|replace("'", "\\'")|replace('"', '\\"') }}', '{{ claim.action_taken|replace("'", "\\'")|replace('"', '\\"') if claim.action_taken else "" }}', '{{ claim.resolution_notes|replace("'", "\\'")|replace('"', '\\"') if claim.resolution_notes else "" }}')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-outline-success" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#completeClaimModal"
+                                                    onclick="setCompleteClaimId({{ claim.id }})">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5>No Active Claims</h5>
+                        <p class="text-muted">All warranty claims have been resolved.</p>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                    <h5>No Warranty Claims</h5>
+                    <p class="text-muted">No warranty claims have been filed for this job.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 function updateStatus(jobId, status) {
     if (confirm('Are you sure you want to update the job status to: ' + status + '?')) {
-        // Create a form and submit it
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/repair/update-status/${jobId}`;
         
-        // Add CSRF token
         const csrfToken = document.createElement('input');
         csrfToken.type = 'hidden';
         csrfToken.name = 'csrf_token';
         csrfToken.value = '{{ csrf_token() }}';
         form.appendChild(csrfToken);
         
-        // Add status field
         const statusInput = document.createElement('input');
         statusInput.type = 'hidden';
         statusInput.name = 'status';
         statusInput.value = status;
         form.appendChild(statusInput);
         
-        // Submit the form
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+// Load claim data for update modal
+function loadClaimData(claimId, status, issue, actionTaken, resolutionNotes) {
+    document.getElementById('updateClaimId').value = claimId;
+    document.getElementById('updateClaimStatus').value = status;
+    document.getElementById('updateActionTaken').value = actionTaken || '';
+    document.getElementById('updateResolutionNotes').value = resolutionNotes || '';
+    
+    // Set form action
+    document.getElementById('updateClaimForm').action = `/repair/update-warranty-claim/${claimId}`;
+}
+
+// Set claim ID for complete modal
+function setCompleteClaimId(claimId) {
+    document.getElementById('completeClaimId').value = claimId;
 }
 
 // Initialize tooltips
@@ -600,6 +1266,85 @@ $(document).ready(function() {
             timelineItems[activeIndex].classList.add('active');
         }
     }
+    
+    // Handle custom warranty selection in deliver modal
+    $('#warrantySelect').on('change', function() {
+        if ($(this).val() === 'custom') {
+            $('#customWarrantyContainer').show();
+            $('#customWarrantyInput').prop('required', true);
+        } else {
+            $('#customWarrantyContainer').hide();
+            $('#customWarrantyInput').prop('required', false);
+        }
+    });
+    
+    // Initialize warranty select state
+    if ($('#warrantySelect').val() === 'custom') {
+        $('#customWarrantyContainer').show();
+        $('#customWarrantyInput').prop('required', true);
+    }
+    
+    // Form validation for delivery modal
+    $('#deliverJobModal form').on('submit', function(e) {
+        const warrantySelect = $('#warrantySelect');
+        const customInput = $('#customWarrantyInput');
+        
+        if (warrantySelect.val() === 'custom' && (!customInput.val() || customInput.val() < 0)) {
+            alert('Please enter a valid custom warranty period (0-24 months)');
+            e.preventDefault();
+            return;
+        }
+        
+        if (!$('#warrantyTerms').is(':checked')) {
+            alert('Customer must agree to warranty terms');
+            e.preventDefault();
+            return;
+        }
+    });
+    
+    // Form validation for warranty claim modal
+    $('#warrantyClaimModal form').on('submit', function(e) {
+        const claimDate = $('input[name="claim_date"]').val();
+        const today = new Date().toISOString().split('T')[0];
+        
+        if (claimDate > today) {
+            alert('Claim date cannot be in the future');
+            e.preventDefault();
+            return;
+        }
+        
+        const coverageChecks = $('input[name="coverage_check[]"]:checked').length;
+        if (coverageChecks < 2) {
+            if (!confirm('Few coverage checks selected. Are you sure this is a valid warranty claim?')) {
+                e.preventDefault();
+                return;
+            }
+        }
+    });
+    
+    // Auto-check warranty coverage if within period
+    {% if job.warranty_period > 0 and job.delivered_date %}
+        {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+        {% set is_warranty_active = now <= warranty_end %}
+        {% if is_warranty_active %}
+        $('#withinWarranty').prop('checked', true);
+        {% endif %}
+    {% endif %}
+    
+    // Form validation for complete claim modal
+    $('#completeClaimModal form').on('submit', function(e) {
+        const customerCost = parseFloat($('input[name="customer_cost"]').val());
+        if (customerCost < 0) {
+            alert('Customer cost cannot be negative');
+            e.preventDefault();
+            return;
+        }
+        
+        if (customerCost > 0 && !confirm('Customer will be charged Rs.' + customerCost + '. Continue?')) {
+            e.preventDefault();
+            return;
+        }
+    });
 });
 </script>
 {% endblock %}
