@@ -28,278 +28,294 @@
         border-left: 4px solid #0d6efd;
     }
     
+    /* Print-specific styles */
     @media print {
+        body * {
+            visibility: hidden;
+        }
+        
+        .print-section, .print-section * {
+            visibility: visible;
+        }
+        
+        .print-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        
         .no-print {
             display: none !important;
         }
         
+        .btn {
+            display: none !important;
+        }
+        
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        .container {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
         body {
-            font-size: 12px;
+            font-size: 12px !important;
+            background: white !important;
         }
         
         .invoice-table th, 
         .invoice-table td {
-            padding: 4px 8px;
+            padding: 4px 8px !important;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="print-section">
 <div class="card">
-    <div class="card-body">
-        <!-- Header -->
-        <div class="invoice-header">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="company-logo">
-                        <i class="fas fa-tools"></i> Mobile Repair Center
-                    </div>
-                    <p class="mb-1">123 Repair Street</p>
-                    <p class="mb-1">City, State 12345</p>
-                    <p class="mb-0">Phone: (123) 456-7890 | GST: 27ABCDE1234F1Z5</p>
-                </div>
-                <div class="col-md-6 text-end">
-                    <h1 class="display-6 mb-2">REPAIR INVOICE</h1>
-                    <p class="mb-1"><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
-                    <p class="mb-1"><strong>Date:</strong> {{ invoice.date.strftime('%B %d, %Y') }}</p>
-                    <p class="mb-0"><strong>Job #:</strong> {{ invoice.repair_job.job_number if invoice.repair_job else 'N/A' }}</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Bill To -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <h5>Bill To:</h5>
-                <p class="mb-1"><strong>{{ invoice.customer_name }}</strong></p>
-                {% if invoice.customer_phone %}
-                <p class="mb-1">Phone: {{ invoice.customer_phone }}</p>
-                {% endif %}
-                {% if invoice.customer and invoice.customer.address %}
-                <p class="mb-0">{{ invoice.customer.address }}</p>
-                {% endif %}
-            </div>
-            <div class="col-md-6">
-                <h5>Device Information:</h5>
-                <p class="mb-1"><strong>{{ invoice.brand }} {{ invoice.model }}</strong></p>
-                <p class="mb-1">Type: {{ invoice.device_type|title }}</p>
-                {% if invoice.imei %}
-                <p class="mb-0">IMEI: {{ invoice.imei }}</p>
-                {% endif %}
-            </div>
-        </div>
-        
-        <!-- Issue Summary -->
-        <div class="mb-4">
-            <h5>Issue Description:</h5>
-            <div class="border p-3 bg-light">
-                {{ invoice.issue_description|replace('\n', '<br>')|safe }}
-            </div>
-        </div>
-        
-        <!-- Work Done -->
-        {% if invoice.work_done %}
-        <div class="mb-4">
-            <h5>Work Performed:</h5>
-            <div class="border p-3 bg-light">
-                {{ invoice.work_done|replace('\n', '<br>')|safe }}
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Items Table -->
-        <div class="table-responsive mb-4">
-            <table class="table table-bordered invoice-table">
-                <thead>
-                    <tr>
-                        <th width="50">#</th>
-                        <th>Item Description</th>
-                        <th width="100" class="text-center">Qty</th>
-                        <th width="120" class="text-end">Unit Price</th>
-                        <th width="120" class="text-end">Total</th>
-                        <th width="150">Warranty</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in invoice.items %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>
-                            <strong>{{ item.description }}</strong>
-                            {% if item.notes %}
-                            <br><small class="text-muted">{{ item.notes }}</small>
-                            {% endif %}
-                        </td>
-                        <td class="text-center">{{ item.quantity }}</td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(item.unit_price) }}</td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(item.total) }}</td>
-                        <td>
-                            {% if item.warranty_info %}
-                            <small>{{ item.warranty_info }}</small>
-                            {% else %}
-                            <small class="text-muted">-</small>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Totals & Payment -->
-        <div class="row">
-            <div class="col-md-6">
-                <!-- Warranty Information -->
-                {% if invoice.warranty_period > 0 %}
-                <div class="card warranty-card mb-4">
-                    <div class="card-body">
-                        <h6><i class="fas fa-shield-alt me-2"></i>Warranty Information</h6>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Period:</strong> {{ invoice.warranty_period }} months</p>
-                                <p class="mb-1"><strong>Start Date:</strong> {{ invoice.warranty_start.strftime('%Y-%m-%d') if invoice.warranty_start else 'N/A' }}</p>
-                                <p class="mb-0"><strong>End Date:</strong> {{ invoice.warranty_end.strftime('%Y-%m-%d') if invoice.warranty_end else 'N/A' }}</p>
+            <div class="card-body">
+                <!-- Header -->
+                <div class="invoice-header">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="company-logo">
+                                <i class="fas fa-tools"></i> Mobile Repair Center
                             </div>
-                            <div class="col-md-6">
-                                <p class="mb-0"><strong>Coverage:</strong></p>
-                                <small class="text-muted">Parts and labor for original repair issue</small>
-                            </div>
+                            <p class="mb-1">123 Repair Street</p>
+                            <p class="mb-1">City, State 12345</p>
+                            <p class="mb-0">Phone: (123) 456-7890 | GST: 27ABCDE1234F1Z5</p>
                         </div>
+                        <div class="col-md-6 text-end">
+                            <h1 class="display-6 mb-2">REPAIR INVOICE</h1>
+                            <p class="mb-1"><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
+                            <p class="mb-1"><strong>Date:</strong> {{ invoice.date.strftime('%B %d, %Y') }}</p>
+                            <p class="mb-0"><strong>Job #:</strong> {{ invoice.repair_job.job_number if invoice.repair_job else 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bill To -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5>Bill To:</h5>
+                        <p class="mb-1"><strong>{{ invoice.customer_name }}</strong></p>
+                        {% if invoice.customer_phone %}
+                        <p class="mb-1">Phone: {{ invoice.customer_phone }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Device Information:</h5>
+                        <p class="mb-1"><strong>{{ invoice.brand }} {{ invoice.model }}</strong></p>
+                        <p class="mb-1">Type: {{ invoice.device_type|title }}</p>
+                        {% if invoice.imei %}
+                        <p class="mb-0">IMEI: {{ invoice.imei }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Issue Summary -->
+                <div class="mb-4">
+                    <h5>Issue Description:</h5>
+                    <div class="border p-3 bg-light">
+                        {{ invoice.issue_description|replace('\n', '<br>')|safe }}
+                    </div>
+                </div>
+                
+                <!-- Work Done -->
+                {% if invoice.work_done %}
+                <div class="mb-4">
+                    <h5>Work Performed:</h5>
+                    <div class="border p-3 bg-light">
+                        {{ invoice.work_done|replace('\n', '<br>')|safe }}
                     </div>
                 </div>
                 {% endif %}
                 
-                <!-- Payment History -->
-                {% if invoice.payments %}
-                <div class="mb-4">
-                    <h6>Payment History:</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Amount</th>
-                                    <th>Method</th>
-                                    <th>Reference</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for payment in invoice.payments %}
-                                <tr>
-                                    <td>{{ payment.payment_date.strftime('%Y-%m-%d') }}</td>
-                                    <td>Rs.{{ "%.2f"|format(payment.amount) }}</td>
-                                    <td>{{ payment.payment_method|title }}</td>
-                                    <td>{{ payment.reference_number or '-' }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- Items Table -->
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered invoice-table">
+                        <thead>
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Item Description</th>
+                                <th width="100" class="text-center">Qty</th>
+                                <th width="120" class="text-end">Unit Price</th>
+                                <th width="120" class="text-end">Total</th>
+                                <th width="150">Warranty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in invoice.items %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <strong>{{ item.description }}</strong>
+                                    {% if item.notes %}
+                                    <br><small class="text-muted">{{ item.notes }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(item.total) }}</td>
+                                <td>
+                                    {% if item.warranty_info %}
+                                    <small>{{ item.warranty_info }}</small>
+                                    {% else %}
+                                    <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                {% endif %}
-            </div>
-            
-            <div class="col-md-6">
-                <!-- Totals -->
-                <table class="table table-bordered totals-table">
-                    <tr>
-                        <td><strong>Parts Cost</strong></td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.parts_cost) }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Labor Cost</strong></td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.labor_cost) }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Total Cost</strong></td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.total_cost) }}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Tax ({{ (invoice.tax_rate)|int }}%)</strong></td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.tax_amount) }}</td>
-                    </tr>
-                    <tr class="table-active">
-                        <td><strong>Grand Total</strong></td>
-                        <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.grand_total) }}</strong></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Advance Paid</strong></td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(invoice.advance_paid) }}</td>
-                    </tr>
-                    <tr class="table-{{ 'success' if invoice.balance_due == 0 else 'warning' }}">
-                        <td><strong>Balance Due</strong></td>
-                        <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.balance_due) }}</strong></td>
-                    </tr>
-                </table>
-                <!-- Payment Status -->
-                <div class="mt-3">
-                    <p class="mb-1">
-                        <strong>Payment Status:</strong> 
-                        <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' if invoice.payment_status == 'pending' else 'primary' if invoice.payment_status == 'partial' else 'secondary' }}">
-                            {{ invoice.payment_status|title }}
-                        </span>
-                    </p>
-                    <p class="mb-0">
-                        <strong>Payment Method:</strong> {{ invoice.payment_method|title }}
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Terms & Conditions -->
-        <div class="mt-4 pt-4 border-top">
-            <h6>Terms & Conditions:</h6>
-            <div class="bg-light p-3">
-                {{ invoice.terms_conditions|replace('\n', '<br>')|safe }}
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="mt-4 pt-4 border-top text-center">
-            <p class="mb-1">Thank you for choosing our repair service!</p>
-            <p class="text-muted small mb-0">
-                For warranty claims or queries, contact: repair@mobileshop.com | Phone: (123) 456-7890
-            </p>
-        </div>
-        
-        <!-- Actions -->
-        <div class="mt-4 pt-4 border-top no-print">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <a href="{{ url_for('repair.repair_invoices_list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-1"></i> Back to List
-                    </a>
-                </div>
-                <div>
-                    <a href="{{ url_for('repair.print_repair_invoice', invoice_id=invoice.id) }}" 
-                       class="btn btn-outline-primary me-2" target="_blank">
-                        <i class="fas fa-print me-1"></i> Print Invoice
-                    </a>
-                    <button class="btn btn-outline-success me-2" onclick="downloadPDF()">
-                        <i class="fas fa-file-pdf me-1"></i> Download PDF
-                    </button>
-                    
-                    {% if invoice.payment_status != 'paid' and invoice.payment_status != 'voided' %}
-                    <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
-                        <i class="fas fa-credit-card me-1"></i> Add Payment
-                    </button>
-                    {% endif %}
-                    
-                    {% if current_user.role in ['admin', 'manager'] %}
-                    <div class="btn-group">
-                        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#emailModal">
-                            <i class="fas fa-envelope me-1"></i> Email
-                        </button>
-                        {% if invoice.payment_status != 'voided' %}
-                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#voidModal">
-                            <i class="fas fa-ban me-1"></i> Void
-                        </button>
+                
+                <!-- Totals & Payment -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- Warranty Information -->
+                        {% if invoice.warranty_period > 0 %}
+                        <div class="card warranty-card mb-4">
+                            <div class="card-body">
+                                <h6><i class="fas fa-shield-alt me-2"></i>Warranty Information</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Period:</strong> {{ invoice.warranty_period }} months</p>
+                                        <p class="mb-1"><strong>Start Date:</strong> {{ invoice.warranty_start.strftime('%Y-%m-%d') if invoice.warranty_start else 'N/A' }}</p>
+                                        <p class="mb-0"><strong>End Date:</strong> {{ invoice.warranty_end.strftime('%Y-%m-%d') if invoice.warranty_end else 'N/A' }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-0"><strong>Coverage:</strong></p>
+                                        <small class="text-muted">Parts and labor for original repair issue</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         {% endif %}
                     </div>
-                    {% endif %}
+                    
+                    <div class="col-md-6">
+                        <!-- Totals -->
+                        <table class="table table-bordered totals-table">
+                            <tr>
+                                <td><strong>Parts Cost</strong></td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.parts_cost) }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Labor Cost</strong></td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.labor_cost) }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total Cost</strong></td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.total_cost) }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tax ({{ (invoice.tax_rate * 100)|int }}%)</strong></td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.tax_amount) }}</td>
+                            </tr>
+                            <tr class="table-active">
+                                <td><strong>Grand Total</strong></td>
+                                <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.grand_total) }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Advance Paid</strong></td>
+                                <td class="text-end">Rs.{{ "%.2f"|format(invoice.advance_paid) }}</td>
+                            </tr>
+                            <tr class="table-{{ 'success' if invoice.balance_due == 0 else 'warning' }}">
+                                <td><strong>Balance Due</strong></td>
+                                <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.balance_due) }}</strong></td>
+                            </tr>
+                        </table>
+                        
+                        <!-- Payment Status -->
+                        <div class="mt-3">
+                            <p class="mb-1">
+                                <strong>Payment Status:</strong> 
+                                <span class="badge bg-{{ 'success' if invoice.payment_status == 'paid' else 'warning' if invoice.payment_status == 'pending' else 'primary' if invoice.payment_status == 'partial' else 'secondary' }}">
+                                    {{ invoice.payment_status|title }}
+                                </span>
+                            </p>
+                            <p class="mb-0">
+                                <strong>Payment Method:</strong> {{ invoice.payment_method|title }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terms & Conditions -->
+                <div class="mt-4 pt-4 border-top">
+                    <h6>Terms & Conditions:</h6>
+                    <div class="bg-light p-3">
+                        {{ invoice.terms_conditions|replace('\n', '<br>')|safe }}
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div class="mt-4 pt-4 border-top text-center">
+                    <p class="mb-1">Thank you for choosing our repair service!</p>
+                    <p class="text-muted small mb-0">
+                        For warranty claims or queries, contact: repair@mobileshop.com | Phone: (123) 456-7890
+                    </p>
+                </div>
+                
+                <!-- Signature Area -->
+                <div class="row mt-5">
+                    <div class="col-6 text-center">
+                        <p class="border-top pt-4">Customer Signature</p>
+                        <p class="text-muted small">Date: ___________________</p>
+                    </div>
+                    <div class="col-6 text-center">
+                        <p class="border-top pt-4">Authorized Signature</p>
+                        <p class="text-muted small">Date: ___________________</p>
+                    </div>
                 </div>
             </div>
+        </div>
+</div>
+
+<!-- Actions (Non-printable area) -->
+<div class="mt-4 pt-4 border-top no-print">
+    <div class="d-flex justify-content-between">
+        <div>
+            <a href="{{ url_for('repair.repair_invoices_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to List
+            </a>
+        </div>
+        <div>
+            <!-- Print Button that triggers print dialog on current page -->
+            <button onclick="printCurrentInvoice()" class="btn btn-outline-primary me-2">
+                <i class="fas fa-print me-1"></i> Print Invoice
+            </button>
+            <!-- Download PDF Button -->
+            <button class="btn btn-outline-success me-2" onclick="downloadPDF()">
+                <i class="fas fa-file-pdf me-1"></i> Download PDF
+            </button>
+            
+            {% if invoice.payment_status != 'paid' and invoice.payment_status != 'voided' %}
+            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+                <i class="fas fa-credit-card me-1"></i> Add Payment
+            </button>
+            {% endif %}
+            
+            {% if current_user.role in ['admin', 'manager'] %}
+            <div class="btn-group">
+                <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#emailModal">
+                    <i class="fas fa-envelope me-1"></i> Email
+                </button>
+                {% if invoice.payment_status != 'voided' %}
+                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#voidModal">
+                    <i class="fas fa-ban me-1"></i> Void
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -467,9 +483,199 @@ Mobile Repair Center
 
 {% block extra_js %}
 <script>
+// Function to print the current invoice page
+function printCurrentInvoice() {
+    // Try to remove headers before printing
+    const printStyles = `
+        @page { margin: 0; }
+        body { margin: 1cm !important; }
+    `;
+    
+    // Create a style element
+    const style = document.createElement('style');
+    style.innerHTML = printStyles;
+    document.head.appendChild(style);
+    
+    // Print
+    window.print();
+    
+    // Remove the style after printing
+    setTimeout(() => style.remove(), 100);
+}
+
+// Alternative: Create a print-optimized version
+function printOptimizedInvoice() {
+    // Create a new window with print-friendly content
+    const printWindow = window.open('', '_blank');
+    
+    const printContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Repair Invoice {{ invoice.invoice_number }}</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                margin: 20px;
+            }
+            .invoice-header {
+                border-bottom: 2px solid #000;
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+            .company-logo {
+                font-size: 18px;
+                font-weight: bold;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 10px 0;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 6px;
+                text-align: left;
+            }
+            th {
+                background-color: #f5f5f5;
+            }
+            .text-end {
+                text-align: right;
+            }
+            .totals-table {
+                width: 300px;
+                margin-left: auto;
+            }
+            .signature-area {
+                margin-top: 50px;
+                padding-top: 20px;
+                border-top: 1px solid #000;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="invoice-header">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <div class="company-logo">Mobile Repair Center</div>
+                    <p>123 Repair Street</p>
+                    <p>City, State 12345</p>
+                    <p>Phone: (123) 456-7890 | GST: 27ABCDE1234F1Z5</p>
+                </div>
+                <div style="text-align: right;">
+                    <h1 style="margin: 0;">REPAIR INVOICE</h1>
+                    <p><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
+                    <p><strong>Date:</strong> {{ invoice.date.strftime('%B %d, %Y') }}</p>
+                    <p><strong>Job #:</strong> {{ invoice.repair_job.job_number if invoice.repair_job else 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <div>
+                <h4>Bill To:</h4>
+                <p><strong>{{ invoice.customer_name }}</strong></p>
+                <p>{{ invoice.customer_phone }}</p>
+            </div>
+            <div>
+                <h4>Device:</h4>
+                <p><strong>{{ invoice.brand }} {{ invoice.model }}</strong></p>
+                <p>{{ invoice.device_type|title }}</p>
+                ${invoice.imei ? '<p>IMEI: ' + invoice.imei + '</p>' : ''}
+            </div>
+        </div>
+        
+        <h4>Issue Description:</h4>
+        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 20px;">
+            {{ invoice.issue_description|replace('\n', '<br>')|safe }}
+        </div>
+        
+        <h4>Items:</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoice.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td class="text-end">Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                    <td class="text-end">Rs.{{ "%.2f"|format(item.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <table class="totals-table">
+            <tr>
+                <td><strong>Parts Cost</strong></td>
+                <td class="text-end">Rs.{{ "%.2f"|format(invoice.parts_cost) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Labor Cost</strong></td>
+                <td class="text-end">Rs.{{ "%.2f"|format(invoice.labor_cost) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Total Cost</strong></td>
+                <td class="text-end">Rs.{{ "%.2f"|format(invoice.total_cost) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Tax ({{ (invoice.tax_rate * 100)|int }}%)</strong></td>
+                <td class="text-end">Rs.{{ "%.2f"|format(invoice.tax_amount) }}</td>
+            </tr>
+            <tr style="background-color: #f5f5f5;">
+                <td><strong>Grand Total</strong></td>
+                <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.grand_total) }}</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Advance Paid</strong></td>
+                <td class="text-end">Rs.{{ "%.2f"|format(invoice.advance_paid) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Balance Due</strong></td>
+                <td class="text-end"><strong>Rs.{{ "%.2f"|format(invoice.balance_due) }}</strong></td>
+            </tr>
+        </table>
+        
+        <div class="signature-area">
+            <div style="display: flex; justify-content: space-between;">
+                <div style="width: 45%;">
+                    <p>Customer Signature</p>
+                    <p>Date: ___________________</p>
+                </div>
+                <div style="width: 45%;">
+                    <p>Authorized Signature</p>
+                    <p>Date: ___________________</p>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Auto-print after content loads
+    printWindow.onload = function() {
+        printWindow.focus();
+        printWindow.print();
+    };
+}
+
+// Download PDF (placeholder function)
 function downloadPDF() {
     alert('PDF download feature would be implemented here');
-    // This would typically make an API call to generate PDF
 }
 
 // Initialize modals

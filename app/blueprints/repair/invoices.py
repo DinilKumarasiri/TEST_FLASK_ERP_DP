@@ -262,18 +262,28 @@ def repair_invoice_detail(invoice_id):
         flash(f'Error loading invoice: {str(e)}', 'danger')
         return redirect(url_for('repair.repair_invoices_list'))
 
-@repair_bp.route('/repair-invoice/<int:invoice_id>/print')
-@login_required
-def print_repair_invoice(invoice_id):
-    """Print repair invoice"""
-    try:
-        invoice = RepairInvoice.query.get_or_404(invoice_id)
-        return render_template('repair/print_invoice.html',
-                             invoice=invoice,
-                             title=f'Print Invoice {invoice.invoice_number}')
-    except Exception as e:
-        flash(f'Error printing invoice: {str(e)}', 'danger')
-        return redirect(url_for('repair.repair_invoice_detail', invoice_id=invoice_id))
+# @repair_bp.route('/repair-invoice/<int:invoice_id>/print')
+# @login_required
+# def print_repair_invoice(invoice_id):
+#     """Print repair invoice"""
+#     try:
+#         invoice = RepairInvoice.query.get_or_404(invoice_id)
+        
+#         # Force print header
+#         response = make_response(render_template('repair/print_invoice.html',
+#                              invoice=invoice,
+#                              title=f'Print Invoice {invoice.invoice_number}'))
+        
+#         # Add headers to disable caching
+#         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+#         response.headers['Pragma'] = 'no-cache'
+#         response.headers['Expires'] = '0'
+        
+#         return response
+        
+#     except Exception as e:
+#         flash(f'Error printing invoice: {str(e)}', 'danger')
+#         return redirect(url_for('repair.repair_invoice_detail', invoice_id=invoice_id))
 
 @repair_bp.route('/repair-invoice/<int:invoice_id>/add-payment', methods=['POST'])
 @login_required
