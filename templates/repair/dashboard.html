@@ -287,11 +287,12 @@
 </div>
 
 <!-- Upcoming Deliveries -->
+<!-- Today's Completed Jobs (Ready for Delivery) -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Today's Expected Deliveries</h5>
+                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Today's Completed Jobs (Ready for Delivery)</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -302,19 +303,61 @@
                                 <th>Customer</th>
                                 <th>Phone</th>
                                 <th>Device</th>
-                                <th>Est. Completion</th>
-                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Est. Cost</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- This would be populated with jobs scheduled for delivery today -->
-                            <tr>
-                                <td colspan="7" class="text-center py-4">
-                                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                                    <p class="mb-0 text-muted">No deliveries scheduled for today</p>
-                                </td>
-                            </tr>
+                            {% set today_completed_jobs = [] %}
+                            
+                            {% for job in recent_jobs %}
+                                {% if job.status == 'completed' %}
+                                    {% set _ = today_completed_jobs.append(job) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if today_completed_jobs %}
+                                {% for job in today_completed_jobs %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('repair.job_detail', job_id=job.id) }}">
+                                                {{ job.job_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ job.customer.name if job.customer else 'N/A' }}</td>
+                                        <td>{{ job.customer.phone if job.customer else 'N/A' }}</td>
+                                        <td>
+                                            <small>{{ job.brand }} {{ job.model }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">
+                                                {{ job.status|title }}
+                                            </span>
+                                        </td>
+                                        <td>Rs.{{ "%.2f"|format(job.final_cost or job.estimated_cost or 0) }}</td>
+                                        <td>
+                                            <a href="{{ url_for('repair.job_detail', job_id=job.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% if current_user.role in ['admin', 'manager'] %}
+                                            <a href="{{ url_for('repair.job_detail', job_id=job.id) }}#createInvoiceModal" 
+                                               class="btn btn-sm btn-success">
+                                                <i class="fas fa-file-invoice"></i> Invoice
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                        <p class="mb-0 text-muted">No completed jobs ready for delivery today</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>

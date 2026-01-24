@@ -24,6 +24,12 @@ def repair_dashboard():
             RepairJob.created_at.desc()
         ).limit(10).all()
         
+        # Jobs completed today for delivery
+        today_deliveries = RepairJob.query.filter(
+            db.func.date(RepairJob.completed_date) == datetime.utcnow().date(),
+            RepairJob.status == 'completed'
+        ).all()
+        
         # Jobs assigned to current technician
         my_jobs = []
         if current_user.role == 'technician':
@@ -51,6 +57,7 @@ def repair_dashboard():
                              pending_jobs=pending_jobs,
                              completed_today=completed_today,
                              recent_jobs=recent_jobs,
+                             today_deliveries=today_deliveries,
                              my_jobs=my_jobs,
                              status_counts=status_counts,
                              title='Repair Dashboard')
