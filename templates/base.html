@@ -85,6 +85,17 @@
             border-bottom: 2px solid #dee2e6;
         }
         
+        .role-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            vertical-align: middle;
+        }
+        
+        .role-admin { background-color: #dc3545; }
+        .role-manager { background-color: #fd7e14; }
+        .role-technician { background-color: #0d6efd; }
+        .role-staff { background-color: #6c757d; }
+        
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
@@ -109,39 +120,52 @@
         </div>
         
         <nav class="nav flex-column">
-            <a class="nav-link {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
-               href="{{ url_for('pos.dashboard') }}">
-                <i class="fas fa-shopping-cart me-2"></i>POS
-            </a>
-            
-            <a class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
-               href="{{ url_for('inventory.inventory_dashboard') }}">
-                <i class="fas fa-boxes me-2"></i>Inventory
-            </a>
-            
-            <a class="nav-link {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
-               href="{{ url_for('repair.repair_dashboard') }}">
-                <i class="fas fa-tools me-2"></i>Repair
-            </a>
-            
-            <a class="nav-link {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
-               href="{{ url_for('employee.employee_dashboard') }}">
-                <i class="fas fa-users me-2"></i>Employees Dashboard
-            </a>
-            
             {% if current_user.is_authenticated %}
+                <!-- POS - Show for Admin, Manager, Sales Staff -->
+                {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                <a class="nav-link {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
+                   href="{{ url_for('pos.dashboard') }}">
+                    <i class="fas fa-shopping-cart me-2"></i>POS
+                </a>
+                {% endif %}
+                
+                <!-- Inventory - Show for Admin, Manager, Sales Staff -->
+                {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                <a class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
+                   href="{{ url_for('inventory.inventory_dashboard') }}">
+                    <i class="fas fa-boxes me-2"></i>Inventory
+                </a>
+                {% endif %}
+                
+                <!-- Repair - Show for Admin, Manager, Technician -->
+                {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                <a class="nav-link {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
+                   href="{{ url_for('repair.repair_dashboard') }}">
+                    <i class="fas fa-tools me-2"></i>Repair
+                </a>
+                {% endif %}
+                
+                <!-- Employees Dashboard - Show for Admin, Manager -->
+                {% if current_user.role in ['admin'] %}
+                <a class="nav-link {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
+                   href="{{ url_for('employee.employee_dashboard') }}">
+                    <i class="fas fa-users me-2"></i>Employees Dashboard
+                </a>
+                {% endif %}
+                
                 <div class="mt-4 pt-4 border-top">
                     <div class="px-3">
                         <small class="text-muted">Logged in as</small>
-                        <h6>{{ current_user.username }}</h6>
-                        <small class="text-muted">{{ current_user.role|title }}</small>
+                        <h6>
+                            {{ current_user.username }}
+                            <span class="badge role-{{ current_user.role }} role-badge">
+                                {{ current_user.role|title }}
+                            </span>
+                        </h6>
+                        <small class="text-muted">{{ current_user.email }}</small>
                     </div>
-                    
-                    <a class="nav-link mt-3" href="{{ url_for('auth.change_password') }}">
-                        <i class="fas fa-key me-2"></i>Change Password
-                    </a>
-                    
-                    {% if current_user.role in ['admin', 'manager'] %}
+                                        
+                    {% if current_user.role in ['admin'] %}
                     <a class="nav-link" href="{{ url_for('employee.employee_list') }}">
                         <i class="fas fa-users me-2"></i>Manage Employees
                     </a>
@@ -162,36 +186,59 @@
             <div class="container-fluid">
                 <a class="navbar-brand" href="#">
                     <i class="fas fa-mobile-alt me-2"></i>Mobile ERP
+                    {% if current_user.is_authenticated %}
+                    <span class="badge role-{{ current_user.role }} role-badge ms-2">
+                        {{ current_user.role|title }}
+                    </span>
+                    {% endif %}
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </div>
         </nav>
+        
         <!-- Mobile Navigation -->
         <div class="collapse d-md-none mb-4" id="mobileNav">
             <div class="card">
                 <div class="card-body">
                     <div class="nav flex-column">
-                        <a class="nav-link" href="{{ url_for('pos.dashboard') }}">
-                            <i class="fas fa-shopping-cart me-2"></i>POS
-                        </a>
-                        <a class="nav-link" href="{{ url_for('inventory.inventory_dashboard') }}">
-                            <i class="fas fa-boxes me-2"></i>Inventory
-                        </a>
-                        <a class="nav-link" href="{{ url_for('repair.repair_dashboard') }}">
-                            <i class="fas fa-tools me-2"></i>Repair
-                        </a>
-                        <a class="nav-link" href="{{ url_for('employee.employee_dashboard') }}">
-                            <i class="fas fa-users me-2"></i>Employees Dashboard
-                        </a>
-                        
                         {% if current_user.is_authenticated %}
+                            <!-- POS - Show for Admin, Manager, Sales Staff -->
+                            {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                            <a class="nav-link" href="{{ url_for('pos.dashboard') }}">
+                                <i class="fas fa-shopping-cart me-2"></i>POS
+                            </a>
+                            {% endif %}
+                            
+                            <!-- Inventory - Show for Admin, Manager, Sales Staff -->
+                            {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                            <a class="nav-link" href="{{ url_for('inventory.inventory_dashboard') }}">
+                                <i class="fas fa-boxes me-2"></i>Inventory
+                            </a>
+                            {% endif %}
+                            
+                            <!-- Repair - Show for Admin, Manager, Technician -->
+                            {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                            <a class="nav-link" href="{{ url_for('repair.repair_dashboard') }}">
+                                <i class="fas fa-tools me-2"></i>Repair
+                            </a>
+                            {% endif %}
+                            
+                            <!-- Employees Dashboard - Show for Admin, Manager -->
+                            {% if current_user.role in ['admin'] %}
+                            <a class="nav-link" href="{{ url_for('employee.employee_dashboard') }}">
+                                <i class="fas fa-users me-2"></i>Employees Dashboard
+                            </a>
+                            {% endif %}
+                            
+                            <div class="dropdown-divider my-2"></div>
+                            
                             <a class="nav-link" href="{{ url_for('auth.change_password') }}">
                                 <i class="fas fa-key me-2"></i>Change Password
                             </a>
                             
-                            {% if current_user.role in ['admin', 'manager'] %}
+                            {% if current_user.role in ['admin'] %}
                             <a class="nav-link" href="{{ url_for('employee.employee_list') }}">
                                 <i class="fas fa-users me-2"></i>Manage Employees
                             </a>
@@ -238,6 +285,7 @@
         }
     });
     </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>

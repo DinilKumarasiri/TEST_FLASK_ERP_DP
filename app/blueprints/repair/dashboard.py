@@ -33,9 +33,9 @@ def repair_dashboard():
         # Jobs assigned to current technician
         my_jobs = []
         if current_user.role == 'technician':
-            my_jobs = RepairJob.query.filter_by(
-                technician_id=current_user.id,
-                status__in=['diagnostic', 'repairing', 'waiting_parts']
+            my_jobs = RepairJob.query.filter(
+                RepairJob.technician_id == current_user.id,
+                RepairJob.status.in_(['diagnostic', 'repairing', 'waiting_parts'])
             ).order_by(RepairJob.created_at).all()
         
         # Calculate status counts
