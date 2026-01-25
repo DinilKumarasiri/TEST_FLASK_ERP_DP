@@ -1,4 +1,5 @@
 import os
+import sys
 from flask import Flask, render_template, redirect, url_for, flash
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -7,9 +8,14 @@ from flask_wtf import CSRFProtect
 from config import Config, get_config, ensure_directories
 from datetime import datetime, timedelta
 
+# Force UTF-8 encoding for output
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+
 # Ensure directories exist before anything else
 ensure_directories()
 
+# Initialize extensions (but don't bind to app yet)
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
@@ -57,10 +63,11 @@ def create_app(config_class=None):
     if config_class is None:
         config_class = get_config()
     
+    # Create the app instance
     app = Flask(__name__, template_folder='../templates')
     app.config.from_object(config_class)
 
-    # Init extensions
+    # Init extensions WITH the app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -69,7 +76,7 @@ def create_app(config_class=None):
     # Jinja filters
     app.jinja_env.filters['time_ago'] = time_ago_filter
 
-    # Import models
+    # Import models (inside function to avoid circular imports)
     from .models import User, Commission, Attendance, LeaveRequest, Customer, Product, Supplier, StockItem, RepairJob
 
     @login_manager.user_loader
@@ -168,7 +175,7 @@ def create_app(config_class=None):
         try:
             # Create all tables if they don't exist
             db.create_all()
-            print("✅ Database tables checked/created successfully!")
+            print("[SUCCESS] Database tables checked/created successfully!")
 
             # Create default admin if not exists
             admin = User.query.filter_by(username='admin').first()
@@ -182,11 +189,11 @@ def create_app(config_class=None):
                 admin.set_password('admin123')
                 db.session.add(admin)
                 db.session.commit()
-                print("✅ Created default admin user: admin / admin123")
+                print("[SUCCESS] Created default admin user: admin / admin123")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ Error during database initialization: {str(e)}")
+            print(f"[ERROR] Error during database initialization: {str(e)}")
     
     # Health check endpoint
     @app.route('/health')

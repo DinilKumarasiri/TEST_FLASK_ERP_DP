@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -135,21 +136,30 @@ class Config:
     
     def __init__(self):
         env = os.environ.get('FLASK_ENV', 'development').upper()
-        db_display = self.SQLALCHEMY_DATABASE_URI
-        if ':' in db_display and '@' in db_display:
-            parts = db_display.split('@')
-            if ':' in parts[0]:
-                user_pass = parts[0].split(':')
-                if len(user_pass) > 2:
-                    db_display = f"{user_pass[0]}:****@{parts[1]}"
-        print(f"\n{'='*60}")
-        print(f"Mobile Shop ERP - {env} Configuration")
-        print(f"{'='*60}")
-        print(f"Database: {db_display}")
-        print(f"Debug Mode: {self.DEBUG}")
-        print(f"CSRF Enabled: {self.WTF_CSRF_ENABLED}")
-        print(f"Upload Folder: {self.UPLOAD_FOLDER}")
-        print(f"{'='*60}\n")
+        
+        # Safe printing - only in development and if stdout is available
+        if env == 'DEVELOPMENT':
+            try:
+                # Check if stdout is available and not closed
+                if hasattr(sys.stdout, 'closed') and not sys.stdout.closed:
+                    db_display = self.SQLALCHEMY_DATABASE_URI
+                    if ':' in db_display and '@' in db_display:
+                        parts = db_display.split('@')
+                        if ':' in parts[0]:
+                            user_pass = parts[0].split(':')
+                            if len(user_pass) > 2:
+                                db_display = f"{user_pass[0]}:****@{parts[1]}"
+                    print(f"\n{'='*60}")
+                    print(f"Mobile Shop ERP - {env} Configuration")
+                    print(f"{'='*60}")
+                    print(f"Database: {db_display}")
+                    print(f"Debug Mode: {self.DEBUG}")
+                    print(f"CSRF Enabled: {self.WTF_CSRF_ENABLED}")
+                    print(f"Upload Folder: {self.UPLOAD_FOLDER}")
+                    print(f"{'='*60}\n")
+            except (IOError, BrokenPipeError):
+                # Silently ignore if stdout is not available (WSGI environment)
+                pass
 
 
 class DevelopmentConfig(Config):
@@ -160,7 +170,12 @@ class DevelopmentConfig(Config):
     
     def __init__(self):
         super().__init__()
-        print("Development Mode Activated")
+        # Only print in development mode
+        try:
+            if hasattr(sys.stdout, 'closed') and not sys.stdout.closed:
+                print("Development Mode Activated")
+        except (IOError, BrokenPipeError):
+            pass
 
 
 class TestingConfig(Config):
@@ -173,7 +188,12 @@ class TestingConfig(Config):
     
     def __init__(self):
         super().__init__()
-        print("Testing Mode Activated")
+        # Only print in development mode
+        try:
+            if hasattr(sys.stdout, 'closed') and not sys.stdout.closed:
+                print("Testing Mode Activated")
+        except (IOError, BrokenPipeError):
+            pass
 
 
 class ProductionConfig(Config):
@@ -195,7 +215,15 @@ class ProductionConfig(Config):
                 "WARNING: Using default or development secret key! Set a strong SECRET_KEY environment variable.",
                 RuntimeWarning
             )
-        print("Production Mode - Secure Settings Activated")
+        # Don't print in production to avoid WSGI issues
+        # Only print if explicitly enabled and stdout is available
+        try:
+            if (os.environ.get('FLASK_ENV', '').lower() == 'production' and 
+                os.environ.get('VERBOSE_CONFIG', 'false').lower() == 'true' and
+                hasattr(sys.stdout, 'closed') and not sys.stdout.closed):
+                print("Production Mode - Secure Settings Activated")
+        except (IOError, BrokenPipeError):
+            pass
 
 
 config_dict = {
@@ -211,35 +239,59 @@ def get_config(config_name=None):
         config_name = os.environ.get('FLASK_ENV', 'development').lower()
     config_class = config_dict.get(config_name)
     if config_class is None:
-        print(f"Warning: Unknown configuration '{config_name}', using 'development'")
+        # Safe print
+        try:
+            if hasattr(sys.stdout, 'closed') and not sys.stdout.closed:
+                print(f"Warning: Unknown configuration '{config_name}', using 'development'")
+        except (IOError, BrokenPipeError):
+            pass
         config_class = DevelopmentConfig
     return config_class()
 
 
 def ensure_directories():
-    config = get_config()
+    # Don't call get_config() at module level - it will cause config instantiation
+    # Instead, create directories based on environment variables directly
+    upload_folder = os.path.join(basedir, os.environ.get('UPLOAD_FOLDER', 'uploads'))
+    backup_folder = os.path.join(basedir, os.environ.get('BACKUP_FOLDER', 'backups'))
+    log_file = os.environ.get('LOG_FILE', 'logs/mobile_shop.log')
+    log_dir = os.path.join(basedir, os.path.dirname(log_file)) if log_file else None
+    
     directories = [
-        config.UPLOAD_FOLDER,
-        config.BACKUP_FOLDER,
-        os.path.dirname(config.LOG_FILE) if config.LOG_FILE else None,
+        upload_folder,
+        backup_folder,
+        log_dir,
     ]
+    
     for directory in directories:
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-            print(f"Created directory: {directory}")
+            # Safe print
+            try:
+                if hasattr(sys.stdout, 'closed') and not sys.stdout.closed:
+                    print(f"Created directory: {directory}")
+            except (IOError, BrokenPipeError):
+                pass
 
 
 def print_config_summary():
-    config = get_config()
-    env = os.environ.get('FLASK_ENV', 'development').upper()
-    print(f"\nConfiguration Summary [{env}]")
-    print(f"Database: {config.DB_USER}@{config.DB_HOST}/{config.DB_NAME}")
-    print(f"Debug: {config.DEBUG}")
-    print(f"Uploads: {config.UPLOAD_FOLDER}")
-
-
-if __name__ != '__main__':
+    # Safe print function - only if stdout is available
     try:
-        ensure_directories()
-    except Exception as e:
-        print(f"Warning: Could not create directories: {e}")
+        if hasattr(sys.stdout, 'closed') and not sys.stdout.closed:
+            config = get_config()
+            env = os.environ.get('FLASK_ENV', 'development').upper()
+            print(f"\nConfiguration Summary [{env}]")
+            print(f"Database: {config.DB_USER}@{config.DB_HOST}/{config.DB_NAME}")
+            print(f"Debug: {config.DEBUG}")
+            print(f"Uploads: {config.UPLOAD_FOLDER}")
+    except (IOError, BrokenPipeError):
+        pass
+
+
+# Don't call ensure_directories() at module level
+# It will be called from create_app() in app/__init__.py
+
+if __name__ == '__main__':
+    # Only run this when script is executed directly
+    ensure_directories()
+    print_config_summary()
