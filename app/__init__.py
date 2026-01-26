@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, send_from_directory
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user, login_required
@@ -64,7 +64,7 @@ def create_app(config_class=None):
         config_class = get_config()
     
     # Create the app instance
-    app = Flask(__name__, template_folder='../templates')
+    app = Flask(__name__, template_folder='../templates', static_folder='../static')
     app.config.from_object(config_class)
 
     # Init extensions WITH the app
@@ -97,6 +97,18 @@ def create_app(config_class=None):
     app.register_blueprint(employee_bp, url_prefix='/employee')
 
     # Context processor
+    @app.route('/favicon.ico')
+    def favicon():
+        # Try to serve from uploads folder first
+        uploads_dir = os.path.join(app.root_path, '..', 'uploads')
+        favicon_path = os.path.join(uploads_dir, 'logo.ico')
+        
+        if os.path.exists(favicon_path):
+            return send_from_directory(uploads_dir, 'logo.ico')
+        else:
+            # If not found in uploads, try static folder as fallback
+            return send_from_directory(os.path.join(app.root_path, 'static'), 'logo.ico')
+        
     @app.context_processor
     def inject_now():
         return {'now': datetime.utcnow(), 'timedelta': timedelta}
@@ -105,6 +117,26 @@ def create_app(config_class=None):
     def inject_csrf_token():
         from flask_wtf.csrf import generate_csrf
         return dict(csrf_token=generate_csrf)
+
+    # Route to serve uploaded files (including logo)
+    @app.route('/uploads/<path:filename>')
+    def serve_upload(filename):
+        uploads_dir = os.path.join(app.root_path, '..', 'uploads')
+        try:
+            return send_from_directory(uploads_dir, filename)
+        except Exception as e:
+            app.logger.error(f"Error serving file {filename}: {str(e)}")
+            return f"File not found: {filename}", 404
+
+    # Alternative route if the above doesn't work
+    @app.route('/static/uploads/<path:filename>')
+    def serve_upload_static(filename):
+        uploads_dir = os.path.join(app.root_path, '..', 'uploads')
+        try:
+            return send_from_directory(uploads_dir, filename)
+        except Exception as e:
+            app.logger.error(f"Error serving file {filename}: {str(e)}")
+            return f"File not found: {filename}", 404
 
     @app.route('/')
     def index():

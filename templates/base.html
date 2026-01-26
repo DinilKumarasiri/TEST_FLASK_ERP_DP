@@ -4,285 +4,342 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Mobile Shop ERP{% endblock %}</title>
+    <title>{% block title %}UK Mobile Repairing Center{% endblock %}</title>
+    
+    <!-- Favicon Links -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('favicon') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('favicon') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('favicon') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('favicon') }}">
+    <link rel="shortcut icon" href="{{ url_for('favicon') }}">
+    <meta name="theme-color" content="#4361ee">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <style>
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3a0ca3;
-            --success-color: #4cc9f0;
-            --danger-color: #f72585;
-            --warning-color: #f8961e;
-            --info-color: #7209b7;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
-        }
-        
-        .sidebar {
-            min-height: 100vh;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            position: fixed;
-            width: 250px;
-            padding-top: 20px;
-        }
-        
-        .main-content {
-            margin-left: 250px;
-            padding: 20px;
-        }
-        
-        .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            padding: 10px 20px;
-            margin: 5px 10px;
-            border-radius: 5px;
-            transition: all 0.3s;
-        }
-        
-        .nav-link:hover, .nav-link.active {
-            color: white;
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        
-        .stat-card {
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .stat-card i {
-            font-size: 2.5rem;
-            opacity: 0.8;
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
-        }
-        
-        .table th {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-        }
-        
-        .role-badge {
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            vertical-align: middle;
-        }
-        
-        .role-admin { background-color: #dc3545; }
-        .role-manager { background-color: #fd7e14; }
-        .role-technician { background-color: #0d6efd; }
-        .role-staff { background-color: #6c757d; }
-        
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: static;
-                min-height: auto;
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-        }
-    </style>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Sidebar -->
+    <!-- Sidebar - Desktop -->
     <div class="sidebar d-none d-md-block">
-        <div class="text-center mb-4">
-            <h3><i class="fas fa-mobile-alt me-2"></i>Mobile ERP</h3>
-            <p class="text-muted">Shop Management System</p>
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='uploads/logo.jpg') }}" alt="UK Mobile Repairing Center" class="logo-img" 
+                     onerror="this.src='https://via.placeholder.com/50/4361ee/ffffff?text=UK'; this.onerror=null;">
+                <div class="shop-name">U K Mobile<br>Repairing Center</div>
+            </div>
         </div>
         
-        <nav class="nav flex-column">
+        <div class="sidebar-content">
+            <nav class="nav flex-column">
+                {% if current_user.is_authenticated %}
+                    <!-- POS - Show for Admin, Manager, Sales Staff -->
+                    {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                    <a class="nav-link {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
+                       href="{{ url_for('pos.dashboard') }}">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>POS</span>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Inventory - Show for Admin, Manager, Sales Staff -->
+                    {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                    <a class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
+                       href="{{ url_for('inventory.inventory_dashboard') }}">
+                        <i class="fas fa-boxes"></i>
+                        <span>Inventory</span>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Repair - Show for Admin, Manager, Technician -->
+                    {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                    <a class="nav-link {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
+                       href="{{ url_for('repair.repair_dashboard') }}">
+                        <i class="fas fa-tools"></i>
+                        <span>Repair</span>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Employees Dashboard - Show for Admin, Manager -->
+                    {% if current_user.role in ['admin'] %}
+                    <a class="nav-link {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
+                       href="{{ url_for('employee.employee_dashboard') }}">
+                        <i class="fas fa-users"></i>
+                        <span>Employees</span>
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </nav>
+        </div>
+        
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <div class="user-info">
+                <small class="text-muted d-block mb-1">Logged in as</small>
+                <h6 class="mb-1">
+                    {{ current_user.username }}
+                    <span class="badge role-{{ current_user.role }} role-badge ms-2">
+                        {{ current_user.role|title }}
+                    </span>
+                </h6>
+                <small class="text-muted d-block">{{ current_user.email }}</small>
+                
+                <div class="mt-3 pt-3 border-top border-white border-opacity-25">
+                    {% if current_user.role in ['admin'] %}
+                    <a class="nav-link py-2 px-0" href="{{ url_for('employee.employee_list') }}">
+                        <i class="fas fa-user-cog"></i>
+                        <span>Manage Employees</span>
+                    </a>
+                    {% endif %}
+                    
+                    <a class="nav-link py-2 px-0" href="{{ url_for('auth.change_password') }}">
+                        <i class="fas fa-key"></i>
+                        <span>Change Password</span>
+                    </a>
+                    
+                    <a class="nav-link py-2 px-0 text-danger" href="{{ url_for('auth.logout') }}">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Mobile Header -->
+    <div class="mobile-header d-md-none">
+        <div class="mobile-header-content">
+            <div class="mobile-logo-container">
+                <img src="{{ url_for('static', filename='uploads/logo.jpg') }}" alt="UK Mobile Repairing Center" class="mobile-logo-img"
+                     onerror="this.src='https://via.placeholder.com/40/4361ee/ffffff?text=UK'; this.onerror=null;">
+                <div class="mobile-shop-name">U K Mobile Repairing Center</div>
+            </div>
+            <button class="hamburger-menu" id="mobileMenuToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Mobile Navigation Overlay -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+    
+    <!-- Mobile Navigation Sidebar -->
+    <div class="mobile-nav-container" id="mobileNavContainer">
+        <div class="mobile-nav-header">
+            <button class="mobile-nav-close" id="mobileNavClose">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="mobile-header-logo">
+                <img src="{{ url_for('static', filename='uploads/logo.jpg') }}" alt="UK Mobile Repairing Center" class="mobile-header-logo-img"
+                     onerror="this.src='https://via.placeholder.com/50/4361ee/ffffff?text=UK'; this.onerror=null;">
+                <div class="mobile-header-shop-name">U K Mobile<br>Repairing Center</div>
+            </div>
+            
+            <div class="mobile-user-info">
+                {% if current_user.is_authenticated %}
+                <div class="mobile-user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h5 class="mb-1">{{ current_user.username }}</h5>
+                <p class="mb-0 opacity-75">{{ current_user.email }}</p>
+                <span class="badge role-{{ current_user.role }} role-badge mt-2">
+                    {{ current_user.role|title }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="mobile-nav-content">
             {% if current_user.is_authenticated %}
                 <!-- POS - Show for Admin, Manager, Sales Staff -->
                 {% if current_user.role in ['admin', 'manager', 'staff'] %}
-                <a class="nav-link {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
+                <a class="mobile-nav-item {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('pos.dashboard') }}">
-                    <i class="fas fa-shopping-cart me-2"></i>POS
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>POS Dashboard</span>
                 </a>
                 {% endif %}
                 
                 <!-- Inventory - Show for Admin, Manager, Sales Staff -->
                 {% if current_user.role in ['admin', 'manager', 'staff'] %}
-                <a class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
+                <a class="mobile-nav-item {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('inventory.inventory_dashboard') }}">
-                    <i class="fas fa-boxes me-2"></i>Inventory
+                    <i class="fas fa-boxes"></i>
+                    <span>Inventory</span>
                 </a>
                 {% endif %}
                 
                 <!-- Repair - Show for Admin, Manager, Technician -->
                 {% if current_user.role in ['admin', 'manager', 'technician'] %}
-                <a class="nav-link {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
+                <a class="mobile-nav-item {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('repair.repair_dashboard') }}">
-                    <i class="fas fa-tools me-2"></i>Repair
+                    <i class="fas fa-tools"></i>
+                    <span>Repair Center</span>
                 </a>
                 {% endif %}
                 
                 <!-- Employees Dashboard - Show for Admin, Manager -->
                 {% if current_user.role in ['admin'] %}
-                <a class="nav-link {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
+                <a class="mobile-nav-item {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('employee.employee_dashboard') }}">
-                    <i class="fas fa-users me-2"></i>Employees Dashboard
+                    <i class="fas fa-users"></i>
+                    <span>Employees</span>
                 </a>
                 {% endif %}
                 
-                <div class="mt-4 pt-4 border-top">
-                    <div class="px-3">
-                        <small class="text-muted">Logged in as</small>
-                        <h6>
-                            {{ current_user.username }}
-                            <span class="badge role-{{ current_user.role }} role-badge">
-                                {{ current_user.role|title }}
-                            </span>
-                        </h6>
-                        <small class="text-muted">{{ current_user.email }}</small>
-                    </div>
-                                        
-                    {% if current_user.role in ['admin'] %}
-                    <a class="nav-link" href="{{ url_for('employee.employee_list') }}">
-                        <i class="fas fa-users me-2"></i>Manage Employees
-                    </a>
-                    {% endif %}
-                    
-                    <a class="nav-link" href="{{ url_for('auth.logout') }}">
-                        <i class="fas fa-sign-out-alt me-2"></i>Logout
-                    </a>
-                </div>
+                <div class="mobile-nav-divider"></div>
+                
+                <!-- Additional Links -->
+                <a class="mobile-nav-item" href="{{ url_for('auth.change_password') }}">
+                    <i class="fas fa-key"></i>
+                    <span>Change Password</span>
+                </a>
+                
+                {% if current_user.role in ['admin'] %}
+                <a class="mobile-nav-item" href="{{ url_for('employee.employee_list') }}">
+                    <i class="fas fa-user-cog"></i>
+                    <span>Manage Employees</span>
+                </a>
+                {% endif %}
             {% endif %}
-        </nav>
+        </div>
+        
+        <div class="mobile-nav-footer">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-danger w-100" style="border-radius: 10px;">
+                <i class="fas fa-sign-out-alt me-2"></i>Logout
+            </a>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary w-100" style="border-radius: 10px;">
+                <i class="fas fa-sign-in-alt me-2"></i>Login
+            </a>
+            {% endif %}
+        </div>
     </div>
     
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Mobile Header -->
-        <nav class="navbar navbar-light bg-light d-md-none mb-4">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="#">
-                    <i class="fas fa-mobile-alt me-2"></i>Mobile ERP
-                    {% if current_user.is_authenticated %}
-                    <span class="badge role-{{ current_user.role }} role-badge ms-2">
-                        {{ current_user.role|title }}
-                    </span>
-                    {% endif %}
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-            </div>
-        </nav>
-        
-        <!-- Mobile Navigation -->
-        <div class="collapse d-md-none mb-4" id="mobileNav">
-            <div class="card">
-                <div class="card-body">
-                    <div class="nav flex-column">
-                        {% if current_user.is_authenticated %}
-                            <!-- POS - Show for Admin, Manager, Sales Staff -->
-                            {% if current_user.role in ['admin', 'manager', 'staff'] %}
-                            <a class="nav-link" href="{{ url_for('pos.dashboard') }}">
-                                <i class="fas fa-shopping-cart me-2"></i>POS
-                            </a>
-                            {% endif %}
-                            
-                            <!-- Inventory - Show for Admin, Manager, Sales Staff -->
-                            {% if current_user.role in ['admin', 'manager', 'staff'] %}
-                            <a class="nav-link" href="{{ url_for('inventory.inventory_dashboard') }}">
-                                <i class="fas fa-boxes me-2"></i>Inventory
-                            </a>
-                            {% endif %}
-                            
-                            <!-- Repair - Show for Admin, Manager, Technician -->
-                            {% if current_user.role in ['admin', 'manager', 'technician'] %}
-                            <a class="nav-link" href="{{ url_for('repair.repair_dashboard') }}">
-                                <i class="fas fa-tools me-2"></i>Repair
-                            </a>
-                            {% endif %}
-                            
-                            <!-- Employees Dashboard - Show for Admin, Manager -->
-                            {% if current_user.role in ['admin'] %}
-                            <a class="nav-link" href="{{ url_for('employee.employee_dashboard') }}">
-                                <i class="fas fa-users me-2"></i>Employees Dashboard
-                            </a>
-                            {% endif %}
-                            
-                            <div class="dropdown-divider my-2"></div>
-                            
-                            <a class="nav-link" href="{{ url_for('auth.change_password') }}">
-                                <i class="fas fa-key me-2"></i>Change Password
-                            </a>
-                            
-                            {% if current_user.role in ['admin'] %}
-                            <a class="nav-link" href="{{ url_for('employee.employee_list') }}">
-                                <i class="fas fa-users me-2"></i>Manage Employees
-                            </a>
-                            {% endif %}
-                            
-                            <a class="nav-link" href="{{ url_for('auth.logout') }}">
-                                <i class="fas fa-sign-out-alt me-2"></i>Logout
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+        <div class="page-content">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center mb-4" role="alert">
+                            <i class="fas 
+                                {% if category == 'success' %}fa-check-circle 
+                                {% elif category == 'danger' %}fa-exclamation-circle 
+                                {% elif category == 'warning' %}fa-exclamation-triangle 
+                                {% else %}fa-info-circle{% endif %} 
+                                me-3"></i>
+                            <div>{{ message }}</div>
+                            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Page Content -->
+            {% block content %}{% endblock %}
         </div>
-        
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <!-- Page Content -->
-        {% block content %}{% endblock %}
     </div>
     
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- CSRF Token Setup -->
     <script>
-    // Add CSRF token to all AJAX requests
-    $.ajaxSetup({
-        beforeSend: function(xhr, settings) {
-            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
-            }
+    // Mobile Navigation Toggle
+    $(document).ready(function() {
+        const menuToggle = $('#mobileMenuToggle');
+        const navOverlay = $('#mobileNavOverlay');
+        const navContainer = $('#mobileNavContainer');
+        const navClose = $('#mobileNavClose');
+        
+        // Open mobile menu
+        menuToggle.on('click', function(e) {
+            e.stopPropagation();
+            $(this).toggleClass('active');
+            navOverlay.toggleClass('show');
+            navContainer.toggleClass('show');
+            $('body').css('overflow', 'hidden');
+        });
+        
+        // Close mobile menu
+        function closeMenu() {
+            menuToggle.removeClass('active');
+            navOverlay.removeClass('show');
+            navContainer.removeClass('show');
+            $('body').css('overflow', 'auto');
         }
+        
+        // Close on overlay click
+        navOverlay.on('click', closeMenu);
+        
+        // Close on X button click
+        navClose.on('click', closeMenu);
+        
+        // Close on navigation item click
+        $('.mobile-nav-item').on('click', function() {
+            setTimeout(closeMenu, 300);
+        });
+        
+        // Close on escape key
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMenu();
+            }
+        });
+        
+        // Prevent menu close when clicking inside
+        navContainer.on('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        // CSRF Token Setup
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
+                }
+            }
+        });
+        
+        // Fix height on resize
+        function fixHeights() {
+            const windowHeight = $(window).height();
+            const mobileHeaderHeight = $('.mobile-header').outerHeight() || 0;
+            
+            // Set main content min-height on mobile
+            if ($(window).width() < 768) {
+                $('.main-content').css('min-height', windowHeight - mobileHeaderHeight + 'px');
+            } else {
+                $('.main-content').css('min-height', '100vh');
+            }
+            
+            // Set mobile nav container height
+            $('.mobile-nav-container').css('height', windowHeight + 'px');
+        }
+        
+        // Initial height fix
+        fixHeights();
+        
+        // Fix heights on resize
+        $(window).on('resize', fixHeights);
+        
+        // Fix heights on orientation change
+        $(window).on('orientationchange', function() {
+            setTimeout(fixHeights, 100);
+        });
     });
     </script>
     
