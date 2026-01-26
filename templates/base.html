@@ -89,7 +89,7 @@
                 </h6>
                 <small class="text-white d-block">{{ current_user.email }}</small>
                 <div class="mt-3 pt-3 border-top border-white border-opacity-25">                                        
-                    <a class="nav-link py-2 px-0 text-danger" href="{{ url_for('auth.logout') }}">
+                    <a class="nav-link py-2 px-0 logout-link" href="{{ url_for('auth.logout') }}">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
@@ -189,7 +189,7 @@
         
         <div class="mobile-nav-footer">
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('auth.logout') }}" class="btn btn-danger w-100" style="border-radius: 10px;">
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-danger w-100 logout-link" style="border-radius: 10px;">
                 <i class="fas fa-sign-out-alt me-2"></i>Logout
             </a>
             {% else %}
@@ -223,6 +223,28 @@
             
             <!-- Page Content -->
             {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Confirmation Modal for Logout -->
+    <div class="modal fade confirmation-modal" id="logoutConfirmationModal" tabindex="-1" aria-labelledby="logoutConfirmationLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-custom">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h5 class="modal-title" id="logoutConfirmationLabel">Confirm Logout</h5>
+                    <p>Are you sure you want to logout from your account?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn confirmation-btn confirmation-btn-cancel" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>
+                        Cancel
+                    </button>
+                    <button type="button" class="btn confirmation-btn confirmation-btn-confirm" id="confirmLogoutBtn">
+                        <i class="fas fa-check me-1"></i>
+                        Yes, Logout
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -288,6 +310,65 @@
             }
         });
         
+        // Logout Confirmation Dialog
+        let logoutUrl = '';
+        
+        // Handle logout link clicks
+        $(document).on('click', '.logout-link', function(e) {
+            e.preventDefault();
+            logoutUrl = $(this).attr('href');
+            
+            // Show the confirmation modal
+            const logoutModal = new bootstrap.Modal(document.getElementById('logoutConfirmationModal'));
+            logoutModal.show();
+            
+            // Focus on cancel button for accessibility
+            setTimeout(function() {
+                $('.confirmation-btn-cancel').focus();
+            }, 500);
+        });
+        
+        // Confirm logout button
+        $('#confirmLogoutBtn').on('click', function() {
+            // Hide the modal
+            const logoutModal = bootstrap.Modal.getInstance(document.getElementById('logoutConfirmationModal'));
+            logoutModal.hide();
+            
+            // Redirect to logout URL
+            if (logoutUrl) {
+                window.location.href = logoutUrl;
+            }
+        });
+        
+        // Keyboard navigation for modal
+        $('#logoutConfirmationModal').on('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const logoutModal = bootstrap.Modal.getInstance(this);
+                if (logoutModal) {
+                    logoutModal.hide();
+                }
+            }
+            
+            // Tab key trapping for accessibility
+            if (e.key === 'Tab') {
+                const focusableElements = $('.confirmation-modal button:not([disabled])');
+                const firstElement = focusableElements.first();
+                const lastElement = focusableElements.last();
+                
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === firstElement[0]) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    }
+                } else { // Tab
+                    if (document.activeElement === lastElement[0]) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            }
+        });
+        
         // Fix height on resize
         function fixHeights() {
             const windowHeight = $(window).height();
@@ -313,6 +394,13 @@
         // Fix heights on orientation change
         $(window).on('orientationchange', function() {
             setTimeout(fixHeights, 100);
+        });
+        
+        // Add enter key support for modal buttons
+        $('#logoutConfirmationModal').on('keypress', function(e) {
+            if (e.key === 'Enter' && $(e.target).hasClass('confirmation-btn')) {
+                $(e.target).click();
+            }
         });
     });
     </script>

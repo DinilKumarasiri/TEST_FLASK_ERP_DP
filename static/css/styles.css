@@ -605,3 +605,119 @@ body {
 
     background: var(--card-bg, white);
 }
+/* Modern Dialog Styles */
+.modal-dialog-custom {
+    max-width: 400px;
+    border: none;
+}
+
+.confirmation-modal .modal-content {
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.confirmation-modal .modal-header {
+    border-bottom: none;
+    padding: 25px 30px 0 30px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+}
+
+.confirmation-modal .modal-body {
+    padding: 30px;
+    text-align: center;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    padding: 0 30px 30px 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.confirmation-modal .modal-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 25px;
+    background: rgba(247, 37, 133, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--danger-color);
+}
+
+.confirmation-modal .modal-icon i {
+    font-size: 2.5rem;
+    color: var(--danger-color);
+}
+
+.confirmation-modal h5 {
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.confirmation-modal p {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.confirmation-btn {
+    min-width: 120px;
+    padding: 12px 25px;
+    border-radius: 10px;
+    font-weight: 600;
+    border: none;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.confirmation-btn-cancel {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    color: white;
+}
+
+.confirmation-btn-confirm {
+    background: linear-gradient(#fb3e4e, #d33541);
+    color: white;
+}
+
+.confirmation-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.confirmation-btn:active {
+    transform: translateY(-1px);
+}
+
+/* Desktop sidebar logout link */
+.sidebar-footer .nav-link.text-danger:hover {
+    background: rgba(247, 37, 133, 0.15);
+    color: #d33541 !important;
+    transform: translateX(5px);
+}
+
+/* Mobile logout button */
+.mobile-nav-footer .btn-danger {
+    background: linear-gradient(135deg, var(--danger-color), #d33541);
+    border: none;
+    padding: 12px;
+    font-weight: 600;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(247, 37, 133, 0.3);
+}
+
+.mobile-nav-footer .btn-danger:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(247, 37, 133, 0.4);
+    background: linear-gradient(135deg, #d33541, var(--danger-color));
+}
