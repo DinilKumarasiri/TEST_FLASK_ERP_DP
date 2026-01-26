@@ -80,28 +80,15 @@
         <div class="sidebar-footer">
             {% if current_user.is_authenticated %}
             <div class="user-info">
-                <small class="text-muted d-block mb-1">Logged in as</small>
+                <small class="text-white d-block mb-1">Logged in as</small>
                 <h6 class="mb-1">
                     {{ current_user.username }}
                     <span class="badge role-{{ current_user.role }} role-badge ms-2">
                         {{ current_user.role|title }}
                     </span>
                 </h6>
-                <small class="text-muted d-block">{{ current_user.email }}</small>
-                
-                <div class="mt-3 pt-3 border-top border-white border-opacity-25">
-                    {% if current_user.role in ['admin'] %}
-                    <a class="nav-link py-2 px-0" href="{{ url_for('employee.employee_list') }}">
-                        <i class="fas fa-user-cog"></i>
-                        <span>Manage Employees</span>
-                    </a>
-                    {% endif %}
-                    
-                    <a class="nav-link py-2 px-0" href="{{ url_for('auth.change_password') }}">
-                        <i class="fas fa-key"></i>
-                        <span>Change Password</span>
-                    </a>
-                    
+                <small class="text-white d-block">{{ current_user.email }}</small>
+                <div class="mt-3 pt-3 border-top border-white border-opacity-25">                                        
                     <a class="nav-link py-2 px-0 text-danger" href="{{ url_for('auth.logout') }}">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
@@ -197,19 +184,6 @@
                 {% endif %}
                 
                 <div class="mobile-nav-divider"></div>
-                
-                <!-- Additional Links -->
-                <a class="mobile-nav-item" href="{{ url_for('auth.change_password') }}">
-                    <i class="fas fa-key"></i>
-                    <span>Change Password</span>
-                </a>
-                
-                {% if current_user.role in ['admin'] %}
-                <a class="mobile-nav-item" href="{{ url_for('employee.employee_list') }}">
-                    <i class="fas fa-user-cog"></i>
-                    <span>Manage Employees</span>
-                </a>
-                {% endif %}
             {% endif %}
         </div>
         

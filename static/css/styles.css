@@ -579,3 +579,29 @@ body {
 .alert-info {
     border-left-color: var(--info-color);
 }
+
+.stat-card.bg-primary::before { background: #4361ee !important; }
+.stat-card.bg-success::before { background: #4cc9f0 !important; }
+.stat-card.bg-info::before { background: #7209b7 !important; }
+.stat-card.bg-warning::before { background: #f8961e !important; }
+
+.stat-card.bg-primary,
+.stat-card.bg-success,
+.stat-card.bg-info,
+.stat-card.bg-warning {
+    color: white !important;
+}
+
+.stat-card.bg-primary i,
+.stat-card.bg-success i,
+.stat-card.bg-info i,
+.stat-card.bg-warning i {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7)) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+.stat-card {
+
+    background: var(--card-bg, white);
+}
