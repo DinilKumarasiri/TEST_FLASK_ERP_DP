@@ -1,8 +1,9 @@
 # app/blueprints/employee/employees.py
 from flask import render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
+from werkzeug.security import check_password_hash
 from ... import db
-from ...models import User, EmployeeProfile, Attendance, LeaveRequest, Commission
+from ...models import User, EmployeeProfile, Attendance, LeaveRequest, Commission, Invoice, RepairJob
 from datetime import datetime, date
 from .forms import EmployeeForm, EditEmployeeForm
 from . import employee_bp
@@ -16,8 +17,7 @@ def index():
 @employee_bp.route('/list')
 @login_required
 def employee_list():  # KEEP THIS NAME
-    # Changed from: if current_user.role not in ['admin', 'manager']:
-    if current_user.role not in ['admin', 'staff']:  # Updated
+    if current_user.role not in ['admin', 'staff']:
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -68,8 +68,7 @@ def employee_list():  # KEEP THIS NAME
 @employee_bp.route('/<int:employee_id>')
 @login_required
 def employee_detail(employee_id):
-    # Changed from: if current_user.role not in ['admin', 'manager'] and current_user.id != employee_id:
-    if current_user.role not in ['admin', 'staff'] and current_user.id != employee_id:  # Updated
+    if current_user.role not in ['admin', 'staff'] and current_user.id != employee_id:
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -122,13 +121,10 @@ def create_employee():
     
     form = EmployeeForm()
     
-    # Populate reporting manager choices - UPDATED
-    # Changed from: managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True).all()
     managers = User.query.filter(User.role.in_(['admin', 'staff']), User.is_active == True).all()
     form.reporting_manager_id.choices = [(0, 'None')] + [(m.id, f"{m.username} ({m.role})") for m in managers]
     
     if form.validate_on_submit():
-        # Check if username or email already exists
         existing_user = User.query.filter(
             db.or_(User.username == form.username.data, User.email == form.email.data)
         ).first()
@@ -138,7 +134,6 @@ def create_employee():
             return render_template('employee/create.html', form=form, title='Create Employee')
         
         try:
-            # Create User
             user = User(
                 username=form.username.data,
                 email=form.email.data,
@@ -148,14 +143,12 @@ def create_employee():
             user.set_password(form.password.data)
             
             db.session.add(user)
-            db.session.flush()  # Get the user ID
+            db.session.flush()
             
-            # Generate employee code if not provided
             employee_code = form.employee_code.data
             if not employee_code:
                 employee_code = f"EMP{user.id:04d}"
             
-            # Create EmployeeProfile
             profile = EmployeeProfile(
                 user_id=user.id,
                 full_name=form.full_name.data,
@@ -212,19 +205,15 @@ def edit_employee(employee_id):
     profile = EmployeeProfile.query.filter_by(user_id=employee_id).first()
     
     if not profile:
-        # Create empty profile if doesn't exist
         profile = EmployeeProfile(user_id=employee_id, full_name=employee.username)
         db.session.add(profile)
         db.session.commit()
     
     form = EditEmployeeForm(obj=profile)
     
-    # Populate reporting manager choices - UPDATED
-    # Changed from: managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True, User.id != employee_id).all()
     managers = User.query.filter(User.role.in_(['admin', 'staff']), User.is_active == True, User.id != employee_id).all()
     form.reporting_manager_id.choices = [(0, 'None')] + [(m.id, f"{m.username} ({m.role})") for m in managers]
     
-    # Set initial values for user fields
     if request.method == 'GET':
         form.username.data = employee.username
         form.email.data = employee.email
@@ -234,7 +223,6 @@ def edit_employee(employee_id):
     
     if form.validate_on_submit():
         try:
-            # Check if username or email already exists (excluding current employee)
             existing_user = User.query.filter(
                 db.or_(User.username == form.username.data, User.email == form.email.data),
                 User.id != employee_id
@@ -244,7 +232,6 @@ def edit_employee(employee_id):
                 flash('Username or email already exists', 'danger')
                 return render_template('employee/edit.html', form=form, employee=employee, profile=profile, title='Edit Employee')
             
-            # Update User
             employee.username = form.username.data
             employee.email = form.email.data
             employee.role = form.role.data
@@ -253,7 +240,6 @@ def edit_employee(employee_id):
             if form.password.data:
                 employee.set_password(form.password.data)
             
-            # Update EmployeeProfile
             profile.full_name = form.full_name.data
             profile.date_of_birth = form.date_of_birth.data
             profile.gender = form.gender.data
@@ -300,25 +286,93 @@ def edit_employee(employee_id):
     
     return render_template('employee/edit.html', form=form, employee=employee, profile=profile, title='Edit Employee')
 
-@employee_bp.route('/delete/<int:employee_id>', methods=['POST'])
+@employee_bp.route('/delete-employee/<int:employee_id>', methods=['POST'])
 @login_required
 def delete_employee(employee_id):
+    """Delete employee with password verification"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'})
+    
+    data = request.get_json()
+    password = data.get('password')
+    
+    if not password:
+        return jsonify({'success': False, 'message': 'Admin password is required'})
+    
+    # Verify admin password
+    if not check_password_hash(current_user.password_hash, password):
+        return jsonify({'success': False, 'message': 'Invalid admin password'})
+    
+    employee = User.query.get_or_404(employee_id)
+    
+    # Don't allow deleting yourself
+    if employee.id == current_user.id:
+        return jsonify({'success': False, 'message': 'You cannot delete your own account'})
+    
+    try:
+        # Store employee info for logging
+        employee_name = employee.username
+        
+        # Check if employee has created any records that should be reassigned
+        # For invoices created by this employee
+        invoices_created = Invoice.query.filter_by(created_by=employee_id).all()
+        if invoices_created:
+            # Reassign to current admin or set to NULL
+            for invoice in invoices_created:
+                invoice.created_by = None
+        
+        # For repair jobs created by this employee
+        repair_jobs_created = RepairJob.query.filter_by(created_by=employee_id).all()
+        if repair_jobs_created:
+            for job in repair_jobs_created:
+                job.created_by = None
+        
+        # For repair jobs assigned to this employee as technician
+        repair_jobs_assigned = RepairJob.query.filter_by(technician_id=employee_id).all()
+        if repair_jobs_assigned:
+            for job in repair_jobs_assigned:
+                job.technician_id = None
+        
+        # Delete related records
+        Attendance.query.filter_by(employee_id=employee_id).delete()
+        LeaveRequest.query.filter_by(employee_id=employee_id).delete()
+        LeaveRequest.query.filter_by(approved_by=employee_id).update({'approved_by': None})
+        Commission.query.filter_by(employee_id=employee_id).delete()
+        
+        # Delete employee profile
+        EmployeeProfile.query.filter_by(user_id=employee_id).delete()
+        
+        # Finally delete the user
+        db.session.delete(employee)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Employee {employee_name} has been permanently deleted'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting employee: {str(e)}'})
+
+@employee_bp.route('/deactivate/<int:employee_id>', methods=['POST'])
+@login_required
+def deactivate_employee(employee_id):
+    """Soft delete - deactivate employee"""
     if current_user.role != 'admin':
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
     employee = User.query.get_or_404(employee_id)
     
-    # Don't allow deleting yourself
+    # Don't allow deactivating yourself
     if employee.id == current_user.id:
-        flash('You cannot delete your own account', 'danger')
+        flash('You cannot deactivate your own account', 'danger')
         return redirect(url_for('employee.employee_list'))
     
     try:
-        # Soft delete by deactivating
         employee.is_active = False
         
-        # Also deactivate the profile
         profile = EmployeeProfile.query.filter_by(user_id=employee_id).first()
         if profile:
             profile.is_active = False
@@ -336,6 +390,7 @@ def delete_employee(employee_id):
 @employee_bp.route('/reactivate/<int:employee_id>', methods=['POST'])
 @login_required
 def reactivate_employee(employee_id):
+    """Reactivate employee"""
     if current_user.role != 'admin':
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
@@ -343,10 +398,8 @@ def reactivate_employee(employee_id):
     employee = User.query.get_or_404(employee_id)
     
     try:
-        # Reactivate
         employee.is_active = True
         
-        # Also reactivate the profile
         profile = EmployeeProfile.query.filter_by(user_id=employee_id).first()
         if profile:
             profile.is_active = True

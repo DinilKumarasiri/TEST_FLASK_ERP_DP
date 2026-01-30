@@ -54,6 +54,17 @@
         margin: 0;
         opacity: 0.9;
     }
+    
+    .delete-btn {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border: none;
+        color: white;
+    }
+    
+    .delete-btn:hover {
+        background: linear-gradient(135deg, #c82333, #bd2130);
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -107,6 +118,12 @@
                 <a href="{{ url_for('employee.edit_employee', employee_id=employee.id) }}" class="btn btn-warning">
                     <i class="fas fa-edit me-1"></i> Edit
                 </a>
+                {% endif %}
+                {% if current_user.role == 'admin' and current_user.id != employee.id %}
+                <button type="button" class="btn btn-danger delete-btn" 
+                        onclick="confirmDeleteEmployee({{ employee.id }}, '{{ employee.username }}')">
+                    <i class="fas fa-trash-alt me-1"></i> Delete
+                </button>
                 {% endif %}
             </div>
         </div>
@@ -551,17 +568,93 @@
         </div>
     </div>
 </div>
+
+<!-- Delete Employee Modal -->
+<div class="modal fade" id="deleteEmployeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Delete Employee
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone! All employee data including attendance, leaves, and commissions will be permanently deleted.
+                </div>
+                
+                <p class="mb-3">Are you sure you want to delete <strong id="deleteEmployeeName"></strong>?</p>
+                
+                <div class="mb-3">
+                    <label for="adminPassword" class="form-label">
+                        <i class="fas fa-lock me-1"></i>
+                        Enter your admin password to confirm:
+                    </label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="adminPassword" 
+                               placeholder="Enter your password" required>
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback" id="passwordError">
+                        Please enter your admin password
+                    </div>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirmDelete">
+                    <label class="form-check-label" for="confirmDelete">
+                        I understand this will permanently delete all employee data
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                    <i class="fas fa-trash-alt me-1"></i> Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5>Deleting Employee...</h5>
+                <p class="text-muted mb-0">Please wait while we process your request.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Get CSRF token
+function getCSRFToken() {
+    return document.getElementById('csrf_token').value;
+}
+
+// Toggle employee status (activate/deactivate)
 function toggleEmployeeStatus(employeeId, employeeName, isActive) {
-    const action = isActive ? 'deactivate' : 'activate';
+    const action = isActive ? 'deactivate' : 'reactivate';
     const actionText = isActive ? 'deactivate' : 'reactivate';
     
     if (confirm(`Are you sure you want to ${actionText} ${employeeName}?`)) {
         const endpoint = isActive ? 
-            `/employee/delete/${employeeId}` : 
+            `/employee/deactivate/${employeeId}` : 
             `/employee/reactivate/${employeeId}`;
         
         fetch(endpoint, {
@@ -586,14 +679,127 @@ function toggleEmployeeStatus(employeeId, employeeName, isActive) {
     }
 }
 
-function getCSRFToken() {
-    const csrfTokenInput = document.getElementById('csrf_token');
-    return csrfTokenInput ? csrfTokenInput.value : '';
+// Confirm delete employee
+function confirmDeleteEmployee(employeeId, employeeName) {
+    document.getElementById('deleteEmployeeName').textContent = employeeName;
+    
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('confirmDelete').checked = false;
+    document.getElementById('confirmDeleteBtn').disabled = true;
+    document.getElementById('passwordError').style.display = 'none';
+    document.getElementById('adminPassword').classList.remove('is-invalid');
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteEmployeeModal'));
+    modal.show();
+    
+    document.getElementById('deleteEmployeeModal').dataset.employeeId = employeeId;
+}
+
+// Toggle password visibility
+document.getElementById('togglePassword')?.addEventListener('click', function() {
+    const passwordInput = document.getElementById('adminPassword');
+    const icon = this.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+});
+
+// Enable/disable delete button based on confirmation
+document.getElementById('confirmDelete')?.addEventListener('change', function() {
+    const password = document.getElementById('adminPassword').value;
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    
+    deleteBtn.disabled = !(this.checked && password.length >= 6);
+});
+
+// Validate password input
+document.getElementById('adminPassword')?.addEventListener('input', function() {
+    const confirmCheck = document.getElementById('confirmDelete');
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    
+    deleteBtn.disabled = !(confirmCheck.checked && this.value.length >= 6);
+    
+    this.classList.remove('is-invalid');
+    document.getElementById('passwordError').style.display = 'none';
+});
+
+// Handle delete confirmation
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', function() {
+    const employeeId = document.getElementById('deleteEmployeeModal').dataset.employeeId;
+    const password = document.getElementById('adminPassword').value;
+    
+    if (!password || password.length < 6) {
+        document.getElementById('adminPassword').classList.add('is-invalid');
+        document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
+        document.getElementById('passwordError').style.display = 'block';
+        return;
+    }
+    
+    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteEmployeeModal'));
+    deleteModal.hide();
+    
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+    
+    fetch(`/employee/delete-employee/${employeeId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingModal.hide();
+        
+        if (data.success) {
+            showAlert('success', data.message);
+            
+            setTimeout(() => {
+                window.location.href = '{{ url_for("employee.employee_list") }}';
+            }, 2000);
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        loadingModal.hide();
+        console.error('Error:', error);
+        showAlert('danger', 'Network error. Please try again.');
+    });
+});
+
+// Show alert function
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
 }
 
 // Initialize tabs
 document.addEventListener('DOMContentLoaded', function() {
-    // Make sure tabs work properly
     const triggerTabList = [].slice.call(document.querySelectorAll('#employeeTabs button'))
     triggerTabList.forEach(function (triggerEl) {
         const tabTrigger = new bootstrap.Tab(triggerEl)
@@ -602,7 +808,19 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault()
             tabTrigger.show()
         })
-    })
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            const deleteBtn = document.querySelector('.delete-btn');
+            if (deleteBtn) {
+                const employeeId = deleteBtn.getAttribute('onclick').match(/\d+/)[0];
+                const employeeName = deleteBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                confirmDeleteEmployee(employeeId, employeeName);
+            }
+        }
+    });
 });
 </script>
 {% endblock %}
