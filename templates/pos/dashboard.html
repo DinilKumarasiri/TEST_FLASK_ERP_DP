@@ -7,6 +7,11 @@
   <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
   <div class="text-end">
     <div class="text-muted small">{{ now.strftime('%A, %B %d, %Y') }}</div>
+    {% if current_user.role == 'staff' %}
+    <small class="badge bg-info">Staff Account</small>
+    {% elif current_user.role == 'admin' %}
+    <small class="badge bg-danger">Admin Account</small>
+    {% endif %}
   </div>
 </div>
 

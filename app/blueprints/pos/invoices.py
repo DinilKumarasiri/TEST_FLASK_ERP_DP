@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from ... import db
 from ...models import Invoice
 from . import pos_bp
+from ...utils.permissions import staff_required
 
 @pos_bp.route('/invoice/<int:invoice_id>/receipt')
 @login_required
@@ -11,7 +12,7 @@ def invoice_receipt(invoice_id):
     invoice = Invoice.query.get_or_404(invoice_id)
     
     # Verify the invoice belongs to current user or has permission
-    if invoice.created_by != current_user.id and current_user.role != 'admin':
+    if invoice.created_by != current_user.id and current_user.role not in ['admin', 'staff']:
         flash('You do not have permission to view this receipt', 'error')
         return redirect(url_for('pos.pos_home'))
     
@@ -26,7 +27,7 @@ def print_receipt(invoice_id):
     invoice = Invoice.query.get_or_404(invoice_id)
     
     # Verify permission
-    if invoice.created_by != current_user.id and current_user.role != 'admin':
+    if invoice.created_by != current_user.id and current_user.role not in ['admin', 'staff']:
         flash('You do not have permission to print this receipt', 'error')
         return redirect(url_for('pos.pos_home'))
     
@@ -36,6 +37,7 @@ def print_receipt(invoice_id):
 
 @pos_bp.route('/invoices')
 @login_required
+@staff_required  # Only staff and admin can access invoice list
 def invoices_list():
     """List all invoices"""
     page = request.args.get('page', 1, type=int)
@@ -51,6 +53,7 @@ def invoices_list():
 
 @pos_bp.route('/invoice/<int:invoice_id>')
 @login_required
+@staff_required  # Only staff and admin can view invoice details
 def invoice_detail(invoice_id):
     """View invoice details"""
     invoice = Invoice.query.get_or_404(invoice_id)

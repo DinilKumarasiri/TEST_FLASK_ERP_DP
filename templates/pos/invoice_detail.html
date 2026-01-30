@@ -79,7 +79,7 @@
             <div class="col-md-6 text-end">
                 <h5>Sold By:</h5>
                 <p class="mb-1"><strong>{{ invoice.creator.username }}</strong></p>
-                <p class="mb-0">{{ current_user.role|title }}</p>
+                <p class="mb-0">{{ invoice.creator.role|title if invoice.creator else 'Staff' }}</p>
             </div>
         </div>
         
@@ -201,7 +201,7 @@
                     <button class="btn btn-outline-success me-2">
                         <i class="fas fa-file-pdf me-1"></i> Download PDF
                     </button>
-                    {% if invoice.payment_status != 'paid' %}
+                    {% if invoice.payment_status != 'paid' and current_user.role in ['admin', 'staff'] %}
                     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
                         <i class="fas fa-credit-card me-1"></i> Add Payment
                     </button>
@@ -213,7 +213,7 @@
 </div>
 
 <!-- Add Payment Modal -->
-{% if invoice.payment_status != 'paid' %}
+{% if invoice.payment_status != 'paid' and current_user.role in ['admin', 'staff'] %}
 <div class="modal fade" id="addPaymentModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

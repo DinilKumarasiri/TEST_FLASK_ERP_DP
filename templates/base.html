@@ -72,8 +72,8 @@
         <div class="sidebar-content">
             <nav class="nav flex-column">
                 {% if current_user.is_authenticated %}
-                    <!-- POS - Show for Admin, Manager, Sales Staff -->
-                    {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                    <!-- POS - Show for Admin, Staff -->
+                    {% if current_user.role in ['admin', 'staff'] %}
                     <a class="nav-link {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
                        href="{{ url_for('pos.dashboard') }}">
                         <i class="fas fa-shopping-cart"></i>
@@ -81,8 +81,8 @@
                     </a>
                     {% endif %}
                     
-                    <!-- Inventory - Show for Admin, Manager, Sales Staff -->
-                    {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                    <!-- Inventory - Show for Admin, Staff -->
+                    {% if current_user.role in ['admin', 'staff'] %}
                     <a class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
                        href="{{ url_for('inventory.inventory_dashboard') }}">
                         <i class="fas fa-boxes"></i>
@@ -90,8 +90,8 @@
                     </a>
                     {% endif %}
                     
-                    <!-- Repair - Show for Admin, Manager, Technician -->
-                    {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                    <!-- Repair - Show for Admin, Staff, Technician -->
+                    {% if current_user.role in ['admin', 'staff', 'technician'] %}
                     <a class="nav-link {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
                        href="{{ url_for('repair.repair_dashboard') }}">
                         <i class="fas fa-tools"></i>
@@ -99,7 +99,7 @@
                     </a>
                     {% endif %}
                     
-                    <!-- Employees Dashboard - Show for Admin, Manager -->
+                    <!-- Employees Dashboard - Show for Admin only -->
                     {% if current_user.role in ['admin'] %}
                     <a class="nav-link {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
                        href="{{ url_for('employee.employee_dashboard') }}">
@@ -181,8 +181,8 @@
         
         <div class="mobile-nav-content">
             {% if current_user.is_authenticated %}
-                <!-- POS - Show for Admin, Manager, Sales Staff -->
-                {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                <!-- POS - Show for Admin, Staff -->
+                {% if current_user.role in ['admin', 'staff'] %}
                 <a class="mobile-nav-item {% if request.endpoint and 'pos' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('pos.dashboard') }}">
                     <i class="fas fa-shopping-cart"></i>
@@ -190,8 +190,8 @@
                 </a>
                 {% endif %}
                 
-                <!-- Inventory - Show for Admin, Manager, Sales Staff -->
-                {% if current_user.role in ['admin', 'manager', 'staff'] %}
+                <!-- Inventory - Show for Admin, Staff -->
+                {% if current_user.role in ['admin', 'staff'] %}
                 <a class="mobile-nav-item {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('inventory.inventory_dashboard') }}">
                     <i class="fas fa-boxes"></i>
@@ -199,8 +199,8 @@
                 </a>
                 {% endif %}
                 
-                <!-- Repair - Show for Admin, Manager, Technician -->
-                {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                <!-- Repair - Show for Admin, Staff, Technician -->
+                {% if current_user.role in ['admin', 'staff', 'technician'] %}
                 <a class="mobile-nav-item {% if request.endpoint and 'repair' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('repair.repair_dashboard') }}">
                     <i class="fas fa-tools"></i>
@@ -208,7 +208,7 @@
                 </a>
                 {% endif %}
                 
-                <!-- Employees Dashboard - Show for Admin, Manager -->
+                <!-- Employees Dashboard - Show for Admin only -->
                 {% if current_user.role in ['admin'] %}
                 <a class="mobile-nav-item {% if request.endpoint and 'employee' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('employee.employee_dashboard') }}">

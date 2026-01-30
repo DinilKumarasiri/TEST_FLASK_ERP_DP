@@ -3,9 +3,11 @@ from flask_login import login_required, current_user
 from ... import db
 from ...models import Supplier
 from . import inventory_bp
+from app.utils.permissions import staff_required  # Add this import
 
 @inventory_bp.route('/suppliers')
 @login_required
+@staff_required  # Changed: staff can view suppliers
 def supplier_list():
     suppliers = Supplier.query.order_by(Supplier.name).all()
     return render_template('inventory/suppliers.html',
@@ -14,6 +16,7 @@ def supplier_list():
 
 @inventory_bp.route('/supplier/<int:supplier_id>')
 @login_required
+@staff_required  # Changed: staff can view supplier details
 def supplier_detail(supplier_id):
     from ...models import PurchaseOrder
     supplier = Supplier.query.get_or_404(supplier_id)
@@ -31,6 +34,7 @@ def supplier_detail(supplier_id):
 # Supplier API endpoints
 @inventory_bp.route('/api/suppliers/add', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can add suppliers
 def api_add_supplier():
     try:
         data = request.get_json()
@@ -53,6 +57,7 @@ def api_add_supplier():
 
 @inventory_bp.route('/api/suppliers/<int:supplier_id>')
 @login_required
+@staff_required  # Changed: staff can get supplier API
 def api_get_supplier(supplier_id):
     try:
         supplier = Supplier.query.get_or_404(supplier_id)
@@ -74,6 +79,7 @@ def api_get_supplier(supplier_id):
 
 @inventory_bp.route('/api/suppliers/<int:supplier_id>/update', methods=['PUT'])
 @login_required
+@staff_required  # Changed: staff can update suppliers
 def api_update_supplier(supplier_id):
     try:
         supplier = Supplier.query.get_or_404(supplier_id)
@@ -95,6 +101,8 @@ def api_update_supplier(supplier_id):
 @inventory_bp.route('/api/suppliers/<int:supplier_id>/delete', methods=['DELETE'])
 @login_required
 def api_delete_supplier(supplier_id):
+    """Delete a supplier"""
+    # Changed: Only admin can delete suppliers
     try:
         supplier = Supplier.query.get_or_404(supplier_id)
         
@@ -111,4 +119,3 @@ def api_delete_supplier(supplier_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
-    

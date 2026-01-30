@@ -8,7 +8,8 @@ from . import employee_bp
 @employee_bp.route('/attendance')
 @login_required
 def attendance():
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -44,7 +45,8 @@ def attendance():
 @employee_bp.route('/mark-attendance', methods=['POST'])
 @login_required
 def mark_attendance():
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         return jsonify({'success': False, 'message': 'Access denied'})
     
     data = request.get_json()
@@ -90,7 +92,8 @@ def mark_attendance():
 @employee_bp.route('/update-attendance', methods=['POST'])
 @login_required
 def update_attendance():
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         return jsonify({'success': False, 'message': 'Access denied'})
     
     data = request.get_json()
@@ -107,7 +110,7 @@ def update_attendance():
         attendance = Attendance.query.get_or_404(attendance_id)
         
         # Check permission
-        if current_user.role not in ['admin', 'manager'] and current_user.id != attendance.employee_id:
+        if current_user.role not in ['admin', 'staff'] and current_user.id != attendance.employee_id:  # Updated
             return jsonify({'success': False, 'message': 'Access denied'})
     else:
         # Create new record
@@ -164,10 +167,11 @@ def update_attendance():
 @employee_bp.route('/attendance-report')
 @login_required
 def attendance_report():
-    print("DEBUG: attendance_report route called!")  # Add this
-    print(f"DEBUG: Current user: {current_user.username}, Role: {current_user.role}")  # Add this
+    print("DEBUG: attendance_report route called!")
+    print(f"DEBUG: Current user: {current_user.username}, Role: {current_user.role}")
     
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -226,7 +230,8 @@ def attendance_history():
     employee_id = request.args.get('employee_id', current_user.id)
     
     # Check permission
-    if current_user.role not in ['admin', 'manager'] and current_user.id != int(employee_id):
+    # Changed from: if current_user.role not in ['admin', 'manager'] and current_user.id != int(employee_id):
+    if current_user.role not in ['admin', 'staff'] and current_user.id != int(employee_id):  # Updated
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -270,7 +275,8 @@ def attendance_history():
 @employee_bp.route('/mark-all-attendance', methods=['POST'])
 @login_required
 def mark_all_attendance():
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         return jsonify({'success': False, 'message': 'Access denied'})
     
     data = request.get_json()

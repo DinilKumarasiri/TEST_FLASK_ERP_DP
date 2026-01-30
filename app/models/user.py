@@ -10,7 +10,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
-    role = db.Column(db.String(20), nullable=False, default='staff')  # admin, manager, staff, technician
+    role = db.Column(db.String(20), nullable=False, default='staff')  # admin, staff, technician
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -22,5 +22,20 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    @property
+    def is_manager(self):
+        """Backward compatibility - treat staff as manager for existing code"""
+        return self.role in ['admin', 'staff']  # Admin and staff have manager privileges
+    
+    def has_permission(self, permission):
+        """Check if user has specific permission"""
+        permissions = {
+            'admin': ['view', 'create', 'edit', 'delete', 'approve', 'manage_users'],
+            'staff': ['view', 'create', 'edit', 'approve'],  # Staff can do most things
+            'technician': ['view', 'create', 'edit']  # Limited to repair tasks
+        }
+        
+        return permission in permissions.get(self.role, [])
+    
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<User {self.username} ({self.role})>'

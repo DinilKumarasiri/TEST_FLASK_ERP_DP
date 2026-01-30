@@ -4,6 +4,7 @@ from ... import db
 from ...models import Product, StockItem, Invoice, ProductCategory
 from datetime import datetime
 from . import pos_bp
+from ...utils.permissions import staff_required
 
 @pos_bp.route('/')
 @login_required
@@ -23,6 +24,7 @@ def pos_home():
 
 @pos_bp.route('/dashboard')
 @login_required
+@staff_required  # Only staff and admin can access
 def dashboard():
     """POS Dashboard"""
     # Get today's sales summary

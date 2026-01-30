@@ -7,6 +7,7 @@ from datetime import datetime
 import random
 import string
 from . import inventory_bp
+from app.utils.permissions import staff_required  # Add this import
 
 def generate_po_number():
     """Generate unique PO number"""
@@ -29,6 +30,7 @@ def flexible_getattr(obj, name=None, default=None):
 
 @inventory_bp.route('/purchase-orders')
 @login_required
+@staff_required  # Changed: staff can view purchase orders
 def purchase_order_list():
     status = request.args.get('status', 'all')
     
@@ -50,6 +52,7 @@ def purchase_order_list():
 
 @inventory_bp.route('/create-purchase-order', methods=['GET', 'POST'])
 @login_required
+@staff_required  # Changed: staff can create purchase orders
 def create_purchase_order():
     try:
         print("DEBUG: Entering create_purchase_order route")  # Debug
@@ -125,6 +128,7 @@ def create_purchase_order():
 
 @inventory_bp.route('/purchase-order/<int:po_id>')
 @login_required
+@staff_required  # Changed: staff can view purchase order details
 def purchase_order_detail(po_id):
     try:
         print(f"DEBUG: Fetching purchase order with ID: {po_id}")
@@ -159,6 +163,7 @@ def purchase_order_detail(po_id):
 # Additional routes for PO management
 @inventory_bp.route('/po/<int:po_id>/update-status', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can update PO status
 def update_po_status(po_id):
     """Update purchase order status"""
     try:
@@ -181,6 +186,7 @@ def update_po_status(po_id):
     
 @inventory_bp.route('/debug-po/<int:po_id>')
 @login_required
+@staff_required  # Changed: staff can debug POs
 def debug_purchase_order(po_id):
     """Debug endpoint to check PO data"""
     purchase_order = PurchaseOrder.query.get_or_404(po_id)
@@ -208,6 +214,7 @@ def debug_purchase_order(po_id):
 
 @inventory_bp.route('/test-receive/<int:po_id>')
 @login_required
+@staff_required  # Changed: staff can test receive
 def test_receive(po_id):
     """Test route to check PO data"""
     try:

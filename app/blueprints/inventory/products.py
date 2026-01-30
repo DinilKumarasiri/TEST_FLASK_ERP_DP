@@ -4,6 +4,7 @@ from ... import db
 from ...models import Product, ProductCategory, StockItem
 from . import inventory_bp
 from ... import db, csrf 
+from app.utils.permissions import staff_required  # Add this import
 import sys
 import os
 import re
@@ -11,7 +12,6 @@ import re
 # Import barcode generator
 try:
     from app.utils.barcode_generator import BarcodeGenerator
-    # print("✓ BarcodeGenerator imported successfully")
     BARCODE_AVAILABLE = True
 except ImportError as e:
     print(f"✗ Error importing BarcodeGenerator: {e}")
@@ -79,6 +79,7 @@ except ImportError as e:
 
 @inventory_bp.route('/products')
 @login_required
+@staff_required  # Changed: staff can view products
 def product_list():
     page = request.args.get('page', 1, type=int)
     per_page = 20
@@ -128,6 +129,7 @@ def product_list():
 
 @inventory_bp.route('/product/<int:product_id>', methods=['GET'])
 @login_required
+@staff_required  # Changed: staff can view product details
 def product_detail(product_id):
     """Product detail page"""
     try:
@@ -169,6 +171,7 @@ def product_detail(product_id):
 
 @inventory_bp.route('/stock-in', methods=['GET', 'POST'])
 @login_required
+@staff_required  # Changed: staff can add stock
 def stock_in():
     from ...models import Supplier, Product, ProductCategory, StockItem
     import time
@@ -430,6 +433,7 @@ def stock_in():
 
 @inventory_bp.route('/stock-out', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can remove stock
 def stock_out():
     product_id = request.form.get('product_id', type=int)
     quantity = request.form.get('quantity', type=int, default=1)
@@ -462,6 +466,7 @@ def stock_out():
 
 @inventory_bp.route('/add-product', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can add products
 def add_product():
     try:
         name = request.form.get('name')
@@ -497,6 +502,7 @@ def add_product():
 
 @inventory_bp.route('/api/products/search')
 @login_required
+@staff_required  # Changed: staff can search products
 def api_search_products():
     """API endpoint for product search in PO creation"""
     try:
@@ -538,6 +544,7 @@ def api_search_products():
 
 @inventory_bp.route('/product/<int:product_id>/purchase-history')
 @login_required
+@staff_required  # Changed: staff can view purchase history
 def product_purchase_history(product_id):
     """Show purchase history for a specific product"""
     try:
@@ -559,6 +566,7 @@ def product_purchase_history(product_id):
 
 @inventory_bp.route('/product/<int:product_id>/info')
 @login_required
+@staff_required  # Changed: staff can get product info
 def product_info(product_id):
     """Get product information for AJAX requests"""
     try:
@@ -591,6 +599,7 @@ def product_info(product_id):
 
 @inventory_bp.route('/products/export')
 @login_required
+@staff_required  # Changed: staff can export products
 def export_products():
     try:
         import csv
@@ -661,6 +670,7 @@ def export_products():
 
 @inventory_bp.route('/test/<int:product_id>')
 @login_required
+@staff_required  # Changed: staff can access test pages
 def test_product_detail(product_id):
     try:
         product = Product.query.get(product_id)
@@ -681,6 +691,7 @@ def test_product_detail(product_id):
 
 @inventory_bp.route('/add-new-product', methods=['GET', 'POST'])
 @login_required
+@staff_required  # Changed: staff can add new products
 def add_new_product():
     """Add new product form"""
     from ...models import ProductCategory
@@ -778,6 +789,7 @@ def add_new_product():
 
 @inventory_bp.route('/product/<int:product_id>/edit', methods=['GET', 'POST'])
 @login_required
+@staff_required  # Changed: staff can edit products
 def edit_product(product_id):
     """Edit existing product"""
     from ...models import ProductCategory
@@ -861,6 +873,7 @@ def edit_product(product_id):
 @login_required
 def delete_product(product_id):
     """Delete a product (soft delete)"""
+    # Changed: Only admin can delete products
     if current_user.role != 'admin':
         flash('Only admin can delete products', 'danger')
         return redirect(request.referrer or url_for('inventory.product_list'))
@@ -890,6 +903,7 @@ def delete_product(product_id):
 
 @inventory_bp.route('/product/<int:product_id>/generate-barcode', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can generate barcodes
 def generate_product_barcode(product_id):
     """Generate barcode for a product"""
     try:
@@ -922,6 +936,7 @@ def generate_product_barcode(product_id):
 
 @inventory_bp.route('/product/<int:product_id>/print-barcode')
 @login_required
+@staff_required  # Changed: staff can print barcodes
 def print_product_barcode(product_id):
     """Print barcode label"""
     try:
@@ -941,6 +956,7 @@ def print_product_barcode(product_id):
 
 @inventory_bp.route('/api/products/barcode-scan', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can scan barcodes
 def api_barcode_scan():
     """API endpoint for barcode scanning"""
     try:
@@ -994,6 +1010,7 @@ def api_barcode_scan():
 
 @inventory_bp.route('/product/<int:product_id>/edit-barcode', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can edit barcodes
 def edit_product_barcode(product_id):
     """Manually edit product barcode"""
     try:
@@ -1033,6 +1050,7 @@ def edit_product_barcode(product_id):
 @login_required
 def bulk_generate_barcodes():
     """Generate barcodes for all products without barcodes"""
+    # Changed: Only admin can generate bulk barcodes
     if current_user.role != 'admin':
         flash('Only admin can generate barcodes in bulk', 'danger')
         return redirect(url_for('inventory.product_list'))
@@ -1064,6 +1082,7 @@ def bulk_generate_barcodes():
 
 @inventory_bp.route('/product/<int:product_id>/barcode-info')
 @login_required
+@staff_required  # Changed: staff can get barcode info
 def product_barcode_info(product_id):
     """Get barcode information for a product"""
     try:
@@ -1086,6 +1105,7 @@ def product_barcode_info(product_id):
 
 @inventory_bp.route('/product/<int:product_id>/serialized-items')
 @login_required
+@staff_required  # Changed: staff can view serialized items
 def serialized_items(product_id):
     """View all serialized stock items for a product"""
     try:
@@ -1116,6 +1136,7 @@ def serialized_items(product_id):
 
 @inventory_bp.route('/stock-item/<int:item_id>/generate-barcode', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can generate item barcodes
 def generate_stock_item_barcode(item_id):
     """Generate unique barcode for individual stock item"""
     try:
@@ -1143,6 +1164,7 @@ def generate_stock_item_barcode(item_id):
 
 @inventory_bp.route('/categories')
 @login_required
+@staff_required  # Changed: staff can view categories
 def category_list():
     """View all product categories"""
     try:
@@ -1165,6 +1187,7 @@ def category_list():
 
 @inventory_bp.route('/add-category', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can add categories
 def add_category():
     """Add new product category - Simple and robust version"""
     try:
@@ -1233,6 +1256,7 @@ def add_category():
 
 @inventory_bp.route('/category/<int:category_id>/edit', methods=['POST'])
 @login_required
+@staff_required  # Changed: staff can edit categories
 def edit_category(category_id):
     """Edit existing category"""
     try:
@@ -1273,6 +1297,7 @@ def edit_category(category_id):
 @login_required
 def delete_category(category_id):
     """Delete a category"""
+    # Changed: Only admin can delete categories
     if current_user.role != 'admin':
         flash('Only admin can delete categories', 'danger')
         return redirect(url_for('inventory.category_list'))
@@ -1299,6 +1324,7 @@ def delete_category(category_id):
 
 @inventory_bp.route('/api/categories')
 @login_required
+@staff_required  # Changed: staff can get category API
 def api_get_categories():
     """API endpoint to get categories for AJAX requests"""
     try:
@@ -1320,6 +1346,7 @@ def api_get_categories():
 @login_required
 def fix_barcodes():
     """Fix all NULL barcodes"""
+    # Changed: Only admin can fix barcodes
     if current_user.role != 'admin':
         flash('Only admin can fix barcodes', 'danger')
         return redirect(url_for('inventory.product_list'))

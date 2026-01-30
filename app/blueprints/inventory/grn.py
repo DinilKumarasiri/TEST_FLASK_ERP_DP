@@ -3,9 +3,11 @@ from flask_login import login_required, current_user
 from ... import db
 from ...models import PurchaseOrder, StockItem, Product
 from . import inventory_bp
+from app.utils.permissions import staff_required  # Add this import
 
 @inventory_bp.route('/receive-grn/<int:po_id>', methods=['GET', 'POST'])
 @login_required
+@staff_required  # Changed: staff can receive goods
 def receive_grn(po_id):
     try:
         print(f"DEBUG: Entering receive_grn route for PO ID: {po_id}")

@@ -11,7 +11,8 @@ from . import employee_bp
 def leave_requests():
     status = request.args.get('status', 'pending')
     
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         # Employees can only see their own leave requests
         query = LeaveRequest.query.filter_by(employee_id=current_user.id)
     else:
@@ -64,7 +65,8 @@ def apply_leave():
 @employee_bp.route('/approve-leave/<int:leave_id>', methods=['POST'])
 @login_required
 def approve_leave(leave_id):
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     

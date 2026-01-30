@@ -89,7 +89,7 @@ class EmployeeProfile(db.Model):
     probation_end_date = db.Column(db.Date)
     work_location = db.Column(db.String(100))
     shift_timing = db.Column(db.String(50))
-    reporting_manager_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    reporting_manager_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Changed from manager to any staff/admin
     
     # Salary Information
     basic_salary = db.Column(db.Float, default=0.0)

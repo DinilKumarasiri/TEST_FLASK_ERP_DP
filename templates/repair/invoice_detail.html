@@ -304,7 +304,7 @@
             </button>
             {% endif %}
             
-            {% if current_user.role in ['admin', 'manager'] %}
+            {% if current_user.role in ['admin', 'staff'] %}
             <div class="btn-group">
                 <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#emailModal">
                     <i class="fas fa-envelope me-1"></i> Email
@@ -430,7 +430,7 @@ Mobile Repair Center
 </div>
 
 <!-- Void Modal -->
-{% if current_user.role in ['admin', 'manager'] and invoice.payment_status != 'voided' %}
+{% if current_user.role in ['admin', 'staff'] and invoice.payment_status != 'voided' %}
 <div class="modal fade" id="voidModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

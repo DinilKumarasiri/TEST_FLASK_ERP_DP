@@ -16,7 +16,8 @@ def index():
 @employee_bp.route('/list')
 @login_required
 def employee_list():  # KEEP THIS NAME
-    if current_user.role not in ['admin', 'manager']:
+    # Changed from: if current_user.role not in ['admin', 'manager']:
+    if current_user.role not in ['admin', 'staff']:  # Updated
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -67,7 +68,8 @@ def employee_list():  # KEEP THIS NAME
 @employee_bp.route('/<int:employee_id>')
 @login_required
 def employee_detail(employee_id):
-    if current_user.role not in ['admin', 'manager'] and current_user.id != employee_id:
+    # Changed from: if current_user.role not in ['admin', 'manager'] and current_user.id != employee_id:
+    if current_user.role not in ['admin', 'staff'] and current_user.id != employee_id:  # Updated
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     
@@ -120,8 +122,9 @@ def create_employee():
     
     form = EmployeeForm()
     
-    # Populate reporting manager choices
-    managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True).all()
+    # Populate reporting manager choices - UPDATED
+    # Changed from: managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True).all()
+    managers = User.query.filter(User.role.in_(['admin', 'staff']), User.is_active == True).all()
     form.reporting_manager_id.choices = [(0, 'None')] + [(m.id, f"{m.username} ({m.role})") for m in managers]
     
     if form.validate_on_submit():
@@ -216,8 +219,9 @@ def edit_employee(employee_id):
     
     form = EditEmployeeForm(obj=profile)
     
-    # Populate reporting manager choices
-    managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True, User.id != employee_id).all()
+    # Populate reporting manager choices - UPDATED
+    # Changed from: managers = User.query.filter(User.role.in_(['admin', 'manager']), User.is_active == True, User.id != employee_id).all()
+    managers = User.query.filter(User.role.in_(['admin', 'staff']), User.is_active == True, User.id != employee_id).all()
     form.reporting_manager_id.choices = [(0, 'None')] + [(m.id, f"{m.username} ({m.role})") for m in managers]
     
     # Set initial values for user fields

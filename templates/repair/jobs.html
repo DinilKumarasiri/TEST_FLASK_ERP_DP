@@ -187,7 +187,7 @@
                         <i class="fas fa-eye me-1"></i> View Details
                     </a>
                     <!-- In the jobs.html template, find this section and update it: -->
-                    {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                    {% if current_user.role in ['admin', 'staff', 'technician'] %}
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-success" 
                                 onclick="updateStatus({{ job.id }}, 'repairing')"

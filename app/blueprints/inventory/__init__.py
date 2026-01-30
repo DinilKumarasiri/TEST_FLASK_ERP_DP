@@ -11,5 +11,10 @@ from . import (
     grn
 )
 
-# Make sure all routes are imported
+# Import permissions
+from app.utils.permissions import staff_required
+
+# Apply staff_required decorator to all routes that need staff or admin access
+# (This is a structural change - individual routes will be decorated separately)
+
 __all__ = ['inventory_bp']

@@ -6,6 +6,7 @@ from datetime import datetime
 import random
 import string
 from . import pos_bp
+from ...utils.permissions import staff_required
 
 def generate_invoice_number():
     """Generate unique invoice number"""
@@ -868,8 +869,9 @@ def checkout_form():
 
 @pos_bp.route('/daily-sales')
 @login_required
+@staff_required  # Only staff and admin can view daily sales
 def daily_sales():
-    """Daily sales report"""
+    """Daily sales report - only for staff and admin"""
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     
     try:

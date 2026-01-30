@@ -127,11 +127,10 @@ def user_roles():
     
     employees = User.query.all()
     
-    # Define available roles and their permissions
+    # Define available roles and their permissions - UPDATED
     roles_permissions = {
         'admin': ['Full system access', 'Manage all users', 'View all reports', 'System configuration'],
-        'manager': ['Manage employees', 'View reports', 'Approve leave', 'Manage inventory', 'Process sales'],
-        'staff': ['POS access', 'View inventory', 'Process sales', 'Customer management'],
+        'staff': ['Manage employees', 'View reports', 'Approve leave', 'Manage inventory', 'Process sales'],  # Changed from 'manager'
         'technician': ['Repair management', 'View assigned jobs', 'Update repair status', 'Spare parts management']
     }
     

@@ -28,8 +28,7 @@ class RegistrationForm(FlaskForm):
     ])
     role = SelectField('Role', choices=[
         ('admin', 'Admin'),
-        ('manager', 'Manager'),
-        ('staff', 'Staff'),
+        ('staff', 'Staff'),  # Changed from 'manager'
         ('technician', 'Technician')
     ], validators=[DataRequired()])
     submit = SubmitField('Register')

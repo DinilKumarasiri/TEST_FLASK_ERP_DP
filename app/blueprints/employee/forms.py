@@ -26,8 +26,7 @@ class EmployeeForm(FlaskForm):
     role = SelectField('System Role *', choices=[
         ('', 'Select Role'),
         ('admin', 'Administrator'),
-        ('manager', 'Manager'),
-        ('staff', 'Sales Staff'),
+        ('staff', 'Staff'),  # Changed from 'manager'
         ('technician', 'Technician')
     ], validators=[DataRequired(message='Please select a role')])
     is_active = BooleanField('Active Account', default=True)

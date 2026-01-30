@@ -72,7 +72,6 @@
             <select name="role" class="form-select">
                 <option value="">All Roles</option>
                 <option value="admin" {% if request.args.get('role') == 'admin' %}selected{% endif %}>Admin</option>
-                <option value="manager" {% if request.args.get('role') == 'manager' %}selected{% endif %}>Manager</option>
                 <option value="staff" {% if request.args.get('role') == 'staff' %}selected{% endif %}>Staff</option>
                 <option value="technician" {% if request.args.get('role') == 'technician' %}selected{% endif %}>Technician</option>
             </select>
@@ -132,7 +131,7 @@
                     <div class="text-end">
                         <span class="badge 
                             {% if data.user.role == 'admin' %}bg-danger
-                            {% elif data.user.role == 'manager' %}bg-primary
+                            {% elif data.user.role == 'staff' %}bg-primary
                             {% elif data.user.role == 'technician' %}bg-success
                             {% else %}bg-secondary{% endif %} role-badge">
                             {{ data.user.role|title }}

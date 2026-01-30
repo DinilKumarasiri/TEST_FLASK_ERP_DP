@@ -147,7 +147,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    {% if current_user.role in ['admin', 'manager'] %}
+                                    {% if current_user.role in ['admin', 'staff'] %}
                                     <div class="btn-group btn-group-sm">
                                         {% if not record.check_in %}
                                         <button class="btn btn-outline-success" 
@@ -257,7 +257,7 @@
                                 <td>
                                     <span class="badge bg-{{ 
                                         'danger' if perf.employee.role == 'admin'
-                                        else 'primary' if perf.employee.role == 'manager'
+                                        else 'primary' if perf.employee.role == 'staff'
                                         else 'success' if perf.employee.role == 'technician'
                                         else 'secondary'
                                     }}">

@@ -5,11 +5,11 @@ from ...models import Product, StockItem
 from sqlalchemy import text, func
 from datetime import datetime, timedelta
 from . import inventory_bp
-
-# app/blueprints/inventory/dashboard.py - Temporary fix
+from app.utils.permissions import staff_required
 
 @inventory_bp.route('/')
 @login_required
+@staff_required  # Changed from checking 'admin' or 'manager'
 def inventory_dashboard():
     """
     Inventory Dashboard - Shows summary, low stock alerts, and aggregated stock movements
@@ -148,6 +148,7 @@ def inventory_dashboard():
 
 @inventory_bp.route('/stock-report')
 @login_required
+@staff_required  # Changed from checking 'admin' or 'manager'
 def stock_report():
     """
     Stock Report - Shows all products with stock information
@@ -189,6 +190,7 @@ def create_test_data():
     """Create test data for inventory module"""
     from ...models import Supplier, ProductCategory, Product, StockItem
     
+    # Changed: Only admin can create test data
     if current_user.role != 'admin':
         flash('Only admin can create test data', 'danger')
         return redirect(url_for('inventory.inventory_dashboard'))
@@ -344,6 +346,7 @@ def create_test_data():
 
 @inventory_bp.route('/category-stats')
 @login_required
+@staff_required  # Changed from checking 'admin' or 'manager'
 def category_stats():
     """API endpoint for category statistics"""
     from ...models import ProductCategory
@@ -393,8 +396,3 @@ def get_category_color(category_id):
         '#EF476F', '#FFD166', '#06D6A0', '#073B4C', '#7209B7'
     ]
     return colors[category_id % len(colors)]
-
-# Remove or comment out the other API endpoints if you don't need them
-# @inventory_bp.route('/daily-stats')
-# @inventory_bp.route('/quick-stats')
-# @inventory_bp.route('/recent-activity')

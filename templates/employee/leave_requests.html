@@ -167,7 +167,7 @@
                         <small class="text-muted">Applied on: {{ leave.created_at.strftime('%b %d, %Y') }}</small>
                     </div>
                     
-                    {% if current_user.role in ['admin', 'manager'] and leave.status == 'pending' %}
+                    {% if current_user.role in ['admin', 'staff'] and leave.status == 'pending' %}
                     <div class="action-buttons">
                         <form method="POST" action="{{ url_for('employee.approve_leave', leave_id=leave.id) }}" 
                               style="display: inline;">

@@ -341,7 +341,7 @@
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye"></i> View
                                             </a>
-                                            {% if current_user.role in ['admin', 'manager'] %}
+                                            {% if current_user.role in ['admin', 'staff'] %}
                                             <a href="{{ url_for('repair.job_detail', job_id=job.id) }}#createInvoiceModal" 
                                                class="btn btn-sm btn-success">
                                                 <i class="fas fa-file-invoice"></i> Invoice

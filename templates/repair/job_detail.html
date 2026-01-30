@@ -313,7 +313,7 @@
             </div>
             <div class="card-body">
                 <!-- Status Update Buttons -->
-                {% if current_user.role in ['admin', 'manager', 'technician'] %}
+                {% if current_user.role in ['admin', 'staff', 'technician'] %}
                     <div class="btn-group btn-group-sm w-100 mb-3">
                         <button class="btn btn-outline-success" 
                                 onclick="updateStatus({{ job.id }}, 'repairing')"
@@ -337,7 +337,7 @@
                 {% if job.warranty_period > 0 and job.delivered_date %}
                     {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
                     {% set is_warranty_active = now <= warranty_end %}
-                    {% if is_warranty_active and current_user.role in ['admin', 'manager', 'technician'] %}
+                    {% if is_warranty_active and current_user.role in ['admin', 'staff', 'technician'] %}
                     <div class="mb-3">
                         <button class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#warrantyClaimModal">
                             <i class="fas fa-flag me-1"></i> File Warranty Claim
@@ -346,8 +346,8 @@
                     {% endif %}
                 {% endif %}
                 
-                <!-- Assign Technician (Admin/Manager only) -->
-                {% if current_user.role in ['admin', 'manager'] %}
+                <!-- Assign Technician (Admin/staff only) -->
+                {% if current_user.role in ['admin', 'staff'] %}
                 <div class="mb-3">
                     <form method="POST" action="{{ url_for('repair.assign_technician', job_id=job.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -412,7 +412,7 @@
                 {% endif %}
                 
                 <!-- Complete Job (Technician/Admin) -->
-                {% if current_user.role in ['admin', 'manager', 'technician'] and job.technician_id == current_user.id and job.status == 'repairing' and not job.repair_invoices %}
+                {% if current_user.role in ['admin', 'staff', 'technician'] and job.technician_id == current_user.id and job.status == 'repairing' and not job.repair_invoices %}
                 <div class="mb-3">
                     <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#completeJobModal">
                         <i class="fas fa-flag-checkered me-1"></i> Complete Job
@@ -420,8 +420,8 @@
                 </div>
                 {% endif %}
                 
-                <!-- Create Invoice & Deliver (Admin/Manager) -->
-                {% if current_user.role in ['admin', 'manager'] and job.status == 'completed' and not job.repair_invoices %}
+                <!-- Create Invoice & Deliver (Admin/staff) -->
+                {% if current_user.role in ['admin', 'staff'] and job.status == 'completed' and not job.repair_invoices %}
                 <div class="mb-3">
                     <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
                         <i class="fas fa-file-invoice me-1"></i> Create Invoice & Deliver

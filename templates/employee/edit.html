@@ -119,7 +119,7 @@
                                 <td>
                                     <span class="badge 
                                         {% if employee.role == 'admin' %}bg-danger
-                                        {% elif employee.role == 'manager' %}bg-primary
+                                        {% elif employee.role == 'staff' %}bg-primary
                                         {% elif employee.role == 'technician' %}bg-success
                                         {% else %}bg-secondary{% endif %}">
                                         {{ employee.role|title }}

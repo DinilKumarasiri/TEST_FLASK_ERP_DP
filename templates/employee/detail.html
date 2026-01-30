@@ -88,7 +88,7 @@
                 {% endif %}
                 <span class="badge 
                     {% if employee.role == 'admin' %}bg-danger
-                    {% elif employee.role == 'manager' %}bg-primary
+                    {% elif employee.role == 'staff' %}bg-primary
                     {% elif employee.role == 'technician' %}bg-success
                     {% else %}bg-secondary{% endif %} me-2">
                     {{ employee.role|title }}

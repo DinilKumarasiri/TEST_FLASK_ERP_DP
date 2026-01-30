@@ -218,7 +218,7 @@
                        class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-eye me-1"></i> View Details
                     </a>
-                    {% if invoice.payment_status != 'paid' %}
+                    {% if invoice.payment_status != 'paid' and current_user.role in ['admin', 'staff'] %}
                     <button class="btn btn-outline-success btn-sm" 
                             onclick="addPayment({{ invoice.id }})">
                         <i class="fas fa-credit-card me-1"></i> Add Payment
