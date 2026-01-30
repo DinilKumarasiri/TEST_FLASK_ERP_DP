@@ -25,16 +25,50 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Sidebar - Desktop -->
-    <div class="sidebar d-none d-md-block">
-        <div class="sidebar-header">
-            <div class="logo-container">
-                <img src="{{ url_for('static', filename='uploads/logo.jpg') }}" alt="UK Mobile Repairing Center" class="logo-img" 
-                     onerror="this.src='https://via.placeholder.com/50/4361ee/ffffff?text=UK'; this.onerror=null;">
-                <div class="shop-name">U K Mobile<br>Repairing Center</div>
+    <!-- Hover Trigger Zone - Desktop -->
+    <div class="sidebar-hover-trigger"></div>
+    
+    <!-- Desktop Header -->
+    <div class="desktop-header d-none d-md-block">
+        <div class="desktop-header-content">
+            <!-- Left side with nav toggle button -->
+            <div class="desktop-header-left">
+                <button class="nav-toggle-btn" id="desktopNavToggle">
+                    <i class="fas fa-bars"></i>
+                    <span class="toggle-text">Menu</span>
+                </button>
+            </div>
+
+            <div class="desktop-header-center">
+                <div class="desktop-header-logo">
+                    <img src="{{ url_for('static', filename='uploads/logo.jpg') }}" alt="UK Mobile Repairing Center" class="desktop-logo-img"
+                         onerror="this.src='https://via.placeholder.com/35/4361ee/ffffff?text=UK'; this.onerror=null;">
+                    <div class="desktop-shop-name">U K Mobile Repairing Center</div>
+                </div>
+            </div>
+            
+            
+            <!-- Right side with user info -->
+            <div class="desktop-header-right">
+                {% if current_user.is_authenticated %}
+                <div class="user-profile">
+                    <div class="user-profile-info">
+                        <span class="user-name">{{ current_user.username }}</span>
+                        <span class="badge role-{{ current_user.role }} role-badge ms-2">
+                            {{ current_user.role|title }}
+                        </span>
+                    </div>
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
-        
+    </div>
+    
+    <!-- Sidebar - Desktop (Hidden by default, shown on hover, positioned under header) -->
+    <div class="sidebar d-none d-md-block sidebar-hidden">
         <div class="sidebar-content">
             <nav class="nav flex-column">
                 {% if current_user.is_authenticated %}
@@ -261,109 +295,226 @@
     
     <script>
     $(document).ready(function() {
-        // Mobile Navigation Toggle
-        const menuToggle = $('#mobileMenuToggle');
-        const navOverlay = $('#mobileNavOverlay');
-        const navContainer = $('#mobileNavContainer');
-        const navClose = $('#mobileNavClose');
-        
-        // Open mobile menu
-        menuToggle.on('click', function(e) {
-            e.stopPropagation();
-            $(this).toggleClass('active');
-            navOverlay.toggleClass('show');
-            navContainer.toggleClass('show');
-            $('body').css('overflow', 'hidden');
-        });
-        
-        // Close mobile menu
-        function closeMenu() {
-            menuToggle.removeClass('active');
-            navOverlay.removeClass('show');
-            navContainer.removeClass('show');
-            $('body').css('overflow', 'auto');
+    // Desktop Sidebar Logic
+    let sidebarTimeout;
+    const sidebar = $('.sidebar');
+    const hoverTrigger = $('.sidebar-hover-trigger');
+    const mainContent = $('.main-content');
+    const desktopNavToggle = $('#desktopNavToggle');
+    let isSidebarLocked = false;
+    
+    // Function to show sidebar
+    function showSidebar() {
+        clearTimeout(sidebarTimeout);
+        sidebar.removeClass('sidebar-hidden');
+        mainContent.removeClass('full-width');
+        desktopNavToggle.addClass('active');
+        desktopNavToggle.find('.toggle-text').text('Close Menu');
+    }
+    
+    // Function to hide sidebar
+    function hideSidebar() {
+        if (!isSidebarLocked) {
+            clearTimeout(sidebarTimeout);
+            sidebar.addClass('sidebar-hidden');
+            mainContent.addClass('full-width');
+            desktopNavToggle.removeClass('active');
+            desktopNavToggle.removeClass('locked');
+            desktopNavToggle.find('.toggle-text').text('Menu');
         }
+    }
+    
+    // Toggle sidebar lock state
+    function toggleSidebarLock() {
+        isSidebarLocked = !isSidebarLocked;
         
-        // Close on overlay click
-        navOverlay.on('click', closeMenu);
-        
-        // Close on X button click
-        navClose.on('click', closeMenu);
-        
-        // Close on navigation item click
-        $('.mobile-nav-item').on('click', function() {
-            setTimeout(closeMenu, 300);
-        });
-        
-        // CSRF Token Setup
-        $.ajaxSetup({
-            beforeSend: function(xhr, settings) {
-                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                    xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
-                }
+        if (isSidebarLocked) {
+            showSidebar();
+            desktopNavToggle.addClass('locked');
+            desktopNavToggle.find('.toggle-text').text('Close Menu');
+        } else {
+            hideSidebar();
+            desktopNavToggle.removeClass('locked');
+            desktopNavToggle.find('.toggle-text').text('Menu');
+        }
+    }
+    
+    // Show sidebar when hovering trigger zone
+    hoverTrigger.on('mouseenter', showSidebar);
+    sidebar.on('mouseenter', showSidebar);
+    
+    // Hide sidebar when leaving sidebar area (if not locked)
+    hoverTrigger.on('mouseleave', hideSidebar);
+    sidebar.on('mouseleave', hideSidebar);
+    
+    // Toggle sidebar on button click
+    desktopNavToggle.on('click', function(e) {
+        e.stopPropagation();
+        if (sidebar.hasClass('sidebar-hidden')) {
+            // Show sidebar
+            showSidebar();
+            isSidebarLocked = true;
+        } else {
+            // Hide sidebar
+            hideSidebar();
+            isSidebarLocked = false;
+        }
+    });
+    
+    // Close sidebar when clicking anywhere outside (if not locked)
+    $(document).on('click', function(e) {
+        if ($(window).width() >= 768 && !isSidebarLocked) {
+            // Check if click is outside sidebar and not on toggle button
+            if (!sidebar.is(e.target) && 
+                sidebar.has(e.target).length === 0 && 
+                !desktopNavToggle.is(e.target) &&
+                !desktopNavToggle.has(e.target).length) {
+                hideSidebar();
             }
-        });
-        
-        // Logout Confirmation Handler
-        let logoutUrl = '';
-        
-        // Handle logout clicks
-        $(document).on('click', '.logout-confirm', function(e) {
-            e.preventDefault();
-            logoutUrl = $(this).attr('href');
-            
-            // Show confirmation modal
-            const logoutModal = new bootstrap.Modal(document.getElementById('logoutConfirmationModal'), {
-                backdrop: 'static',
-                keyboard: true
-            });
-            logoutModal.show();
-            
-            // Focus on cancel button
-            setTimeout(() => {
-                $('.confirmation-btn-cancel').focus();
-            }, 100);
-        });
-        
-        // Confirm logout
-        $('#confirmLogoutBtn').click(function() {
-            if (logoutUrl) {
-                window.location.href = logoutUrl;
-            }
-        });
-        
-        // Close modal with ESC key
-        $(document).on('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('logoutConfirmationModal'));
-                if (modal) {
-                    modal.hide();
-                }
+        }
+    });
+    
+    // Also close when pressing Escape key
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $(window).width() >= 768 && !isSidebarLocked) {
+            hideSidebar();
+        }
+    });
+    
+    // Mobile Navigation Toggle
+    const menuToggle = $('#mobileMenuToggle');
+    const navOverlay = $('#mobileNavOverlay');
+    const navContainer = $('#mobileNavContainer');
+    const navClose = $('#mobileNavClose');
+    
+    // Open mobile menu
+    menuToggle.on('click', function(e) {
+        e.stopPropagation();
+        $(this).toggleClass('active');
+        navOverlay.toggleClass('show');
+        navContainer.toggleClass('show');
+        $('body').css('overflow', 'hidden');
+    });
+    
+    // Close mobile menu
+    function closeMenu() {
+        menuToggle.removeClass('active');
+        navOverlay.removeClass('show');
+        navContainer.removeClass('show');
+        $('body').css('overflow', 'auto');
+    }
+    
+    // Close on overlay click
+    navOverlay.on('click', closeMenu);
+    
+    // Close on X button click
+    navClose.on('click', closeMenu);
+    
+    // Close on navigation item click
+    $('.mobile-nav-item').on('click', function() {
+        setTimeout(closeMenu, 300);
+    });
+    
+    // Close mobile menu when clicking outside
+    $(document).on('click', function(e) {
+        if ($(window).width() < 768) {
+            if (!navContainer.is(e.target) && 
+                navContainer.has(e.target).length === 0 && 
+                !menuToggle.is(e.target) &&
+                !menuToggle.has(e.target).length &&
+                navContainer.hasClass('show')) {
                 closeMenu();
             }
-        });
-        
-        // Fix height on resize
-        function fixHeights() {
-            const windowHeight = $(window).height();
-            const mobileHeaderHeight = $('.mobile-header').outerHeight() || 0;
-            
-            if ($(window).width() < 768) {
-                $('.main-content').css('min-height', windowHeight - mobileHeaderHeight + 'px');
-            } else {
-                $('.main-content').css('min-height', '100vh');
+        }
+    });
+    
+    // CSRF Token Setup
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
             }
-            
-            $('.mobile-nav-container').css('height', windowHeight + 'px');
+        }
+    });
+    
+    // Logout Confirmation Handler
+    let logoutUrl = '';
+    
+    // Handle logout clicks
+    $(document).on('click', '.logout-confirm', function(e) {
+        e.preventDefault();
+        logoutUrl = $(this).attr('href');
+        
+        // Show confirmation modal
+        const logoutModal = new bootstrap.Modal(document.getElementById('logoutConfirmationModal'), {
+            backdrop: 'static',
+            keyboard: true
+        });
+        logoutModal.show();
+        
+        // Focus on cancel button
+        setTimeout(() => {
+            $('.confirmation-btn-cancel').focus();
+        }, 100);
+    });
+    
+    // Confirm logout
+    $('#confirmLogoutBtn').click(function() {
+        if (logoutUrl) {
+            window.location.href = logoutUrl;
+        }
+    });
+    
+    // Close modal with ESC key
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('logoutConfirmationModal'));
+            if (modal) {
+                modal.hide();
+            }
+            closeMenu();
+        }
+    });
+    
+    // Fix height on resize
+    function fixHeights() {
+        const windowHeight = $(window).height();
+        const mobileHeaderHeight = $('.mobile-header').outerHeight() || 0;
+        const desktopHeaderHeight = $('.desktop-header').outerHeight() || 0;
+        
+        if ($(window).width() < 768) {
+            $('.main-content').css('min-height', windowHeight - mobileHeaderHeight + 'px');
+            $('.main-content').css('padding-top', (mobileHeaderHeight + 20) + 'px');
+        } else {
+            $('.main-content').css('min-height', windowHeight - desktopHeaderHeight + 'px');
+            $('.main-content').css('padding-top', (desktopHeaderHeight + 30) + 'px');
+            $('.main-content').css('padding-left', '30px');
+            $('.main-content').css('padding-right', '30px');
         }
         
-        // Initial height fix
-        fixHeights();
-        $(window).on('resize', fixHeights);
-        $(window).on('orientationchange', function() {
-            setTimeout(fixHeights, 100);
-        });
+        $('.mobile-nav-container').css('height', windowHeight + 'px');
+        
+        // Adjust sidebar height to be under header
+        if ($(window).width() >= 768) {
+            const headerHeight = $('.desktop-header').outerHeight() || 0;
+            sidebar.css({
+                'top': headerHeight + 'px',
+                'height': 'calc(100vh - ' + headerHeight + 'px)'
+            });
+            $('.sidebar-hover-trigger').css({
+                'top': headerHeight + 'px',
+                'height': 'calc(100vh - ' + headerHeight + 'px)'
+            });
+        }
+    }
+    
+    // Initial height fix
+    fixHeights();
+    $(window).on('resize', fixHeights);
+    $(window).on('orientationchange', function() {
+        setTimeout(fixHeights, 100);
     });
+});
     </script>
     
     {% block extra_js %}{% endblock %}
