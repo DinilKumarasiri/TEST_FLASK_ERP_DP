@@ -9,16 +9,16 @@ from . import pos_bp
 from ...utils.permissions import staff_required
 
 def generate_invoice_number():
-    """Generate unique invoice number"""
-    date_str = datetime.now().strftime('%Y%m%d')
-    random_str = ''.join(random.choices(string.digits, k=4))
-    invoice_number = f'INV-{date_str}-{random_str}'
-    
-    # Check if exists
-    while Invoice.query.filter_by(invoice_number=invoice_number).first():
-        random_str = ''.join(random.choices(string.digits, k=4))
-        invoice_number = f'INV-{date_str}-{random_str}'
-    
+    last_invoice = Invoice.query.order_by(Invoice.id.desc()).first()
+
+    if last_invoice and last_invoice.invoice_number:
+        # Extract number from INV-000001
+        last_number = int(last_invoice.invoice_number.split('-')[1])
+        next_number = last_number + 1
+    else:
+        next_number = 1
+
+    invoice_number = f"INV-{next_number:06d}"
     return invoice_number
 
 @pos_bp.route('/scan-product', methods=['POST'])

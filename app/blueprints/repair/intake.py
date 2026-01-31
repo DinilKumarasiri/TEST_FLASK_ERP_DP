@@ -8,16 +8,15 @@ import string
 from . import repair_bp
 
 def generate_job_number():
-    """Generate unique repair job number"""
-    date_str = datetime.now().strftime('%Y%m%d')
-    random_str = ''.join(random.choices(string.digits, k=4))
-    job_number = f'RJ-{date_str}-{random_str}'
-    
-    # Check if exists
-    while RepairJob.query.filter_by(job_number=job_number).first():
-        random_str = ''.join(random.choices(string.digits, k=4))
-        job_number = f'RJ-{date_str}-{random_str}'
-    
+    last_job = RepairJob.query.order_by(RepairJob.id.desc()).first()
+
+    if last_job and last_job.job_number:
+        last_number = int(last_job.job_number.split('-')[1])
+        next_number = last_number + 1
+    else:
+        next_number = 1
+
+    job_number = f"RJ-{next_number:06d}"
     return job_number
 
 @repair_bp.route('/intake', methods=['GET', 'POST'])

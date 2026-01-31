@@ -311,7 +311,7 @@ def create_test_sales(app):
             
             # Create invoice
             invoice = Invoice(
-                invoice_number=f"INV{current_year}{current_month:02d}{invoice_count + 1000:04d}",
+                invoice_number = f"INV-{invoice_count + 1:06d}",
                 customer_id=customer.id,
                 customer_name=customer.name,
                 customer_phone=customer.phone,
@@ -418,7 +418,7 @@ def create_test_repairs(app):
             brand = random.choice(brands)
             
             repair = RepairJob(
-                job_number=f"RJ{current_year}{current_month:02d}{repair_count + 100:04d}",
+                job_number = f"RJ-{repair_count + 1:06d}",
                 customer_id=customer.id,
                 device_type=device_type,
                 brand=brand,
