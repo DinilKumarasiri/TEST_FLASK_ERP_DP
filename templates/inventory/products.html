@@ -169,17 +169,22 @@
                         {% endif %}
                     {% endfor %}
                     
-                    <a href="{{ url_for('inventory.product_list', **grid_args) }}" 
-                       class="btn btn-outline-primary {% if not request.args.get('view') or request.args.get('view') != 'full' %}active{% endif %}">
-                        <i class="fas fa-th-large"></i> Grid View
-                    </a>
-                    
                     {% set full_args = grid_args.copy() %}
                     {% set _ = full_args.update({'view': 'full'}) %}
                     
+                    {% set grid_view_args = grid_args.copy() %}
+                    {% set _ = grid_view_args.update({'view': 'grid'}) %}
+                    
+                    <!-- Full View Button -->
                     <a href="{{ url_for('inventory.product_list', **full_args) }}" 
-                       class="btn btn-outline-primary {% if request.args.get('view') == 'full' %}active{% endif %}">
+                       class="btn btn-outline-primary {% if not request.args.get('view') or request.args.get('view') == 'full' %}active{% endif %}">
                         <i class="fas fa-list"></i> Full View
+                    </a>
+                    
+                    <!-- Grid View Button -->
+                    <a href="{{ url_for('inventory.product_list', **grid_view_args) }}" 
+                       class="btn btn-outline-primary {% if request.args.get('view') == 'grid' %}active{% endif %}">
+                        <i class="fas fa-th-large"></i> Grid View
                     </a>
                     
                     <a href="{{ url_for('inventory.export_products', **grid_args) }}" 
@@ -192,7 +197,8 @@
     </div>
 </div>
 
-{% if request.args.get('view') == 'full' %}
+<!-- ==================== DEFAULT TO FULL VIEW ==================== -->
+{% if not request.args.get('view') or request.args.get('view') == 'full' %}
 <!-- ==================== FULL VIEW (TABLE LAYOUT) ==================== -->
 <div class="card">
     <div class="card-body p-0">
@@ -331,7 +337,7 @@
 </nav>
 {% endif %}
 
-{% else %}
+{% elif request.args.get('view') == 'grid' %}
 <!-- ==================== GRID VIEW (CARD LAYOUT) ==================== -->
 <div class="row">
     {% for product in products.items %}
@@ -427,7 +433,7 @@
     <ul class="pagination justify-content-center">
         {% if products.has_prev %}
         <li class="page-item">
-            <a class="page-link" href="{{ url_for('inventory.product_list', page=products.prev_num, search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
+            <a class="page-link" href="{{ url_for('inventory.product_list', page=products.prev_num, view='grid', search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
                 <i class="fas fa-chevron-left"></i>
             </a>
         </li>
@@ -436,7 +442,7 @@
         {% for page_num in products.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
             {% if page_num %}
                 <li class="page-item {% if page_num == products.page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('inventory.product_list', page=page_num, search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
+                    <a class="page-link" href="{{ url_for('inventory.product_list', page=page_num, view='grid', search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
                         {{ page_num }}
                     </a>
                 </li>
@@ -449,7 +455,7 @@
         
         {% if products.has_next %}
         <li class="page-item">
-            <a class="page-link" href="{{ url_for('inventory.product_list', page=products.next_num, search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
+            <a class="page-link" href="{{ url_for('inventory.product_list', page=products.next_num, view='grid', search=request.args.get('search', ''), category_id=request.args.get('category_id', ''), stock_status=request.args.get('stock_status', '')) }}">
                 <i class="fas fa-chevron-right"></i>
             </a>
         </li>
@@ -761,39 +767,6 @@ $(document).ready(function() {
             $(this).remove();
         });
     };
-    
-    // Test: Add a test button for debugging
-    console.log('Adding debug button...');
-    $('body').append(`
-        <button id="debugTest" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;" 
-                class="btn btn-sm btn-warning">Debug Test</button>
-    `);
-    
-    $('#debugTest').on('click', function() {
-        console.log('Debug test clicked');
-        console.log('Current categories in dropdown:', $('select[name="category_id"] option').length);
-        
-        // Test the add category endpoint directly
-        $.ajax({
-            url: '/inventory/add-category',
-            method: 'POST',
-            data: {
-                csrf_token: csrfToken,
-                name: 'Test Category ' + new Date().getTime(),
-                description: 'Test from debug button',
-                redirect_to: 'products'
-            },
-            success: function(response) {
-                console.log('Direct AJAX success:', response);
-                showToast('Test category added via AJAX!', 'success');
-                setTimeout(() => location.reload(), 1000);
-            },
-            error: function(xhr, status, error) {
-                console.error('Direct AJAX error:', status, error, xhr.responseText);
-                showToast('AJAX Error: ' + error, 'error');
-            }
-        });
-    });
 });
 </script>
 {% endblock %}
