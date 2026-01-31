@@ -943,3 +943,35 @@ body {
     box-shadow: 0 8px 25px rgba(247, 37, 133, 0.4);
     background: linear-gradient(135deg, #d33541, var(--danger-color));
 }
+
+/* Delete Product Modal Styles */
+#deleteProductModal .modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+#deleteProductModal .modal-header {
+    border-radius: 12px 12px 0 0;
+}
+
+#deleteProductModal .alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.2);
+    color: #721c24;
+}
+
+#deleteProductModal .card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#deleteProductModal .form-control:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+#deleteProductModal .modal-footer {
+    border-top: 1px solid #dee2e6;
+}

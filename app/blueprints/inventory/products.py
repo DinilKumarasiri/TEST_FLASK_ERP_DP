@@ -872,30 +872,75 @@ def edit_product(product_id):
 @inventory_bp.route('/product/<int:product_id>/delete', methods=['POST'])
 @login_required
 def delete_product(product_id):
-    """Delete a product (soft delete)"""
-    # Changed: Only admin can delete products
-    if current_user.role != 'admin':
-        flash('Only admin can delete products', 'danger')
-        return redirect(request.referrer or url_for('inventory.product_list'))
-    
-    product = Product.query.get_or_404(product_id)
-    
+    """Delete a product with password confirmation and foreign key handling"""
     try:
-        # Check if product has stock items
-        has_stock = StockItem.query.filter_by(product_id=product_id).first() is not None
-        
-        if has_stock:
-            flash('Cannot delete product with existing stock items. Deactivate instead.', 'danger')
+        # Only admin can delete products
+        if current_user.role != 'admin':
+            flash('Only admin can delete products', 'danger')
             return redirect(url_for('inventory.product_detail', product_id=product_id))
         
-        db.session.delete(product)
-        db.session.commit()
+        product = Product.query.get_or_404(product_id)
         
-        flash(f'Product "{product.name}" deleted successfully!', 'success')
+        # Get data from form
+        password = request.form.get('password', '').strip()
+        confirm_delete = request.form.get('confirm_delete')  # Checkbox value
+        
+        # Basic validation
+        if not password:
+            flash('Admin password is required', 'danger')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        if confirm_delete != 'on':  # Checkbox returns 'on' when checked
+            flash('Please confirm deletion by checking the confirmation box', 'danger')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        # Verify admin password
+        from ...models import User
+        admin_user = User.query.filter_by(role='admin').first()
+        if not admin_user.check_password(password):
+            flash('Incorrect admin password', 'danger')
+            return redirect(url_for('inventory.product_detail', product_id=product_id))
+        
+        # Check for related records that prevent deletion
+        from ...models import InvoiceItem, RepairItem, PurchaseOrderItem
+        
+        # Check all related tables
+        has_invoice_items = InvoiceItem.query.filter_by(product_id=product_id).first() is not None
+        has_repair_items = RepairItem.query.filter_by(product_id=product_id).first() is not None
+        has_purchase_order_items = PurchaseOrderItem.query.filter_by(product_id=product_id).first() is not None
+        has_stock_items = StockItem.query.filter_by(product_id=product_id).first() is not None
+        
+        # If there are any related records, we cannot delete - only deactivate
+        if has_invoice_items or has_repair_items or has_purchase_order_items or has_stock_items:
+            # Show specific message about what's preventing deletion
+            reasons = []
+            if has_invoice_items:
+                reasons.append("invoice items")
+            if has_repair_items:
+                reasons.append("repair items")
+            if has_purchase_order_items:
+                reasons.append("purchase order items")
+            if has_stock_items:
+                reasons.append("stock items")
+            
+            reason_message = ", ".join(reasons)
+            
+            # Deactivate the product instead
+            product.is_active = False
+            db.session.commit()
+            
+            flash(f'Product "{product.name}" has been deactivated. Cannot delete because it has related {reason_message}.', 'warning')
+        else:
+            # Safe to delete - no related records
+            db.session.delete(product)
+            db.session.commit()
+            flash(f'Product "{product.name}" has been permanently deleted!', 'success')
+        
         return redirect(url_for('inventory.product_list'))
         
     except Exception as e:
         db.session.rollback()
+        print(f"Error deleting product: {str(e)}")  # For debugging
         flash(f'Error deleting product: {str(e)}', 'danger')
         return redirect(url_for('inventory.product_detail', product_id=product_id))
 
