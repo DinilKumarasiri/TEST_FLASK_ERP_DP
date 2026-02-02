@@ -73,7 +73,6 @@
                                 <span class="text-muted">No Category</span>
                             {% endif %}
                         </p>
-                        <p><strong>Purchase Price:</strong> Rs.{{ "%.2f"|format(product.purchase_price) }}</p>
                         <p><strong>Selling Price:</strong> Rs.{{ "%.2f"|format(product.selling_price) }}</p>
                     </div>
                     <div class="col-md-6">
@@ -115,21 +114,17 @@
                 <input type="hidden" name="generate_individual_barcodes" value="on">
                 
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Quantity *</label>
                         <input type="number" name="quantity" class="form-control" min="1" value="1" required>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Purchase Price (Rs.) *</label>
-                        <input type="number" name="purchase_price" class="form-control" 
-                               step="0.01" min="0" value="{{ product.purchase_price }}" required>
-                    </div>
-                    <div class="col-md-3">
+
+                    <div class="col-md-4">
                         <label class="form-label">Selling Price (Rs.) *</label>
                         <input type="number" name="selling_price" class="form-control" 
                                step="0.01" min="0" value="{{ product.selling_price }}" required>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Location</label>
                         <input type="text" name="location" class="form-control" placeholder="e.g., Shelf A1">
                     </div>

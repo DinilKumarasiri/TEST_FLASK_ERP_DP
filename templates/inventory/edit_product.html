@@ -111,12 +111,14 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label class="form-label">Purchase Price *</label>
+                                <label class="form-label">Purchase Price</label>
                                 <div class="input-group">
                                     <span class="input-group-text">Rs.</span>
                                     <input type="number" name="purchase_price" class="form-control" 
-                                           step="0.01" min="0" value="{{ "%.2f"|format(product.purchase_price) }}" required>
+                                        step="0.01" min="0" 
+                                        value="{{ product.purchase_price if product.purchase_price else '' }}">
                                 </div>
+                                <small class="text-muted">Cost price from supplier (Optional)</small>
                             </div>
                             
                             <div class="col-md-4 mb-3">

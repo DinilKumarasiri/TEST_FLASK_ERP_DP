@@ -215,7 +215,6 @@
                         <th width="100" class="text-center">Current Stock</th>
                         <th width="80" class="text-center">Min Stock</th>
                         <th width="100" class="text-center">Status</th>
-                        <th width="150" class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -224,7 +223,7 @@
                         <td>{{ product.id }}</td>
                         <td>
                             <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
-                               class="text-decoration-none">
+                            class="text-decoration-none">
                                 <strong>{{ product.name }}</strong>
                             </a>
                             {% if product.description %}
@@ -246,7 +245,13 @@
                                 <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">Rs.{{ "%.2f"|format(product.purchase_price) }}</td>
+                        <td class="text-end">
+                            {% if product.purchase_price is not none %}
+                                Rs.{{ "%.2f"|format(product.purchase_price) }}
+                            {% else %}
+                                Rs.-
+                            {% endif %}
+                        </td>
                         <td class="text-end">Rs.{{ "%.2f"|format(product.selling_price) }}</td>
                         <td class="text-center">
                             <span class="badge bg-{{ 'success' if product.stock_count > product.min_stock_level else 'danger' }}">
@@ -259,41 +264,10 @@
                                 {{ 'Active' if product.is_active else 'Inactive' }}
                             </span>
                         </td>
-                        <td class="text-center action-buttons">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('inventory.product_detail', product_id=product.id) }}" 
-                                   class="btn btn-outline-primary" title="View Details">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('inventory.edit_product', product_id=product.id) }}" 
-                                class="btn btn-outline-warning" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{{ url_for('inventory.stock_in') }}?product_id={{ product.id }}" 
-                                   class="btn btn-outline-success" title="Stock In">
-                                    <i class="fas fa-plus"></i>
-                                </a>
-                                {% if product.stock_count > 0 %}
-                                <button class="btn btn-outline-warning" 
-                                        onclick="showStockOutModal({{ product.id }})"
-                                        title="Stock Out">
-                                    <i class="fas fa-minus"></i>
-                                </button>
-                                {% endif %}
-                            </div>
-                        </td>
+
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="10" class="text-center py-4">
-                            <i class="fas fa-box-open fa-2x text-muted mb-3"></i>
-                            <h5 class="text-muted">No products found</h5>
-                            <p class="text-muted">Try adjusting your search criteria</p>
-                            <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-1"></i> Add First Product
-                            </a>
-                        </td>
-                    </tr>
+                    <!-- No products message -->
                     {% endfor %}
                 </tbody>
             </table>
@@ -380,7 +354,13 @@
                 
                 <div class="mb-3">
                     <small class="text-muted d-block">Cost Price</small>
-                    <small>Rs.{{ "%.2f"|format(product.purchase_price) }}</small>
+                    <small>
+                        {% if product.purchase_price is not none %}
+                            Rs.{{ "%.2f"|format(product.purchase_price) }}
+                        {% else %}
+                            Rs.-
+                        {% endif %}
+                    </small>
                     {% if product.has_imei %}
                     <span class="badge bg-info ms-2">IMEI Tracking</span>
                     {% endif %}

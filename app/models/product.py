@@ -29,7 +29,7 @@ class Product(db.Model):
     name = db.Column(db.String(200), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'))
     description = db.Column(db.Text)
-    purchase_price = db.Column(db.Float, nullable=False, default=0.0)
+    purchase_price = db.Column(db.Float, nullable=True, default=0.0)
     selling_price = db.Column(db.Float, nullable=False, default=0.0)
     wholesale_price = db.Column(db.Float, default=0.0)
     min_stock_level = db.Column(db.Integer, default=5)

@@ -36,7 +36,10 @@ def inventory_dashboard():
                 ).scalar()
                 stock_count = result or 0
             
-            total_value += stock_count * product.purchase_price
+            if product.purchase_price:
+                total_value += stock_count * product.purchase_price
+            else:
+                total_value += stock_count * (product.selling_price * 0.7) 
         
         # Low stock products
         low_stock_products = []

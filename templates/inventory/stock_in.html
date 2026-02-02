@@ -115,14 +115,14 @@
         
         <div class="row">
             <div class="col-md-4">
-                <label class="form-label">Purchase Price (per unit) *</label>
+                <label class="form-label">Purchase Price (per unit)</label>
                 <div class="input-group">
                     <span class="input-group-text">Rs.</span>
                     <input type="number" name="purchase_price" id="purchasePriceInput" 
-                           class="form-control" step="0.01" min="0" required
-                           oninput="calculateTotalValue()">
+                        class="form-control" step="0.01" min="0"  <
+                        oninput="calculateTotalValue()">
                 </div>
-                <small class="text-muted">Cost price from supplier</small>
+                <small class="text-muted">Cost price from supplier (Optional)</small>
             </div>
             
             <div class="col-md-4">
@@ -443,13 +443,7 @@ $('#stockInForm').on('submit', function(e) {
         alert('Please enter a valid quantity');
         return;
     }
-    
-    const purchasePrice = parseFloat($('#purchasePriceInput').val()) || 0;
-    if (purchasePrice <= 0) {
-        alert('Please enter a valid purchase price');
-        return;
-    }
-    
+       
     const sellingPrice = parseFloat($('#sellingPriceInput').val()) || 0;
     if (sellingPrice <= 0) {
         alert('Please enter a valid selling price');

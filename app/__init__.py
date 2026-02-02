@@ -57,7 +57,19 @@ def time_ago_filter(value):
         return f'{diff.seconds} second{"s" if diff.seconds > 1 else ""} ago'
     else:
         return 'just now'
+def safe_currency_filter(value, default=0.0):
+    """Safely format value as currency, handling None values"""
+    try:
+        return f"Rs.{float(value or default):,.2f}"
+    except (ValueError, TypeError):
+        return f"Rs.{float(default):,.2f}"
 
+def safe_number_filter(value, default=0.0):
+    """Safely format value as number, handling None values"""
+    try:
+        return f"{float(value or default):,.2f}"
+    except (ValueError, TypeError):
+        return f"{float(default):,.2f}"
 
 def create_app(config_class=None):
     if config_class is None:
@@ -66,6 +78,8 @@ def create_app(config_class=None):
     # Create the app instance
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
     app.config.from_object(config_class)
+    app.jinja_env.filters['safe_currency'] = safe_currency_filter
+    app.jinja_env.filters['safe_number'] = safe_number_filter
 
     # Init extensions WITH the app
     db.init_app(app)

@@ -33,7 +33,7 @@ class PurchaseOrderItem(db.Model):
     purchase_order_id = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
-    unit_price = db.Column(db.Float, nullable=False)
+    unit_price = db.Column(db.Float, nullable=True, default=0.0)
     total_price = db.Column(db.Float, nullable=False)
     received_quantity = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

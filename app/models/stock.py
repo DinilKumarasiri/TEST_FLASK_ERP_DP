@@ -14,7 +14,7 @@ class StockItem(db.Model):
     is_serialized = db.Column(db.Boolean, default=False)  # Track if item has unique barcode
     stock_type = db.Column(db.String(20), nullable=False)  # 'in' or 'out'
     quantity = db.Column(db.Integer, default=1)
-    purchase_price = db.Column(db.Float)
+    purchase_price = db.Column(db.Float, nullable=True) 
     selling_price = db.Column(db.Float)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'))
     purchase_order_id = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'))

@@ -201,10 +201,10 @@ def stock_in():
                 print("DEBUG: No product selected")
                 return redirect(url_for('inventory.stock_in'))
             
-            if not purchase_price or purchase_price <= 0:
-                flash('Please enter a valid purchase price', 'danger')
-                print(f"DEBUG: Invalid purchase price: {purchase_price}")
-                return redirect(url_for('inventory.stock_in'))
+            # if not purchase_price or purchase_price <= 0:
+            #     flash('Please enter a valid purchase price', 'danger')
+            #     print(f"DEBUG: Invalid purchase price: {purchase_price}")
+            #     return redirect(url_for('inventory.stock_in'))
             
             product = Product.query.get(product_id)
             if not product:
@@ -691,7 +691,7 @@ def test_product_detail(product_id):
 
 @inventory_bp.route('/add-new-product', methods=['GET', 'POST'])
 @login_required
-@staff_required  # Changed: staff can add new products
+@staff_required
 def add_new_product():
     """Add new product form"""
     from ...models import ProductCategory
@@ -715,7 +715,7 @@ def add_new_product():
             min_stock_level = request.form.get('min_stock_level', type=int, default=5)
             has_imei = request.form.get('has_imei') == 'on'
             
-            # Validation
+            # Validation - REMOVE purchase_price validation
             if not name:
                 flash('Product name is required', 'danger')
                 return redirect(url_for('inventory.add_new_product'))
@@ -737,9 +737,10 @@ def add_new_product():
                     flash(f'Product with barcode "{barcode}" already exists', 'danger')
                     return redirect(url_for('inventory.add_new_product'))
             
-            if not purchase_price or purchase_price <= 0:
-                flash('Valid purchase price is required', 'danger')
-                return redirect(url_for('inventory.add_new_product'))
+            # REMOVED: Validation for purchase_price
+            # if not purchase_price or purchase_price <= 0:
+            #     flash('Valid purchase price is required', 'danger')
+            #     return redirect(url_for('inventory.add_new_product'))
             
             if not selling_price or selling_price <= 0:
                 flash('Valid selling price is required', 'danger')
@@ -752,7 +753,7 @@ def add_new_product():
                 barcode=barcode if barcode else None,
                 description=description,
                 category_id=category_id if category_id else None,
-                purchase_price=purchase_price,
+                purchase_price=purchase_price,  # Can be None
                 selling_price=selling_price,
                 wholesale_price=wholesale_price,
                 min_stock_level=min_stock_level,
@@ -780,7 +781,7 @@ def add_new_product():
             flash(f'Error adding product: {str(e)}', 'danger')
             return redirect(url_for('inventory.add_new_product'))
     
-    # GET request - show form
+    # GET request - show form (no changes needed here)
     categories = ProductCategory.query.all()
     return render_template('inventory/add_product.html',
                          categories=categories,
@@ -789,7 +790,7 @@ def add_new_product():
 
 @inventory_bp.route('/product/<int:product_id>/edit', methods=['GET', 'POST'])
 @login_required
-@staff_required  # Changed: staff can edit products
+@staff_required
 def edit_product(product_id):
     """Edit existing product"""
     from ...models import ProductCategory
@@ -804,7 +805,7 @@ def edit_product(product_id):
             product.barcode = request.form.get('barcode', '').strip()
             product.description = request.form.get('description', '').strip()
             product.category_id = request.form.get('category_id', type=int)
-            product.purchase_price = request.form.get('purchase_price', type=float)
+            product.purchase_price = request.form.get('purchase_price', type=float)  # Can be None
             product.selling_price = request.form.get('selling_price', type=float)
             product.wholesale_price = request.form.get('wholesale_price', type=float)
             product.min_stock_level = request.form.get('min_stock_level', type=int, default=5)
@@ -841,9 +842,10 @@ def edit_product(product_id):
                     flash(f'Product with barcode "{product.barcode}" already exists', 'danger')
                     return redirect(url_for('inventory.edit_product', product_id=product_id))
             
-            if not product.purchase_price or product.purchase_price <= 0:
-                flash('Valid purchase price is required', 'danger')
-                return redirect(url_for('inventory.edit_product', product_id=product_id))
+            # REMOVED: Validation for purchase_price
+            # if not product.purchase_price or product.purchase_price <= 0:
+            #     flash('Valid purchase price is required', 'danger')
+            #     return redirect(url_for('inventory.edit_product', product_id=product_id))
             
             if not product.selling_price or product.selling_price <= 0:
                 flash('Valid selling price is required', 'danger')
@@ -862,7 +864,7 @@ def edit_product(product_id):
             flash(f'Error updating product: {str(e)}', 'danger')
             return redirect(url_for('inventory.edit_product', product_id=product_id))
     
-    # GET request - show form
+    # GET request - show form (no changes needed)
     categories = ProductCategory.query.all()
     return render_template('inventory/edit_product.html',
                          product=product,
