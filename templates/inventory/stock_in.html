@@ -71,7 +71,7 @@
             <div class="col-md-3">
                 <label class="form-label">Quantity *</label>
                 <input type="number" name="quantity" id="quantity" class="form-control" 
-                       min="1" value="1" required onchange="updateImeiFields();">
+                    min="1" value="1" required onchange="updateImeiFields();">
                 <small class="text-muted">Number of items to add</small>
             </div>
             
@@ -108,43 +108,48 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Pricing Information -->
-    <div class="form-section">
-        <h5><i class="fas fa-money-bill-wave me-2"></i>Pricing Information</h5>
+    <d<!-- Pricing Information -->
+<div class="form-section">
+    <h5><i class="fas fa-money-bill-wave me-2"></i>Pricing Information</h5>
+    
+    <div class="row">
+        <!-- Purchase Price Field - Only show to admin -->
+        {% if current_user.role == 'admin' %}
+        <div class="col-md-4">
+            <label class="form-label">Purchase Price (per unit)</label>
+            <div class="input-group">
+                <span class="input-group-text">Rs.</span>
+                <input type="number" name="purchase_price" id="purchasePriceInput" 
+                       class="form-control" step="0.01" min="0" 
+                       oninput="calculateTotalValue()">
+            </div>
+            <small class="text-muted">Cost price from supplier (Optional)</small>
+        </div>
+        {% endif %}
+        <!-- For non-admin users, this div won't be rendered at all -->
         
-        <div class="row">
-            <div class="col-md-4">
-                <label class="form-label">Purchase Price (per unit)</label>
-                <div class="input-group">
-                    <span class="input-group-text">Rs.</span>
-                    <input type="number" name="purchase_price" id="purchasePriceInput" 
-                        class="form-control" step="0.01" min="0"  <
-                        oninput="calculateTotalValue()">
-                </div>
-                <small class="text-muted">Cost price from supplier (Optional)</small>
+        <div class="col-md-{% if current_user.role == 'admin' %}4{% else %}6{% endif %}">
+            <label class="form-label">Selling Price (per unit) *</label>
+            <div class="input-group">
+                <span class="input-group-text">Rs.</span>
+                <input type="number" name="selling_price" id="sellingPriceInput" 
+                       class="form-control" step="0.01" min="0" required>
             </div>
-            
-            <div class="col-md-4">
-                <label class="form-label">Selling Price (per unit) *</label>
-                <div class="input-group">
-                    <span class="input-group-text">Rs.</span>
-                    <input type="number" name="selling_price" id="sellingPriceInput" 
-                           class="form-control" step="0.01" min="0" required>
-                </div>
-                <small class="text-muted">Retail selling price</small>
+            <small class="text-muted">Retail selling price</small>
+        </div>
+        
+        <div class="col-md-{% if current_user.role == 'admin' %}4{% else %}6{% endif %}">
+            <label class="form-label">Total Value</label>
+            <div class="input-group">
+                <span class="input-group-text">Rs.</span>
+                <input type="text" id="totalValue" class="form-control" readonly>
             </div>
-            
-            <div class="col-md-4">
-                <label class="form-label">Total Value</label>
-                <div class="input-group">
-                    <span class="input-group-text">Rs.</span>
-                    <input type="text" id="totalValue" class="form-control" readonly>
-                </div>
-                <small class="text-muted">Quantity × Purchase Price</small>
-            </div>
+            <small class="text-muted">Quantity × Purchase Price</small>
         </div>
     </div>
+</div>
     
     <!-- Barcode Generation -->
     <div class="form-section">
@@ -449,6 +454,14 @@ $('#stockInForm').on('submit', function(e) {
         alert('Please enter a valid selling price');
         return;
     }
+
+    {% if current_user.role == 'admin' %}
+    const purchasePrice = parseFloat($('#purchasePriceInput').val()) || 0;
+    if (purchasePrice < 0) {
+        alert('Purchase price cannot be negative');
+        return;
+    }
+    {% endif %}
     
     // Validate IMEI numbers if required
     if (selectedProduct && selectedProduct.has_imei) {

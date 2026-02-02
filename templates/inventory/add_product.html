@@ -19,6 +19,21 @@
         width: 3em;
         height: 1.5em;
     }
+    /* Add to your CSS file */
+.admin-only-field {
+    background-color: #f8f9fa;
+    border-left: 4px solid #dc3545;
+}
+
+.admin-only-label {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.admin-only-note {
+    color: #dc3545;
+    font-size: 0.8rem;
+}
 </style>
 {% endblock %}
 
@@ -99,14 +114,26 @@
                 
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Purchase Price</label>
-                        <div class="input-group price-input">
-                            <span class="input-group-text">Rs.</span>
-                            <input type="number" name="purchase_price" class="form-control" 
-                                step="0.01" min="0" placeholder="0.00">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Purchase Price</label>
+                            <div class="input-group price-input">
+                                <span class="input-group-text">Rs.</span>
+                                {% if current_user.role == 'admin' %}
+                                <input type="number" name="purchase_price" class="form-control" 
+                                    step="0.01" min="0" placeholder="0.00">
+                                {% else %}
+                                <input type="number" class="form-control" placeholder="0.00" disabled>
+                                <input type="hidden" name="purchase_price" value="0">
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">
+                                {% if current_user.role == 'admin' %}
+                                Cost price from supplier (Optional)
+                                {% else %}
+                                <i class="fas fa-lock me-1"></i> Admin only field
+                                {% endif %}
+                            </small>
                         </div>
-                        <small class="text-muted">Cost price from supplier (Optional)</small>
-                    </div>
                     
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Selling Price *</label>

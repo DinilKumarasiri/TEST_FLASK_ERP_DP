@@ -114,11 +114,25 @@
                                 <label class="form-label">Purchase Price</label>
                                 <div class="input-group">
                                     <span class="input-group-text">Rs.</span>
+                                    {% if current_user.role == 'admin' %}
                                     <input type="number" name="purchase_price" class="form-control" 
                                         step="0.01" min="0" 
                                         value="{{ product.purchase_price if product.purchase_price else '' }}">
+                                    {% else %}
+                                    <input type="number" class="form-control" 
+                                        value="{{ product.purchase_price if product.purchase_price else '0.00' }}" 
+                                        disabled>
+                                    <input type="hidden" name="purchase_price" 
+                                        value="{{ product.purchase_price if product.purchase_price else '' }}">
+                                    {% endif %}
                                 </div>
-                                <small class="text-muted">Cost price from supplier (Optional)</small>
+                                <small class="text-muted">
+                                    {% if current_user.role == 'admin' %}
+                                    Cost price from supplier (Optional)
+                                    {% else %}
+                                    <i class="fas fa-lock me-1"></i> Admin only field
+                                    {% endif %}
+                                </small>
                             </div>
                             
                             <div class="col-md-4 mb-3">

@@ -171,7 +171,7 @@ def product_detail(product_id):
 
 @inventory_bp.route('/stock-in', methods=['GET', 'POST'])
 @login_required
-@staff_required  # Changed: staff can add stock
+@staff_required
 def stock_in():
     from ...models import Supplier, Product, ProductCategory, StockItem
     import time
@@ -183,33 +183,29 @@ def stock_in():
             
             product_id = request.form.get('product_id', type=int)
             quantity = request.form.get('quantity', type=int, default=1)
-            purchase_price = request.form.get('purchase_price', type=float)
             selling_price = request.form.get('selling_price', type=float)
             supplier_id = request.form.get('supplier_id', type=int)
             batch_number = request.form.get('batch_number', '')
             location = request.form.get('location', '')
             notes = request.form.get('notes', '')
-            generate_individual_barcodes = True  # Default to True
+            generate_individual_barcodes = True
+            
+            # Only admin can set purchase price
+            if current_user.role == 'admin':
+                purchase_price = request.form.get('purchase_price', type=float)
+            else:
+                purchase_price = None  # Non-admin cannot set purchase price
+            
             if 'generate_individual_barcodes' in request.form:
                 generate_individual_barcodes = request.form.get('generate_individual_barcodes') == 'on'
-            
-            print(f"DEBUG: product_id={product_id}, quantity={quantity}, generate_barcodes={generate_individual_barcodes}")
             
             # Validation
             if not product_id:
                 flash('Please select a product', 'danger')
-                print("DEBUG: No product selected")
                 return redirect(url_for('inventory.stock_in'))
             
-            # if not purchase_price or purchase_price <= 0:
-            #     flash('Please enter a valid purchase price', 'danger')
-            #     print(f"DEBUG: Invalid purchase price: {purchase_price}")
-            #     return redirect(url_for('inventory.stock_in'))
-            
-            product = Product.query.get(product_id)
-            if not product:
-                flash('Product not found', 'danger')
-                print(f"DEBUG: Product not found: {product_id}")
+            if not selling_price or selling_price <= 0:
+                flash('Valid selling price is required', 'danger')
                 return redirect(url_for('inventory.stock_in'))
             
             print(f"DEBUG: Product found: {product.name}, has_imei={product.has_imei}")
