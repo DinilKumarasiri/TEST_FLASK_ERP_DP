@@ -581,5 +581,27 @@ function saveEdit() {
 
 // Debug: Test if functions are loaded
 console.log('Attendance script loaded');
+
+// Add this function to convert UTC times to Sri Lanka time
+function formatSriLankaTime(utcDateTime) {
+    if (!utcDateTime) return '--:--';
+    
+    const date = new Date(utcDateTime);
+    // Sri Lanka is UTC+5:30
+    const sriLankaOffset = 5.5 * 60 * 60 * 1000;
+    const sriLankaTime = new Date(date.getTime() + sriLankaOffset);
+    
+    return sriLankaTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+
+// Update the attendance table to use Sri Lanka time
+function updateAttendanceTimes() {
+    // This would be called after loading attendance data
+    // You need to update your server-side code to send Sri Lanka times
+}
 </script>
 {% endblock %}
