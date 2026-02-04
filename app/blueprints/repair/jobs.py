@@ -1,7 +1,7 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from ... import db
-from ...models import RepairJob, RepairItem, Product, StockItem, User
+from ...models import RepairJob, RepairItem, Product, StockItem, User, Customer
 from datetime import datetime
 from . import repair_bp
 from datetime import datetime, timedelta  # Add timedelta here
@@ -12,17 +12,82 @@ def job_list():
     try:
         status = request.args.get('status', 'all')
         technician_id = request.args.get('technician_id', type=int)
+        search_query = request.args.get('search', '').strip()
+        pending_filter = request.args.get('pending', 'false') == 'true'
         
-        print(f"DEBUG: status={status}, technician_id={technician_id}")
+        print(f"DEBUG: status={status}, technician_id={technician_id}, search={search_query}")
         
+        # Start with base query
         query = RepairJob.query
         
+        # Apply status filter
         if status != 'all':
             query = query.filter_by(status=status)
         
+        # Apply pending filter (all non-completed/delivered jobs)
+        if pending_filter:
+            query = query.filter(
+                RepairJob.status.in_(['received', 'diagnostic', 'repairing', 'waiting_parts'])
+            )
+        
+        # Apply technician filter
         if technician_id:
             query = query.filter_by(technician_id=technician_id)
         
+        # Apply search filter - check if search_query exists
+        if search_query and search_query.strip():
+            # Create a base query with join for customer search
+            from ...models import Customer  # Import Customer model
+            
+            # First, get all job IDs that match the search criteria
+            job_ids = []
+            
+            # Search by job number
+            jobs_by_number = RepairJob.query.filter(
+                RepairJob.job_number.contains(search_query)
+            ).with_entities(RepairJob.id).all()
+            job_ids.extend([j.id for j in jobs_by_number])
+            
+            # Search by device info
+            jobs_by_device = RepairJob.query.filter(
+                db.or_(
+                    RepairJob.brand.contains(search_query),
+                    RepairJob.model.contains(search_query),
+                    RepairJob.imei.contains(search_query),
+                    RepairJob.serial_number.contains(search_query)
+                )
+            ).with_entities(RepairJob.id).all()
+            job_ids.extend([j.id for j in jobs_by_device])
+            
+            # Search by customer info
+            customers = Customer.query.filter(
+                db.or_(
+                    Customer.name.contains(search_query),
+                    Customer.phone.contains(search_query)
+                )
+            ).all()
+            
+            if customers:
+                customer_ids = [c.id for c in customers]
+                jobs_by_customer = RepairJob.query.filter(
+                    RepairJob.customer_id.in_(customer_ids)
+                ).with_entities(RepairJob.id).all()
+                job_ids.extend([j.id for j in jobs_by_customer])
+            
+            # Remove duplicates
+            job_ids = list(set(job_ids))
+            
+            if job_ids:
+                query = query.filter(RepairJob.id.in_(job_ids))
+            else:
+                # If no matches found, return empty result
+                return render_template('repair/jobs.html',
+                                     jobs=[],
+                                     technicians=User.query.filter_by(role='technician', is_active=True).all(),
+                                     status=status,
+                                     title='Repair Jobs')
+        
+        # Order by creation date
         jobs = query.order_by(RepairJob.created_at.desc()).all()
         technicians = User.query.filter_by(role='technician', is_active=True).all()
         
@@ -379,3 +444,140 @@ def complete_warranty_claim(job_id):
     except Exception as e:
         flash(f'Error completing warranty claim: {str(e)}', 'danger')
         return redirect(url_for('repair.job_detail', job_id=job_id))
+    
+@repair_bp.route('/search-repair-jobs', methods=['GET'])
+@login_required
+def search_repair_jobs():
+    """Search repair jobs for autocomplete"""
+    try:
+        query = request.args.get('query', '').strip()
+        
+        if not query or len(query) < 2:
+            return jsonify({'success': True, 'jobs': []})
+        
+        # Search repair jobs by job number, customer name, customer phone, device details
+        jobs = RepairJob.query.join(Customer).filter(
+            db.or_(
+                RepairJob.job_number.contains(query),
+                RepairJob.brand.contains(query),
+                RepairJob.model.contains(query),
+                RepairJob.imei.contains(query),
+                Customer.name.contains(query),
+                Customer.phone.contains(query)
+            )
+        ).limit(15).all()
+        
+        # Format results for autocomplete
+        results = []
+        for job in jobs:
+            customer_name = job.customer.name if job.customer else 'N/A'
+            customer_phone = job.customer.phone if job.customer else 'N/A'
+            
+            results.append({
+                'id': job.id,
+                'job_number': job.job_number,
+                'customer_name': customer_name,
+                'customer_phone': customer_phone,
+                'device': f"{job.brand} {job.model}",
+                'status': job.status,
+                'status_display': job.status.title(),
+                'technician': job.technician.username if job.technician else 'Unassigned'
+            })
+        
+        return jsonify({
+            'success': True,
+            'jobs': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        print(f"Error in repair job search: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@repair_bp.route('/search-jobs', methods=['GET'])
+@login_required
+def search_jobs():
+    """Search repair jobs for autocomplete"""
+    try:
+        query = request.args.get('query', '').strip()
+        
+        if not query or len(query) < 2:
+            return jsonify({'success': True, 'jobs': []})
+        
+        from ...models import Customer  # Import Customer model
+        
+        # Get all jobs that match the search criteria
+        jobs = []
+        
+        # Search by job number
+        jobs_by_number = RepairJob.query.filter(
+            RepairJob.job_number.contains(query)
+        ).all()
+        jobs.extend(jobs_by_number)
+        
+        # Search by device info
+        jobs_by_device = RepairJob.query.filter(
+            db.or_(
+                RepairJob.brand.contains(query),
+                RepairJob.model.contains(query),
+                RepairJob.imei.contains(query),
+                RepairJob.serial_number.contains(query)
+            )
+        ).all()
+        jobs.extend(jobs_by_device)
+        
+        # Search by customer info
+        customers = Customer.query.filter(
+            db.or_(
+                Customer.name.contains(query),
+                Customer.phone.contains(query)
+            )
+        ).all()
+        
+        if customers:
+            customer_ids = [c.id for c in customers]
+            jobs_by_customer = RepairJob.query.filter(
+                RepairJob.customer_id.in_(customer_ids)
+            ).all()
+            jobs.extend(jobs_by_customer)
+        
+        # Remove duplicates while preserving order
+        seen_ids = set()
+        unique_jobs = []
+        for job in jobs:
+            if job.id not in seen_ids:
+                seen_ids.add(job.id)
+                unique_jobs.append(job)
+        
+        # Limit to 10 results
+        unique_jobs = unique_jobs[:10]
+        
+        # Format results for autocomplete
+        results = []
+        for job in unique_jobs:
+            results.append({
+                'id': job.id,
+                'job_number': job.job_number,
+                'customer_name': job.customer.name if job.customer else 'N/A',
+                'brand': job.brand,
+                'model': job.model,
+                'status': job.status,
+                'phone': job.customer.phone if job.customer else '',
+                'device_type': job.device_type
+            })
+        
+        return jsonify({
+            'success': True,
+            'jobs': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        print(f"Error in job search: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False, 
+            'error': 'Internal server error',
+            'jobs': []
+        }), 500

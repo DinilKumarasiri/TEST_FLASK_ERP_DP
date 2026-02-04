@@ -32,13 +32,63 @@
         transform: scale(1.05);
     }
     
-    /* View Toggle */
-    .view-toggle .btn.active {
-        background-color: #0d6efd;
-        color: white;
+    /* Search suggestions dropdown */
+    .search-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 2px;
+        display: none;
     }
     
-    /* Full View Table Styles */
+    .search-suggestion-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f1f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .search-suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .search-suggestion-item.active {
+        background-color: #e7f3ff;
+    }
+    
+    .search-suggestion-item .job-number {
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    
+    .search-suggestion-item .customer-name {
+        color: #495057;
+    }
+    
+    .search-suggestion-item .device-info {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .search-suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .search-container {
+        position: relative;
+    }
+    
+    /* Table View Styles */
     .table-view {
         font-size: 0.9rem;
     }
@@ -75,26 +125,26 @@
     </div>
 </div>
 
-<!-- Filters -->
+<!-- Filters Card -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
+        <form method="GET" class="row g-3" id="filterForm">
             <div class="col-md-4">
                 <label class="form-label">Status Filter</label>
-                <select name="status" class="form-select">
-                    <option value="all" {% if status == 'all' %}selected{% endif %}>All Statuses</option>
-                    <option value="received" {% if status == 'received' %}selected{% endif %}>Received</option>
-                    <option value="diagnostic" {% if status == 'diagnostic' %}selected{% endif %}>Diagnostic</option>
-                    <option value="repairing" {% if status == 'repairing' %}selected{% endif %}>Repairing</option>
-                    <option value="waiting_parts" {% if status == 'waiting_parts' %}selected{% endif %}>Waiting Parts</option>
-                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
-                    <option value="delivered" {% if status == 'delivered' %}selected{% endif %}>Delivered</option>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="all" {% if request.args.get('status', 'all') == 'all' %}selected{% endif %}>All Statuses</option>
+                    <option value="received" {% if request.args.get('status') == 'received' %}selected{% endif %}>Received</option>
+                    <option value="diagnostic" {% if request.args.get('status') == 'diagnostic' %}selected{% endif %}>Diagnostic</option>
+                    <option value="repairing" {% if request.args.get('status') == 'repairing' %}selected{% endif %}>Repairing</option>
+                    <option value="waiting_parts" {% if request.args.get('status') == 'waiting_parts' %}selected{% endif %}>Waiting Parts</option>
+                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="delivered" {% if request.args.get('status') == 'delivered' %}selected{% endif %}>Delivered</option>
                 </select>
             </div>
             
             <div class="col-md-4">
                 <label class="form-label">Technician</label>
-                <select name="technician_id" class="form-select">
+                <select name="technician_id" class="form-select" onchange="this.form.submit()">
                     <option value="">All Technicians</option>
                     {% for tech in technicians %}
                     <option value="{{ tech.id }}" {% if request.args.get('technician_id')|int == tech.id %}selected{% endif %}>
@@ -106,16 +156,21 @@
             
             <div class="col-md-4">
                 <label class="form-label">Search</label>
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control" 
-                           placeholder="Job #, Customer, Device..." 
-                           value="{{ request.args.get('search', '') }}">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    <a href="{{ url_for('repair.job_list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-redo"></i>
-                    </a>
+                <div class="search-container">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" name="search" class="form-control" 
+                               placeholder="Job #, Customer, Device, Phone..." 
+                               value="{{ request.args.get('search', '') }}"
+                               autocomplete="off">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <a href="{{ url_for('repair.job_list') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-redo"></i>
+                        </a>
+                    </div>
+                    <!-- Search Suggestions Dropdown -->
+                    <div id="searchSuggestions" class="search-suggestions"></div>
                 </div>
             </div>
         </form>
@@ -124,10 +179,8 @@
         <div class="mt-3">
             <small class="text-muted me-2">Quick Filters:</small>
             {% set pending_jobs = [] %}
-            {% for job in jobs %}
-                {% if job.status in ['received', 'diagnostic', 'repairing', 'waiting_parts'] %}
-                    {% set _ = pending_jobs.append(job) %}
-                {% endif %}
+            {% for job in jobs if job.status in ['received', 'diagnostic', 'repairing', 'waiting_parts'] %}
+                {% set _ = pending_jobs.append(job) %}
             {% endfor %}
             <span class="badge bg-secondary filter-badge me-2" onclick="setFilter('status', 'pending')">
                 Pending ({{ pending_jobs|length }})
@@ -169,30 +222,25 @@
                     {% set full_args = grid_args.copy() %}
                     {% set _ = full_args.update({'view': 'full'}) %}
                     
-                    {% set grid_view_args = grid_args.copy() %}
-                    {% set _ = grid_view_args.update({'view': 'grid'}) %}
+                    {% set grid_args = grid_args.copy() %}
+                    {% set _ = grid_args.update({'view': 'grid'}) %}
                     
-                    <!-- Full View Button -->
                     <a href="{{ url_for('repair.job_list', **full_args) }}" 
                        class="btn btn-outline-primary {% if not request.args.get('view') or request.args.get('view') == 'full' %}active{% endif %}">
                         <i class="fas fa-list"></i> Full View
                     </a>
-
-                    <!-- Grid View Button -->
-                    <a href="{{ url_for('repair.job_list', **grid_view_args) }}" 
+                    <a href="{{ url_for('repair.job_list', **grid_args) }}" 
                        class="btn btn-outline-primary {% if request.args.get('view') == 'grid' %}active{% endif %}">
                         <i class="fas fa-th-large"></i> Grid View
                     </a>
-
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ==================== DEFAULT TO FULL VIEW ==================== -->
+<!-- ==================== FULL VIEW (DEFAULT) ==================== -->
 {% if not request.args.get('view') or request.args.get('view') == 'full' %}
-<!-- ==================== FULL VIEW (TABLE LAYOUT) ==================== -->
 <div class="card">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -317,7 +365,7 @@
 </div>
 
 {% elif request.args.get('view') == 'grid' %}
-<!-- ==================== GRID VIEW (CARD LAYOUT) ==================== -->
+<!-- ==================== GRID VIEW ==================== -->
 <div class="row">
     {% for job in jobs %}
     <div class="col-md-6 mb-4">
@@ -528,52 +576,231 @@
 
 {% block extra_js %}
 <script>
+// Debounce function for search
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Search jobs function
+async function searchJobs(query) {
+    if (query.length < 2) {
+        hideSearchSuggestions();
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/repair/search-jobs?query=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs.length > 0) {
+            showSearchSuggestions(data.jobs);
+        } else {
+            hideSearchSuggestions();
+        }
+    } catch (error) {
+        console.error('Error searching jobs:', error);
+        hideSearchSuggestions();
+    }
+}
+
+// Show search suggestions
+function showSearchSuggestions(jobs) {
+    const dropdown = document.getElementById('searchSuggestions');
+    dropdown.innerHTML = '';
+    
+    jobs.forEach((job, index) => {
+        const item = document.createElement('div');
+        item.className = 'search-suggestion-item';
+        item.dataset.index = index;
+        item.innerHTML = `
+            <div>
+                <div class="job-number">${job.job_number}</div>
+                <div class="customer-name">${job.customer_name || 'N/A'}</div>
+                <div class="device-info">${job.brand} ${job.model} - ${job.status}</div>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        `;
+        
+        item.addEventListener('click', () => {
+            // Redirect to job detail page
+            window.location.href = `/repair/job/${job.id}`;
+        });
+        
+        item.addEventListener('mouseenter', () => setActiveSearchSuggestion(index));
+        
+        dropdown.appendChild(item);
+    });
+    
+    dropdown.style.display = 'block';
+    currentSearchSuggestions = jobs;
+    activeSearchSuggestionIndex = -1;
+}
+
+// Hide search suggestions
+function hideSearchSuggestions() {
+    const dropdown = document.getElementById('searchSuggestions');
+    dropdown.style.display = 'none';
+    currentSearchSuggestions = [];
+    activeSearchSuggestionIndex = -1;
+}
+
+// Set active search suggestion
+function setActiveSearchSuggestion(index) {
+    const items = document.querySelectorAll('.search-suggestion-item');
+    items.forEach(item => item.classList.remove('active'));
+    
+    if (index >= 0 && index < items.length) {
+        items[index].classList.add('active');
+        activeSearchSuggestionIndex = index;
+    }
+}
+
+// Variables for search
+let currentSearchSuggestions = [];
+let activeSearchSuggestionIndex = -1;
+
+// Debounced search function
+const debouncedSearch = debounce(searchJobs, 300);
+
+// Quick filter function
 function setFilter(filter, value) {
     const url = new URL(window.location);
     
     if (filter === 'status' && value === 'pending') {
-        // Handle pending status - show all non-completed/non-delivered jobs
-        url.searchParams.set('status', 'all');
+        // Remove status filter to show all non-completed/non-delivered
+        url.searchParams.delete('status');
         url.searchParams.set('pending', 'true');
     } else {
         url.searchParams.set(filter, value);
         url.searchParams.delete('pending');
     }
     
+    // Remove page parameter when filtering
+    url.searchParams.delete('page');
+    
     window.location.href = url.toString();
 }
 
+// Update job status function
 function updateStatus(jobId, status) {
     if (confirm('Are you sure you want to update the status?')) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/repair/update-status/${jobId}`;
         
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'status';
-        input.value = status;
+        // Add CSRF token if available
+        const csrfToken = document.querySelector('input[name="csrf_token"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
         
-        form.appendChild(input);
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        statusInput.value = status;
+        
+        form.appendChild(statusInput);
         document.body.appendChild(form);
         form.submit();
     }
 }
 
-// Keep view parameter when filtering
+// Initialize when document is ready
 document.addEventListener('DOMContentLoaded', function() {
-    const currentView = new URLSearchParams(window.location.search).get('view');
+    const searchInput = document.getElementById('searchInput');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const filterForm = document.getElementById('filterForm');
     
-    // Update form to include view parameter
-    document.querySelector('form[method="GET"]').addEventListener('submit', function(e) {
-        if (currentView) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'view';
-            input.value = currentView;
-            this.appendChild(input);
+    // Initialize search functionality
+    if (searchInput) {
+        // Handle search input
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            debouncedSearch(query);
+        });
+        
+        // Handle keyboard navigation in search
+        searchInput.addEventListener('keydown', function(e) {
+            if (!searchSuggestions.style.display || searchSuggestions.style.display === 'none') {
+                return;
+            }
+            
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (activeSearchSuggestionIndex < currentSearchSuggestions.length - 1) {
+                        setActiveSearchSuggestion(activeSearchSuggestionIndex + 1);
+                    } else {
+                        setActiveSearchSuggestion(0);
+                    }
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (activeSearchSuggestionIndex > 0) {
+                        setActiveSearchSuggestion(activeSearchSuggestionIndex - 1);
+                    } else {
+                        setActiveSearchSuggestion(currentSearchSuggestions.length - 1);
+                    }
+                    break;
+                    
+                case 'Enter':
+                    e.preventDefault();
+                    if (activeSearchSuggestionIndex >= 0 && activeSearchSuggestionIndex < currentSearchSuggestions.length) {
+                        // Redirect to selected job
+                        const job = currentSearchSuggestions[activeSearchSuggestionIndex];
+                        window.location.href = `/repair/job/${job.id}`;
+                    } else {
+                        // Submit the search form
+                        filterForm.submit();
+                    }
+                    break;
+                    
+                case 'Escape':
+                    e.preventDefault();
+                    hideSearchSuggestions();
+                    break;
+            }
+        });
+    }
+    
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (searchInput && !searchInput.contains(e.target) && 
+            searchSuggestions && !searchSuggestions.contains(e.target)) {
+            hideSearchSuggestions();
         }
     });
+    
+    // Handle search form submission
+    if (filterForm) {
+        filterForm.addEventListener('submit', function(e) {
+            // Hide suggestions when submitting
+            hideSearchSuggestions();
+            
+            // Ensure view parameter is preserved
+            const currentView = new URLSearchParams(window.location.search).get('view');
+            if (currentView) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'view';
+                input.value = currentView;
+                this.appendChild(input);
+            }
+        });
+    }
     
     // Add click handlers for quick status badges
     document.querySelectorAll('.filter-badge').forEach(badge => {
