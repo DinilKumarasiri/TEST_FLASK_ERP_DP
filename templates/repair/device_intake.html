@@ -56,6 +56,125 @@
     .accessories-list li:last-child {
         border-bottom: none;
     }
+    
+    /* Autocomplete dropdown styles */
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 2px;
+        display: none;
+    }
+    
+    .autocomplete-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f1f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        transition: background-color 0.2s;
+    }
+    
+    .autocomplete-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .autocomplete-item.active {
+        background-color: #e7f3ff;
+        border-left: 3px solid #0d6efd;
+    }
+    
+    .autocomplete-item .phone {
+        font-weight: bold;
+        color: #0d6efd;
+        font-size: 0.9rem;
+    }
+    
+    .autocomplete-item .name {
+        color: #495057;
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+    
+    .autocomplete-item .email {
+        font-size: 0.85rem;
+        color: #6c757d;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .autocomplete-item .field-match {
+        background-color: #fff3cd;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: bold;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .position-relative {
+        position: relative;
+    }
+    
+    /* Highlight matching text in suggestions */
+    .highlight {
+        background-color: #fff3cd;
+        padding: 0 2px;
+        border-radius: 2px;
+        font-weight: bold;
+    }
+    
+    /* Form validation */
+    .is-invalid {
+        border-color: #dc3545;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
+    
+    .invalid-feedback {
+        display: none;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 0.875em;
+        color: #dc3545;
+    }
+    
+    .is-invalid ~ .invalid-feedback {
+        display: block;
+    }
+    
+    /* Loading indicator */
+    .autocomplete-loading {
+        padding: 10px 15px;
+        text-align: center;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .autocomplete-loading i {
+        margin-right: 5px;
+    }
+    
+    /* No results message */
+    .autocomplete-no-results {
+        padding: 10px 15px;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+    }
 </style>
 {% endblock %}
 
@@ -69,35 +188,55 @@
     </div>
 </div>
 
-<form method="POST" action="{{ url_for('repair.device_intake') }}" enctype="multipart/form-data">
+<form method="POST" action="{{ url_for('repair.device_intake') }}" enctype="multipart/form-data" id="deviceIntakeForm">
     <!-- Customer Information Section -->
     <div class="form-section">
         <h5><i class="fas fa-user me-2"></i>Customer Information</h5>
         
+        <!-- Customer Phone with Autocomplete -->
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Customer Phone *</label>
-                <input type="text" name="customer_phone" class="form-control" 
-                       placeholder="Enter phone number" required 
-                       onchange="findCustomerByPhone(this.value)">
+                <div class="position-relative">
+                    <input type="text" id="customer_phone" name="customer_phone" class="form-control autocomplete-field" 
+                           placeholder="Start typing phone (e.g., 07)" required 
+                           autocomplete="off" data-field="phone">
+                    <div class="autocomplete-dropdown" id="phoneSuggestions"></div>
+                    <div class="invalid-feedback">Please enter a valid phone number (minimum 10 digits)</div>
+                    <div class="form-text">Live search by phone number</div>
+                </div>
             </div>
+            
             <div class="col-md-4">
                 <label class="form-label">Customer Name *</label>
-                <input type="text" name="customer_name" class="form-control" 
-                       placeholder="Enter full name" required>
+                <div class="position-relative">
+                    <input type="text" id="customer_name" name="customer_name" class="form-control autocomplete-field" 
+                           placeholder="Start typing name" required 
+                           autocomplete="off" data-field="name">
+                    <div class="autocomplete-dropdown" id="nameSuggestions"></div>
+                    <div class="invalid-feedback">Please enter customer name</div>
+                    <div class="form-text">Live search by customer name</div>
+                </div>
             </div>
+            
             <div class="col-md-4">
                 <label class="form-label">Email</label>
-                <input type="email" name="customer_email" class="form-control" 
-                       placeholder="Enter email address">
+                <div class="position-relative">
+                    <input type="email" id="customer_email" name="customer_email" class="form-control autocomplete-field" 
+                           placeholder="Start typing email" 
+                           autocomplete="off" data-field="email">
+                    <div class="autocomplete-dropdown" id="emailSuggestions"></div>
+                    <div class="invalid-feedback">Please enter a valid email address</div>
+                    <div class="form-text">Live search by email address</div>
+                </div>
             </div>
         </div>
         
         <div class="row">
             <div class="col-12">
                 <label class="form-label">Address</label>
-                <textarea name="customer_address" class="form-control" 
-                          rows="2" placeholder="Enter address"></textarea>
+                <textarea id="customer_address" name="customer_address" class="form-control" 
+                          rows="2" placeholder="Address will auto-fill from search"></textarea>
             </div>
         </div>
         
@@ -113,6 +252,19 @@
                     <p class="mb-0"><strong>Total Repairs:</strong> <span id="custRepairs"></span></p>
                 </div>
             </div>
+            <div class="mt-2">
+                <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Customer details auto-filled from database</small>
+            </div>
+        </div>
+        
+        <!-- Quick Search Button -->
+        <div class="mt-3">
+            <button type="button" id="clearCustomerFields" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i> Clear Customer Fields
+            </button>
+            <button type="button" id="searchAllCustomers" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-search me-1"></i> Advanced Customer Search
+            </button>
         </div>
     </div>
     
@@ -133,6 +285,7 @@
                             <option value="smartwatch">Smart Watch</option>
                             <option value="other">Other</option>
                         </select>
+                        <div class="invalid-feedback">Please select device type</div>
                     </div>
                     
                     <div class="col-md-6 mb-3">
@@ -150,6 +303,7 @@
                             <option value="Nokia">Nokia</option>
                             <option value="Other">Other</option>
                         </select>
+                        <div class="invalid-feedback">Please select brand</div>
                     </div>
                 </div>
                 
@@ -157,13 +311,15 @@
                     <label class="form-label">Model *</label>
                     <input type="text" name="model" class="form-control" 
                            placeholder="e.g., iPhone 13 Pro, Galaxy S21" required>
+                    <div class="invalid-feedback">Please enter device model</div>
                 </div>
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">IMEI Number</label>
                         <input type="text" name="imei" class="form-control" 
-                               placeholder="Enter IMEI (15 digits)">
+                               placeholder="Enter IMEI (15 digits)" pattern="[0-9]{15}">
+                        <div class="invalid-feedback">IMEI should be 15 digits</div>
                     </div>
                     
                     <div class="col-md-6 mb-3">
@@ -198,6 +354,7 @@
             <label class="form-label">Issue Description *</label>
             <textarea name="issue_description" class="form-control" 
                       rows="4" placeholder="Describe the problem in detail..." required></textarea>
+            <div class="invalid-feedback">Please describe the issue</div>
         </div>
         
         <div class="row">
@@ -206,7 +363,7 @@
                 <div class="input-group">
                     <span class="input-group-text">Rs.</span>
                     <input type="number" name="estimated_cost" class="form-control" 
-                           step="0.01" min="0" placeholder="0.00">
+                           step="0.01" min="0" placeholder="0.00" value="0">
                 </div>
                 <small class="text-muted">This is an initial estimate, final cost may vary</small>
             </div>
@@ -308,6 +465,7 @@
                 <label class="form-check-label" for="terms">
                     I accept the terms and conditions of service
                 </label>
+                <div class="invalid-feedback">You must accept the terms and conditions</div>
             </div>
         </div>
         
@@ -327,30 +485,60 @@
     <!-- Submit Section -->
     <div class="form-section">
         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-            <button type="reset" class="btn btn-outline-secondary me-md-2">
+            <button type="reset" class="btn btn-outline-secondary me-md-2" id="resetForm">
                 <i class="fas fa-redo me-1"></i> Reset Form
             </button>
-            <button type="submit" class="btn btn-primary btn-lg">
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
                 <i class="fas fa-check-circle me-1"></i> Submit Intake Form
             </button>
         </div>
     </div>
 </form>
 
-<!-- Preview Modal -->
-<div class="modal fade" id="previewModal" tabindex="-1">
+<!-- Customer Search Modal -->
+<div class="modal fade" id="customerSearchModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Job Preview</h5>
+                <h5 class="modal-title">Advanced Customer Search</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Preview content will be inserted here -->
+                <div class="mb-3">
+                    <label class="form-label">Search Customers</label>
+                    <div class="input-group">
+                        <input type="text" id="modalCustomerSearch" class="form-control" 
+                               placeholder="Search by phone, name, or email...">
+                        <button class="btn btn-primary" type="button" id="modalSearchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Phone</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Repairs</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="searchResults">
+                            <!-- Results will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="noResults" class="text-center py-4" style="display: none;">
+                    <i class="fas fa-users fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">No customers found. Try a different search.</p>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Edit</button>
-                <button type="button" class="btn btn-primary">Create Job</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -359,113 +547,715 @@
 
 {% block extra_js %}
 <script>
-// Find customer by phone
-function findCustomerByPhone(phone) {
-    if (phone.length < 10) return;
-    
-    $.ajax({
-        url: '/repair/find-customer',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ phone: phone }),
-        success: function(response) {
-            if (response.success) {
-                showExistingCustomer(response.customer);
-            } else {
-                hideExistingCustomer();
-            }
-        }
-    });
-}
-
-function showExistingCustomer(customer) {
-    $('#custName').text(customer.name);
-    $('#custEmail').text(customer.email || 'N/A');
-    $('#custPhone').text(customer.phone);
-    $('#custRepairs').text(customer.repair_count || '0');
-    
-    // Auto-fill form fields
-    $('input[name="customer_name"]').val(customer.name);
-    $('input[name="customer_email"]').val(customer.email || '');
-    $('textarea[name="customer_address"]').val(customer.address || '');
-    
-    $('#existingCustomerInfo').show();
-}
-
-function hideExistingCustomer() {
-    $('#existingCustomerInfo').hide();
-}
-
-// Photo preview
-$('#devicePhotos').on('change', function() {
-    const preview = $('#photoPreview');
-    preview.empty();
-    
-    if (this.files.length > 5) {
-        alert('Maximum 5 photos allowed');
-        this.value = '';
-        return;
+// Customer Autocomplete Class
+class CustomerAutocomplete {
+    constructor() {
+        this.currentSuggestions = [];
+        this.activeSuggestionIndex = -1;
+        this.currentField = '';
+        this.currentDropdown = null;
+        this.isSearching = false;
+        
+        // Initialize debounced search functions
+        this.debouncedSearch = this.debounce(this.searchCustomers.bind(this), 300);
+        
+        this.init();
     }
     
-    Array.from(this.files).forEach((file, index) => {
-        if (file.size > 2 * 1024 * 1024) {
-            alert(`File ${file.name} is too large. Max size is 2MB.`);
+    // Debounce function
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Initialize event listeners
+    init() {
+        // Add event listeners to all autocomplete fields
+        document.querySelectorAll('.autocomplete-field').forEach(field => {
+            field.addEventListener('input', this.handleInput.bind(this));
+            field.addEventListener('keydown', this.handleKeydown.bind(this));
+            field.addEventListener('focus', this.handleFocus.bind(this));
+            field.addEventListener('blur', this.handleBlur.bind(this));
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', this.handleClickOutside.bind(this));
+        
+        // Hide dropdown when form is submitted
+        document.querySelector('form')?.addEventListener('submit', () => {
+            this.hideAllSuggestions();
+        });
+        
+        // Clear customer fields button
+        document.getElementById('clearCustomerFields')?.addEventListener('click', () => {
+            this.clearCustomerFields();
+        });
+        
+        // Advanced search button
+        document.getElementById('searchAllCustomers')?.addEventListener('click', () => {
+            this.openAdvancedSearch();
+        });
+    }
+    
+    // Handle input in any autocomplete field
+    handleInput(event) {
+        const field = event.target;
+        const query = field.value.trim();
+        const fieldType = field.dataset.field;
+        
+        // Store current field info
+        this.currentField = fieldType;
+        this.currentDropdown = document.getElementById(`${fieldType}Suggestions`);
+        
+        // Clear validation
+        field.classList.remove('is-invalid');
+        
+        // Search if query is long enough
+        if (query.length >= 2) {
+            this.debouncedSearch(query, fieldType);
+            
+            // Hide existing customer info when typing new search
+            if (query.length < 2) {
+                document.getElementById('existingCustomerInfo').style.display = 'none';
+            }
+        } else {
+            this.hideAllSuggestions();
+            if (query.length === 0) {
+                document.getElementById('existingCustomerInfo').style.display = 'none';
+            }
+        }
+    }
+    
+    // Handle focus on autocomplete field
+    handleFocus(event) {
+        const field = event.target;
+        const query = field.value.trim();
+        const fieldType = field.dataset.field;
+        
+        if (query.length >= 2) {
+            this.currentField = fieldType;
+            this.currentDropdown = document.getElementById(`${fieldType}Suggestions`);
+            this.searchCustomers(query, fieldType);
+        }
+    }
+    
+    // Handle blur on autocomplete field
+    handleBlur(event) {
+        // Small delay to allow click on suggestions
+        setTimeout(() => {
+            const field = event.target;
+            const fieldType = field.dataset.field;
+            const dropdown = document.getElementById(`${fieldType}Suggestions`);
+            
+            if (dropdown && dropdown.style.display === 'block') {
+                // Check if click was on dropdown
+                const isDropdownClick = document.activeElement?.closest('.autocomplete-dropdown');
+                if (!isDropdownClick) {
+                    this.hideAllSuggestions();
+                }
+            }
+        }, 200);
+    }
+    
+    // Search customers based on field type
+    async searchCustomers(query, fieldType) {
+        if (query.length < 2 || this.isSearching) {
+            this.hideAllSuggestions();
             return;
         }
         
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.append(`
-                <div class="d-inline-block me-2 mb-2 position-relative">
-                    <img src="${e.target.result}" class="img-thumbnail" width="100" height="100">
-                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0" 
-                            onclick="removePhoto(${index})">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `);
-        };
-        reader.readAsDataURL(file);
-    });
-});
-
-function removePhoto(index) {
-    // Remove file from input
-    const dt = new DataTransfer();
-    const input = document.getElementById('devicePhotos');
-    
-    for (let i = 0; i < input.files.length; i++) {
-        if (i !== index) {
-            dt.items.add(input.files[i]);
+        try {
+            this.isSearching = true;
+            const dropdown = document.getElementById(`${fieldType}Suggestions`);
+            if (dropdown) {
+                dropdown.innerHTML = '<div class="autocomplete-loading"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+                dropdown.style.display = 'block';
+            }
+            
+            const response = await fetch(`/repair/search-customers?query=${encodeURIComponent(query)}&field=${fieldType}`);
+            const data = await response.json();
+            
+            if (data.success && data.customers.length > 0) {
+                this.showSuggestions(data.customers, fieldType, query);
+            } else {
+                this.showNoResults(fieldType);
+            }
+        } catch (error) {
+            console.error('Error searching customers:', error);
+            this.showError(fieldType);
+        } finally {
+            this.isSearching = false;
         }
     }
     
-    input.files = dt.files;
+    // Show suggestions in dropdown
+    showSuggestions(customers, fieldType, query) {
+        const dropdown = document.getElementById(`${fieldType}Suggestions`);
+        if (!dropdown) return;
+        
+        dropdown.innerHTML = '';
+        this.currentSuggestions = customers;
+        this.activeSuggestionIndex = -1;
+        
+        customers.forEach((customer, index) => {
+            const item = this.createSuggestionItem(customer, fieldType, query, index);
+            dropdown.appendChild(item);
+        });
+        
+        dropdown.style.display = 'block';
+        
+        // Hide other dropdowns
+        this.hideOtherDropdowns(fieldType);
+    }
     
-    // Trigger change event to update preview
-    $(input).trigger('change');
+    // Show no results message
+    showNoResults(fieldType) {
+        const dropdown = document.getElementById(`${fieldType}Suggestions`);
+        if (!dropdown) return;
+        
+        dropdown.innerHTML = '<div class="autocomplete-no-results">No customers found</div>';
+        dropdown.style.display = 'block';
+        this.currentSuggestions = [];
+        
+        // Hide other dropdowns
+        this.hideOtherDropdowns(fieldType);
+    }
+    
+    // Show error message
+    showError(fieldType) {
+        const dropdown = document.getElementById(`${fieldType}Suggestions`);
+        if (!dropdown) return;
+        
+        dropdown.innerHTML = '<div class="autocomplete-no-results text-danger">Search error. Please try again.</div>';
+        dropdown.style.display = 'block';
+        this.currentSuggestions = [];
+    }
+    
+    // Create suggestion item with highlighted matching text
+    createSuggestionItem(customer, fieldType, query, index) {
+        const item = document.createElement('div');
+        item.className = 'autocomplete-item';
+        item.dataset.index = index;
+        
+        // Highlight matching text based on field type
+        let displayText = '';
+        
+        switch(fieldType) {
+            case 'phone':
+                const phoneDisplay = customer.phone_display || customer.phone;
+                displayText = this.highlightText(phoneDisplay, query);
+                break;
+            case 'name':
+                displayText = this.highlightText(customer.name, query);
+                break;
+            case 'email':
+                displayText = this.highlightText(customer.email || '', query);
+                break;
+        }
+        
+        item.innerHTML = `
+            <div style="flex: 1;">
+                <div class="name">${displayText}</div>
+                <div class="phone">${customer.phone_display || customer.phone}</div>
+                ${customer.email ? `<div class="email">${customer.email}</div>` : ''}
+            </div>
+            <i class="fas fa-chevron-right text-muted mt-2"></i>
+        `;
+        
+        item.addEventListener('click', () => this.selectCustomer(customer));
+        item.addEventListener('mouseenter', () => this.setActiveSuggestion(index, fieldType));
+        
+        return item;
+    }
+    
+    // Highlight matching text in suggestion
+    highlightText(text, query) {
+        if (!text || !query) return text;
+        
+        const lowerText = text.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        const startIndex = lowerText.indexOf(lowerQuery);
+        
+        if (startIndex === -1) return text;
+        
+        const endIndex = startIndex + query.length;
+        const before = text.substring(0, startIndex);
+        const match = text.substring(startIndex, endIndex);
+        const after = text.substring(endIndex);
+        
+        return `${before}<span class="highlight">${match}</span>${after}`;
+    }
+    
+    // Set active suggestion
+    setActiveSuggestion(index, fieldType) {
+        const dropdown = document.getElementById(`${fieldType}Suggestions`);
+        if (!dropdown) return;
+        
+        const items = dropdown.querySelectorAll('.autocomplete-item');
+        items.forEach(item => item.classList.remove('active'));
+        
+        if (index >= 0 && index < items.length) {
+            items[index].classList.add('active');
+            this.activeSuggestionIndex = index;
+        }
+    }
+    
+    // Select customer and fill all form fields
+    selectCustomer(customer) {
+        // Fill all form fields
+        document.getElementById('customer_phone').value = customer.phone;
+        document.getElementById('customer_name').value = customer.name;
+        document.getElementById('customer_email').value = customer.email || '';
+        document.getElementById('customer_address').value = customer.address || '';
+        
+        // Remove validation classes
+        ['customer_phone', 'customer_name'].forEach(id => {
+            document.getElementById(id).classList.remove('is-invalid');
+        });
+        
+        // Update existing customer info
+        this.updateCustomerInfo(customer);
+        
+        // Hide all dropdowns
+        this.hideAllSuggestions();
+        
+        // Focus on next relevant field
+        setTimeout(() => {
+            document.getElementById('customer_email').focus();
+        }, 100);
+    }
+    
+    // Update customer info display
+    updateCustomerInfo(customer) {
+        document.getElementById('custName').textContent = customer.name;
+        document.getElementById('custEmail').textContent = customer.email || 'N/A';
+        document.getElementById('custPhone').textContent = customer.phone_display || customer.phone;
+        
+        // Fetch repair count
+        this.fetchCustomerRepairCount(customer.id);
+        
+        // Show existing customer info
+        document.getElementById('existingCustomerInfo').style.display = 'block';
+    }
+    
+    // Fetch repair count for customer
+    async fetchCustomerRepairCount(customerId) {
+        try {
+            const response = await fetch('/repair/find-customer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ phone: document.getElementById('customer_phone').value })
+            });
+            
+            const data = await response.json();
+            if (data.success && data.customer && data.customer.repair_count !== undefined) {
+                document.getElementById('custRepairs').textContent = data.customer.repair_count;
+            } else {
+                document.getElementById('custRepairs').textContent = '0';
+            }
+        } catch (error) {
+            console.error('Error fetching repair count:', error);
+            document.getElementById('custRepairs').textContent = '0';
+        }
+    }
+    
+    // Handle keyboard navigation
+    handleKeydown(event) {
+        const fieldType = event.target.dataset.field;
+        const dropdown = document.getElementById(`${fieldType}Suggestions`);
+        
+        if (!dropdown || dropdown.style.display === 'none') {
+            return;
+        }
+        
+        switch(event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                if (this.activeSuggestionIndex < this.currentSuggestions.length - 1) {
+                    this.setActiveSuggestion(this.activeSuggestionIndex + 1, fieldType);
+                } else {
+                    this.setActiveSuggestion(0, fieldType);
+                }
+                break;
+                
+            case 'ArrowUp':
+                event.preventDefault();
+                if (this.activeSuggestionIndex > 0) {
+                    this.setActiveSuggestion(this.activeSuggestionIndex - 1, fieldType);
+                } else {
+                    this.setActiveSuggestion(this.currentSuggestions.length - 1, fieldType);
+                }
+                break;
+                
+            case 'Enter':
+                event.preventDefault();
+                if (this.activeSuggestionIndex >= 0 && this.activeSuggestionIndex < this.currentSuggestions.length) {
+                    this.selectCustomer(this.currentSuggestions[this.activeSuggestionIndex]);
+                }
+                break;
+                
+            case 'Escape':
+                event.preventDefault();
+                this.hideAllSuggestions();
+                break;
+                
+            case 'Tab':
+                this.hideAllSuggestions();
+                break;
+        }
+    }
+    
+    // Handle click outside dropdown
+    handleClickOutside(event) {
+        if (!event.target.closest('.autocomplete-field') && 
+            !event.target.closest('.autocomplete-dropdown')) {
+            this.hideAllSuggestions();
+        }
+    }
+    
+    // Hide all suggestion dropdowns
+    hideAllSuggestions() {
+        document.querySelectorAll('.autocomplete-dropdown').forEach(dropdown => {
+            dropdown.style.display = 'none';
+        });
+        this.currentSuggestions = [];
+        this.activeSuggestionIndex = -1;
+    }
+    
+    // Hide other dropdowns except the specified one
+    hideOtherDropdowns(exceptField) {
+        ['phone', 'name', 'email'].forEach(field => {
+            if (field !== exceptField) {
+                const dropdown = document.getElementById(`${field}Suggestions`);
+                if (dropdown) {
+                    dropdown.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    // Clear customer fields
+    clearCustomerFields() {
+        // Clear all customer fields
+        document.getElementById('customer_phone').value = '';
+        document.getElementById('customer_name').value = '';
+        document.getElementById('customer_email').value = '';
+        document.getElementById('customer_address').value = '';
+        
+        // Hide customer info
+        document.getElementById('existingCustomerInfo').style.display = 'none';
+        
+        // Hide all dropdowns
+        this.hideAllSuggestions();
+        
+        // Focus on phone field
+        document.getElementById('customer_phone').focus();
+    }
+    
+    // Open advanced search modal
+    openAdvancedSearch() {
+        const modal = new bootstrap.Modal(document.getElementById('customerSearchModal'));
+        modal.show();
+        
+        // Focus on search input
+        setTimeout(() => {
+            document.getElementById('modalCustomerSearch').focus();
+        }, 500);
+    }
+    
+    // Advanced customer search
+    async advancedCustomerSearch(query) {
+        try {
+            const response = await fetch(`/repair/search-customers?query=${encodeURIComponent(query)}&field=combined`);
+            return await response.json();
+        } catch (error) {
+            console.error('Error in advanced search:', error);
+            return { success: false, customers: [] };
+        }
+    }
 }
 
-// Form validation
-$('form').on('submit', function(e) {
-    // Basic validation
-    const phone = $('input[name="customer_phone"]').val();
-    if (phone.length < 10) {
-        alert('Please enter a valid phone number (10 digits minimum)');
-        e.preventDefault();
-        return;
+// Initialize when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize autocomplete
+    window.customerAutocomplete = new CustomerAutocomplete();
+    
+    // Also keep the existing findCustomerByPhone function for backward compatibility
+    window.findCustomerByPhone = function(phone) {
+        if (phone.length < 10) {
+            document.getElementById('existingCustomerInfo').style.display = 'none';
+            return;
+        }
+        
+        $.ajax({
+            url: '/repair/find-customer',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ phone: phone }),
+            success: function(response) {
+                if (response.success) {
+                    // Update the existing customer info box
+                    showExistingCustomer(response.customer);
+                    
+                    // Also fill the form fields
+                    document.getElementById('customer_name').value = response.customer.name;
+                    document.getElementById('customer_email').value = response.customer.email || '';
+                    document.getElementById('customer_address').value = response.customer.address || '';
+                } else {
+                    hideExistingCustomer();
+                }
+            }
+        });
+    };
+    
+    // Update the existing showExistingCustomer function
+    window.showExistingCustomer = function(customer) {
+        $('#custName').text(customer.name);
+        $('#custEmail').text(customer.email || 'N/A');
+        $('#custPhone').text(customer.phone);
+        $('#custRepairs').text(customer.repair_count || '0');
+        
+        // Auto-fill form fields
+        $('#customer_name').val(customer.name);
+        $('#customer_email').val(customer.email || '');
+        $('#customer_address').val(customer.address || '');
+        
+        $('#existingCustomerInfo').show();
+    };
+    
+    window.hideExistingCustomer = function() {
+        $('#existingCustomerInfo').hide();
+    };
+    
+    // Photo preview
+    $('#devicePhotos').on('change', function() {
+        const preview = $('#photoPreview');
+        preview.empty();
+        
+        if (this.files.length > 5) {
+            alert('Maximum 5 photos allowed');
+            this.value = '';
+            return;
+        }
+        
+        Array.from(this.files).forEach((file, index) => {
+            if (file.size > 2 * 1024 * 1024) {
+                alert(`File ${file.name} is too large. Max size is 2MB.`);
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.append(`
+                    <div class="d-inline-block me-2 mb-2 position-relative">
+                        <img src="${e.target.result}" class="img-thumbnail" width="100" height="100">
+                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0" 
+                                onclick="removePhoto(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `);
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+    
+    window.removePhoto = function(index) {
+        // Remove file from input
+        const dt = new DataTransfer();
+        const input = document.getElementById('devicePhotos');
+        
+        for (let i = 0; i < input.files.length; i++) {
+            if (i !== index) {
+                dt.items.add(input.files[i]);
+            }
+        }
+        
+        input.files = dt.files;
+        
+        // Trigger change event to update preview
+        $(input).trigger('change');
+    };
+    
+    // Form validation and submission
+    const form = document.getElementById('deviceIntakeForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    form.addEventListener('submit', function(e) {
+        // Basic validation
+        const phone = document.getElementById('customer_phone').value.trim();
+        const name = document.getElementById('customer_name').value.trim();
+        const email = document.getElementById('customer_email').value.trim();
+        
+        let isValid = true;
+        
+        // Validate phone (minimum 10 digits)
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length < 10) {
+            document.getElementById('customer_phone').classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        // Validate name
+        if (name.length < 2) {
+            document.getElementById('customer_name').classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        // Validate email format if provided
+        if (email && !isValidEmail(email)) {
+            document.getElementById('customer_email').classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        // Check terms acceptance
+        if (!document.getElementById('terms').checked) {
+            document.getElementById('terms').classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            // Scroll to first error
+            const firstError = form.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+            return;
+        }
+        
+        // Show loading
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processing...';
+        submitBtn.disabled = true;
+        
+        // Hide all autocomplete dropdowns
+        window.customerAutocomplete.hideAllSuggestions();
+    });
+    
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
     }
     
-    // Check terms acceptance
-    if (!$('#terms').is(':checked')) {
-        alert('You must accept the terms and conditions');
-        e.preventDefault();
-        return;
+    // Reset form button
+    document.getElementById('resetForm').addEventListener('click', function() {
+        // Clear customer fields
+        window.customerAutocomplete.clearCustomerFields();
+        
+        // Hide all dropdowns
+        window.customerAutocomplete.hideAllSuggestions();
+        
+        // Reset form validation
+        form.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
+        
+        // Reset submit button
+        submitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Submit Intake Form';
+        submitBtn.disabled = false;
+    });
+    
+    // Advanced search modal functionality
+    const modalSearchInput = document.getElementById('modalCustomerSearch');
+    const modalSearchBtn = document.getElementById('modalSearchBtn');
+    const searchResults = document.getElementById('searchResults');
+    const noResults = document.getElementById('noResults');
+    
+    function performModalSearch() {
+        const query = modalSearchInput.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            noResults.style.display = 'block';
+            return;
+        }
+        
+        // Show loading
+        searchResults.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin me-2"></i> Searching...
+                </td>
+            </tr>
+        `;
+        noResults.style.display = 'none';
+        
+        // Perform search
+        fetch(`/repair/search-customers?query=${encodeURIComponent(query)}&field=combined`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.customers.length > 0) {
+                    searchResults.innerHTML = '';
+                    data.customers.forEach(customer => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${customer.phone_display || customer.phone}</td>
+                            <td>${customer.name}</td>
+                            <td>${customer.email || 'N/A'}</td>
+                            <td>${customer.repair_count || 0}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary select-customer" 
+                                        data-customer='${JSON.stringify(customer)}'>
+                                    <i class="fas fa-check me-1"></i> Select
+                                </button>
+                            </td>
+                        `;
+                        searchResults.appendChild(row);
+                    });
+                    
+                    // Add event listeners to select buttons
+                    document.querySelectorAll('.select-customer').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const customer = JSON.parse(this.dataset.customer);
+                            window.customerAutocomplete.selectCustomer(customer);
+                            
+                            // Close modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('customerSearchModal'));
+                            modal.hide();
+                        });
+                    });
+                    
+                    noResults.style.display = 'none';
+                } else {
+                    searchResults.innerHTML = '';
+                    noResults.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                searchResults.innerHTML = '';
+                noResults.style.display = 'block';
+                noResults.innerHTML = `
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-3"></i>
+                    <p class="text-danger">Search error. Please try again.</p>
+                `;
+            });
     }
     
-    // Show loading
-    $('button[type="submit"]').html('<i class="fas fa-spinner fa-spin me-1"></i> Processing...');
-    $('button[type="submit"]').prop('disabled', true);
+    modalSearchInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            performModalSearch();
+        }
+    });
+    
+    modalSearchBtn.addEventListener('click', performModalSearch);
+    
+    // Clear search when modal is hidden
+    document.getElementById('customerSearchModal').addEventListener('hidden.bs.modal', function() {
+        modalSearchInput.value = '';
+        searchResults.innerHTML = '';
+        noResults.style.display = 'none';
+    });
 });
 </script>
 {% endblock %}

@@ -138,3 +138,73 @@ def find_customer():
         return jsonify({'success': False, 'message': 'Customer not found'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+@repair_bp.route('/search-customers', methods=['GET'])
+@login_required
+def search_customers():
+    """Search customers by phone, name, or email for autocomplete"""
+    try:
+        query = request.args.get('query', '').strip()
+        field = request.args.get('field', 'phone')  # 'phone', 'name', or 'email'
+        
+        if not query or len(query) < 2:
+            return jsonify({'success': True, 'customers': []})
+        
+        # Clean the query based on field type
+        if field == 'phone':
+            # Remove non-digits for phone search
+            clean_query = ''.join(filter(str.isdigit, query))
+            if not clean_query:
+                return jsonify({'success': True, 'customers': []})
+            
+            # Search for phone matches
+            customers = Customer.query.filter(
+                Customer.phone.contains(clean_query)
+            ).limit(10).all()
+            
+        elif field == 'name':
+            # Search for name matches (case-insensitive)
+            customers = Customer.query.filter(
+                Customer.name.ilike(f'%{query}%')
+            ).limit(10).all()
+            
+        elif field == 'email':
+            # Search for email matches (case-insensitive)
+            customers = Customer.query.filter(
+                Customer.email.ilike(f'%{query}%')
+            ).limit(10).all()
+        else:
+            return jsonify({'success': True, 'customers': []})
+        
+        # Format results for autocomplete
+        results = []
+        for customer in customers:
+            # Format phone number nicely
+            phone_display = customer.phone
+            if len(customer.phone) >= 10:
+                phone_display = f"{customer.phone[:3]}-{customer.phone[3:6]}-{customer.phone[6:]}"
+            
+            results.append({
+                'phone': customer.phone,
+                'phone_display': phone_display,
+                'name': customer.name,
+                'email': customer.email or '',
+                'address': customer.address or '',
+                'id': customer.id
+            })
+        
+        return jsonify({
+            'success': True,
+            'customers': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        print(f"Error in customer search: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False, 
+            'error': 'Internal server error',
+            'customers': []
+        }), 500
