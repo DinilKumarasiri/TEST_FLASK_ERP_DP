@@ -108,7 +108,7 @@
                     {% endif %}
                     
                     <!-- Barcode Attendance - Show for Admin, Staff -->
-                    {% if current_user.role in ['admin', 'staff'] %}
+                    {% if current_user.role == 'admin' %}
                     <a class="nav-link {% if request.endpoint and 'barcode_attendance' in request.endpoint %}active{% endif %}" 
                        href="{{ url_for('employee.barcode_attendance_interface') }}">
                         <i class="fas fa-barcode"></i>
@@ -242,7 +242,7 @@
                 {% endif %}
                 
                 <!-- Barcode Attendance - Show for Admin, Staff -->
-                {% if current_user.role in ['admin', 'staff'] %}
+                {% if current_user.role =='admin' %}
                 <a class="mobile-nav-item {% if request.endpoint and 'barcode_attendance' in request.endpoint %}active{% endif %}" 
                    href="{{ url_for('employee.barcode_attendance_interface') }}">
                     <i class="fas fa-barcode"></i>
@@ -561,7 +561,7 @@
         if (e.ctrlKey && e.key === 'b') {
             e.preventDefault();
             // Check if user has access to barcode scanner
-            {% if current_user.is_authenticated and current_user.role in ['admin', 'staff'] %}
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
             window.location.href = "{{ url_for('employee.barcode_attendance_interface') }}";
             {% endif %}
         }

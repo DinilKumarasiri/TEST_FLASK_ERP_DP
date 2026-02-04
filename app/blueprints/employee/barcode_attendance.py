@@ -32,7 +32,7 @@ def convert_to_sri_lanka_time(dt):
 @login_required
 def barcode_attendance_interface():
     """Admin interface for barcode scanning attendance"""
-    if current_user.role not in ['admin', 'staff']:
+    if current_user.role != 'admin':
         flash('Access denied', 'danger')
         return redirect(url_for('index'))
     

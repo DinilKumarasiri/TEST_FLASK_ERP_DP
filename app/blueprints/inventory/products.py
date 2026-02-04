@@ -79,14 +79,19 @@ except ImportError as e:
 
 @inventory_bp.route('/products')
 @login_required
-@staff_required  # Changed: staff can view products
+@staff_required
 def product_list():
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
     search = request.args.get('search', '')
     category_id = request.args.get('category_id', type=int)
-    barcode_status = request.args.get('barcode_status', '')
+    stock_status = request.args.get('stock_status', '')
+    
+    # Check if it's an AJAX request (for live search)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Use the live search API route instead
+        return api_products_live_search()
     
     query = Product.query.filter_by(is_active=True)
     
@@ -95,24 +100,19 @@ def product_list():
             db.or_(
                 Product.name.ilike(f'%{search}%'),
                 Product.sku.ilike(f'%{search}%'),
-                Product.description.ilike(f'%{search}%'),
-                Product.barcode.ilike(f'%{search}%')
+                Product.description.ilike(f'%{search}%')
             )
         )
     
     if category_id:
         query = query.filter_by(category_id=category_id)
     
-    # Filter by barcode status
-    if barcode_status == 'with_barcode':
-        query = query.filter(Product.barcode != None, Product.barcode != '')
-    elif barcode_status == 'without_barcode':
-        query = query.filter((Product.barcode == None) | (Product.barcode == ''))
+    # Filter by stock status
+    if stock_status:
+        # We'll need to handle this differently
+        pass
     
     products = query.order_by(Product.name).paginate(page=page, per_page=per_page)
-    
-    # MAKE SURE CATEGORIES ARE QUERIED
-    categories = ProductCategory.query.order_by(ProductCategory.name).all()
     
     # Get stock counts for each product
     for product in products.items:
@@ -121,11 +121,15 @@ def product_list():
             status='available'
         ).count()
     
+    categories = ProductCategory.query.order_by(ProductCategory.name).all()
+    
     return render_template('inventory/products.html',
                          products=products,
-                         categories=categories,  # This is important!
+                         categories=categories,
                          title='Products',
-                         barcode_status=barcode_status)
+                         search=search,
+                         category_id=category_id,
+                         stock_status=stock_status)
 
 @inventory_bp.route('/product/<int:product_id>', methods=['GET'])
 @login_required
@@ -206,6 +210,12 @@ def stock_in():
             
             if not selling_price or selling_price <= 0:
                 flash('Valid selling price is required', 'danger')
+                return redirect(url_for('inventory.stock_in'))
+            
+            # Get product here - FIX: Define product before using it
+            product = Product.query.get(product_id)
+            if not product:
+                flash('Product not found', 'danger')
                 return redirect(url_for('inventory.stock_in'))
             
             print(f"DEBUG: Product found: {product.name}, has_imei={product.has_imei}")
@@ -1398,3 +1408,82 @@ def fix_barcodes():
     
     flash(f'Fixed {fixed_count} items with NULL barcodes', 'success')
     return redirect(url_for('inventory.product_list'))
+
+@inventory_bp.route('/api/products/search-live', methods=['GET'])
+@login_required
+@staff_required
+def api_products_live_search():
+    """API endpoint for live search with filters"""
+    try:
+        search = request.args.get('search', '')
+        category_id = request.args.get('category_id', '')
+        stock_status = request.args.get('stock_status', '')
+        
+        # Build query
+        query = Product.query.filter_by(is_active=True)
+        
+        # Apply search filter
+        if search:
+            query = query.filter(
+                db.or_(
+                    Product.name.ilike(f'%{search}%'),
+                    Product.sku.ilike(f'%{search}%'),
+                    Product.description.ilike(f'%{search}%')
+                )
+            )
+        
+        # Apply category filter
+        if category_id and category_id != '':
+            query = query.filter_by(category_id=int(category_id))
+        
+        # Apply stock status filter
+        if stock_status and stock_status != '':
+            # This is more complex as we need to check stock items
+            # For now, we'll handle 'low' and 'out' stock statuses
+            pass
+        
+        # Get all products (no pagination for live search)
+        products = query.order_by(Product.name).all()
+        
+        # Get stock counts and prepare data for template
+        products_data = []
+        for product in products:
+            stock_count = StockItem.query.filter_by(
+                product_id=product.id,
+                status='available'
+            ).count()
+            
+            # Check stock status
+            stock_status_check = 'available'
+            if stock_count == 0:
+                stock_status_check = 'out'
+            elif stock_count <= product.min_stock_level:
+                stock_status_check = 'low'
+            
+            # Apply stock status filter
+            if stock_status and stock_status != '':
+                if stock_status != stock_status_check:
+                    continue
+            
+            products_data.append({
+                'product': product,
+                'stock_count': stock_count,
+                'stock_status': stock_status_check
+            })
+        
+        # Render the table rows HTML
+        html = render_template('inventory/_product_table_rows.html', 
+                              products=products_data)
+        
+        return jsonify({
+            'success': True,
+            'html': html,
+            'count': len(products_data)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'count': 0
+        })

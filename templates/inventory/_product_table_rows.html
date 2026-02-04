@@ -1,0 +1,56 @@
+{% for item in products %}
+<tr>
+    <td>{{ item.product.id }}</td>
+    <td>
+        <a href="{{ url_for('inventory.product_detail', product_id=item.product.id) }}" 
+           class="text-decoration-none">
+            <strong>{{ item.product.name }}</strong>
+        </a>
+        {% if item.product.description %}
+        <br>
+        <small class="text-muted">{{ item.product.description|truncate(50) }}</small>
+        {% endif %}
+    </td>
+    <td>
+        <code>{{ item.product.sku }}</code>
+        {% if item.product.has_imei %}
+        <br>
+        <span class="badge bg-info badge-sm">IMEI Tracking</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if item.product.category %}
+            <span class="badge bg-secondary">{{ item.product.category.name }}</span>
+        {% else %}
+            <span class="text-muted">N/A</span>
+        {% endif %}
+    </td>
+    <td class="text-end">
+        {% if item.product.purchase_price is not none %}
+            Rs.{{ "%.2f"|format(item.product.purchase_price) }}
+        {% else %}
+            Rs.-
+        {% endif %}
+    </td>
+    <td class="text-end">Rs.{{ "%.2f"|format(item.product.selling_price) }}</td>
+    <td class="text-center">
+        <span class="badge bg-{{ 'success' if item.stock_count > item.product.min_stock_level else 'danger' }}">
+            {{ item.stock_count }}
+        </span>
+    </td>
+    <td class="text-center">{{ item.product.min_stock_level }}</td>
+    <td class="text-center">
+        <span class="badge bg-{{ 'success' if item.product.is_active else 'danger' }}">
+            {{ 'Active' if item.product.is_active else 'Inactive' }}
+        </span>
+    </td>
+</tr>
+{% else %}
+<tr>
+    <td colspan="9" class="text-center py-4">
+        <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+        <p class="mb-0 text-muted">No products found</p>
+        <small class="text-muted">Try adjusting your search criteria</small>
+    </td>
+</tr>
+{% endfor %}
