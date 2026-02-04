@@ -534,6 +534,13 @@
         <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
     </div>
     <div class="card-body">
+        <div class="col-md-3">
+            <a href="{{ url_for('employee.view_employee_barcode', employee_id=employee.id) }}" 
+            class="btn btn-outline-primary w-100">
+                <i class="fas fa-barcode fa-2x mb-2"></i><br>
+                View Barcode
+            </a>
+        </div>
         <div class="row g-3">
             <div class="col-md-3">
                 <a href="{{ url_for('employee.attendance_history') }}?employee_id={{ employee.id }}" 

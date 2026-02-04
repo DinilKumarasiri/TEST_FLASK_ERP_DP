@@ -47,7 +47,6 @@
                 </div>
             </div>
             
-            
             <!-- Right side with user info -->
             <div class="desktop-header-right">
                 {% if current_user.is_authenticated %}
@@ -107,12 +106,37 @@
                         <span>Employees</span>
                     </a>
                     {% endif %}
+                    
+                    <!-- Barcode Attendance - Show for Admin, Staff -->
+                    {% if current_user.role in ['admin', 'staff'] %}
+                    <a class="nav-link {% if request.endpoint and 'barcode_attendance' in request.endpoint %}active{% endif %}" 
+                       href="{{ url_for('employee.barcode_attendance_interface') }}">
+                        <i class="fas fa-barcode"></i>
+                        <span>Barcode Scanner</span>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- My Barcode - Show for all authenticated employees -->
+                    {% if current_user.role|lower != 'admin' %}
+                    <a class="nav-link {% if request.endpoint and 'my_barcode' in request.endpoint %}active{% endif %}" 
+                    href="{{ url_for('employee.my_barcode') }}">
+                        <i class="fas fa-id-card"></i>
+                        <span>My Barcode</span>
+                    </a>
+                    {% endif %}
+
                 {% endif %}
             </nav>
         </div>
         
         <div class="sidebar-footer">
             {% if current_user.is_authenticated %}
+            <div class="sri-lanka-time ms-3">
+                <small class="text-white">
+                    <i class="fas fa-clock me-1"></i>
+                    SL Time: {{ now_sl.strftime('%H:%M') if now_sl else '' }}
+                </small>
+            </div>
             <div class="user-info">
                 <small class="text-white d-block mb-1">Logged in as</small>
                 <h6 class="mb-1">
@@ -217,6 +241,23 @@
                 </a>
                 {% endif %}
                 
+                <!-- Barcode Attendance - Show for Admin, Staff -->
+                {% if current_user.role in ['admin', 'staff'] %}
+                <a class="mobile-nav-item {% if request.endpoint and 'barcode_attendance' in request.endpoint %}active{% endif %}" 
+                   href="{{ url_for('employee.barcode_attendance_interface') }}">
+                    <i class="fas fa-barcode"></i>
+                    <span>Barcode Scanner</span>
+                </a>
+                {% endif %}
+                
+                <!-- My Barcode - Show for all authenticated employees -->
+                {% if current_user.role|lower != 'admin' %}
+                <a class="mobile-nav-item {{ 'active' if request.endpoint == 'employee.my_barcode' else '' }}"
+                href="{{ url_for('employee.my_barcode') }}">
+                    <i class="fas fa-id-card"></i>
+                    <span>My Barcode</span>
+                </a>
+                {% endif %}
                 <div class="mobile-nav-divider"></div>
             {% endif %}
         </div>
@@ -513,6 +554,25 @@
     $(window).on('resize', fixHeights);
     $(window).on('orientationchange', function() {
         setTimeout(fixHeights, 100);
+    });
+    
+    // Barcode Scanner Quick Access (Ctrl+B)
+    $(document).on('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'b') {
+            e.preventDefault();
+            // Check if user has access to barcode scanner
+            {% if current_user.is_authenticated and current_user.role in ['admin', 'staff'] %}
+            window.location.href = "{{ url_for('employee.barcode_attendance_interface') }}";
+            {% endif %}
+        }
+        
+        // Ctrl+M for My Barcode (for all employees)
+        if (e.ctrlKey && e.key === 'm') {
+            e.preventDefault();
+            {% if current_user.is_authenticated %}
+            window.location.href = "{{ url_for('employee.my_barcode') }}";
+            {% endif %}
+        }
     });
 });
     </script>

@@ -1,7 +1,7 @@
 # app/models/__init__.py
 
 from .user import User
-from .employee import Attendance, LeaveRequest, Commission, EmployeeProfile
+from .employee import Attendance, AttendanceLog, LeaveRequest, Commission, EmployeeProfile
 from .customer import Customer
 from .product import ProductCategory, Product
 from .supplier import Supplier
@@ -14,6 +14,7 @@ from .pos import Invoice, InvoiceItem, Payment
 __all__ = [
     'User',
     'Attendance',
+    'AttendanceLog',
     'LeaveRequest',
     'Commission',
     'EmployeeProfile',

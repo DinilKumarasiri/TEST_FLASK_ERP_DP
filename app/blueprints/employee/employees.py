@@ -7,6 +7,8 @@ from ...models import User, EmployeeProfile, Attendance, LeaveRequest, Commissio
 from datetime import datetime, date
 from .forms import EmployeeForm, EditEmployeeForm
 from . import employee_bp
+from app.utils.barcode_generator import BarcodeGenerator
+
 
 @employee_bp.route('/')
 @login_required
@@ -413,3 +415,67 @@ def reactivate_employee(employee_id):
         db.session.rollback()
         flash(f'Error reactivating employee: {str(e)}', 'danger')
         return jsonify({'success': False, 'message': str(e)})
+
+
+
+@employee_bp.route('/employee/<int:employee_id>/generate-barcode', methods=['POST'])
+@login_required
+def generate_employee_barcode(employee_id):
+    """Generate barcode for employee (admin only)"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'message': 'Access denied'})
+    
+    employee_profile = EmployeeProfile.query.filter_by(user_id=employee_id).first()
+    
+    if not employee_profile:
+        return jsonify({'success': False, 'message': 'Employee not found'})
+    
+    try:
+        # Generate barcode
+        barcode = employee_profile.generate_barcode()
+        barcode_image_url = employee_profile.get_barcode_image_url()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Barcode generated successfully',
+            'barcode': barcode,
+            'barcode_image_url': barcode_image_url
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+
+@employee_bp.route('/employee/bulk-generate-barcodes', methods=['POST'])
+@login_required
+def bulk_generate_barcodes():
+    """Generate barcodes for all employees without barcode"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'message': 'Access denied'})
+    
+    try:
+        employees_without_barcode = EmployeeProfile.query.filter(
+            (EmployeeProfile.employee_barcode.is_(None)) |
+            (EmployeeProfile.employee_barcode == '')
+        ).all()
+        
+        generated_count = 0
+        for profile in employees_without_barcode:
+            profile.generate_barcode()
+            profile.get_barcode_image_url()
+            generated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Generated barcodes for {generated_count} employees',
+            'count': generated_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})

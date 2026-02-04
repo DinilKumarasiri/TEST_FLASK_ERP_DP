@@ -1,3 +1,4 @@
+# app/__init__.py
 import os
 import sys
 from flask import Flask, render_template, redirect, url_for, flash, send_from_directory
@@ -7,6 +8,7 @@ from flask_login import LoginManager, current_user, login_required
 from flask_wtf import CSRFProtect
 from config import Config, get_config, ensure_directories
 from datetime import datetime, timedelta
+import pytz  # Add this import
 
 # Force UTF-8 encoding for output
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
@@ -23,53 +25,50 @@ csrf = CSRFProtect()
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
 
+# Sri Lanka timezone
+SRI_LANKA_TZ = pytz.timezone('Asia/Colombo')
 
-def time_ago_filter(value):
-    """Format datetime as time ago"""
+def get_sri_lanka_time():
+    """Get current time in Sri Lanka timezone"""
+    return datetime.now(SRI_LANKA_TZ)
+
+def format_currency_filter(value, currency_symbol='රු.'):
+    """Format value as Sri Lankan currency"""
+    try:
+        return f"{currency_symbol}{float(value):,.2f}"
+    except (ValueError, TypeError):
+        return f"{currency_symbol}0.00"
+
+def format_date_sri_lanka(value, format_str='%Y-%m-%d'):
+    """Format date for Sri Lanka"""
     if not value:
         return ''
+    
+    if hasattr(value, 'strftime'):
+        # If datetime has timezone info, convert to Sri Lanka time
+        if hasattr(value, 'tzinfo') and value.tzinfo:
+            sl_time = value.astimezone(SRI_LANKA_TZ)
+            return sl_time.strftime(format_str)
+        return value.strftime(format_str)
+    return str(value)
 
-    now = datetime.utcnow()
+def format_time_sri_lanka(value, format_str='%H:%M'):
+    """Format time for Sri Lanka"""
+    if not value:
+        return '--:--'
+    
+    if hasattr(value, 'strftime'):
+        # If datetime has timezone info, convert to Sri Lanka time
+        if hasattr(value, 'tzinfo') and value.tzinfo:
+            sl_time = value.astimezone(SRI_LANKA_TZ)
+            return sl_time.strftime(format_str)
+        return value.strftime(format_str)
+    return str(value)
 
-    if hasattr(value, 'date') and not hasattr(value, 'hour'):
-        value = datetime.combine(value, datetime.min.time())
-
-    diff = now - value
-
-    if diff.days > 365:
-        years = diff.days // 365
-        return f'{years} year{"s" if years > 1 else ""} ago'
-    elif diff.days > 30:
-        months = diff.days // 30
-        return f'{months} month{"s" if months > 1 else ""} ago'
-    elif diff.days > 7:
-        weeks = diff.days // 7
-        return f'{weeks} week{"s" if weeks > 1 else ""} ago'
-    elif diff.days > 0:
-        return f'{diff.days} day{"s" if diff.days > 1 else ""} ago'
-    elif diff.seconds > 3600:
-        hours = diff.seconds // 3600
-        return f'{hours} hour{"s" if hours > 1 else ""} ago'
-    elif diff.seconds > 60:
-        minutes = diff.seconds // 60
-        return f'{minutes} minute{"s" if minutes > 1 else ""} ago'
-    elif diff.seconds > 0:
-        return f'{diff.seconds} second{"s" if diff.seconds > 1 else ""} ago'
-    else:
-        return 'just now'
-def safe_currency_filter(value, default=0.0):
-    """Safely format value as currency, handling None values"""
-    try:
-        return f"Rs.{float(value or default):,.2f}"
-    except (ValueError, TypeError):
-        return f"Rs.{float(default):,.2f}"
-
-def safe_number_filter(value, default=0.0):
-    """Safely format value as number, handling None values"""
-    try:
-        return f"{float(value or default):,.2f}"
-    except (ValueError, TypeError):
-        return f"{float(default):,.2f}"
+def time_ago_filter_sri_lanka(value):
+    """Format datetime as time ago in Sri Lanka context"""
+    from app.utils.timezone_helper import sri_lanka_time_ago
+    return sri_lanka_time_ago(value)
 
 def create_app(config_class=None):
     if config_class is None:
@@ -78,17 +77,21 @@ def create_app(config_class=None):
     # Create the app instance
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
     app.config.from_object(config_class)
-    app.jinja_env.filters['safe_currency'] = safe_currency_filter
-    app.jinja_env.filters['safe_number'] = safe_number_filter
+    
+    # Add Sri Lanka timezone to app config
+    app.config['SRI_LANKA_TZ'] = SRI_LANKA_TZ
+    
+    # Custom Jinja filters for Sri Lanka
+    app.jinja_env.filters['sl_currency'] = format_currency_filter
+    app.jinja_env.filters['sl_date'] = format_date_sri_lanka
+    app.jinja_env.filters['sl_time'] = format_time_sri_lanka
+    app.jinja_env.filters['sl_time_ago'] = time_ago_filter_sri_lanka
 
     # Init extensions WITH the app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
-
-    # Jinja filters
-    app.jinja_env.filters['time_ago'] = time_ago_filter
 
     # Import models (inside function to avoid circular imports)
     from .models import User, Commission, Attendance, LeaveRequest, Customer, Product, Supplier, StockItem, RepairJob
@@ -110,17 +113,25 @@ def create_app(config_class=None):
     app.register_blueprint(repair_bp, url_prefix='/repair')
     app.register_blueprint(employee_bp, url_prefix='/employee')
 
-    # Context processor
+    # Context processor for Sri Lanka time
+    @app.context_processor
+    def inject_sri_lanka_time():
+        now_sl = get_sri_lanka_time()
+        return {
+            'now_sl': now_sl,
+            'today_sl': now_sl.date(),
+            'sri_lanka_tz': SRI_LANKA_TZ,
+            'timedelta': timedelta
+        }
+    
     @app.route('/favicon.ico')
     def favicon():
-        # Try to serve from uploads folder first
         uploads_dir = os.path.join(app.root_path, '..', 'uploads')
         favicon_path = os.path.join(uploads_dir, 'logo.ico')
         
         if os.path.exists(favicon_path):
             return send_from_directory(uploads_dir, 'logo.ico')
         else:
-            # If not found in uploads, try static folder as fallback
             return send_from_directory(os.path.join(app.root_path, 'static'), 'logo.ico')
         
     @app.context_processor
@@ -132,7 +143,7 @@ def create_app(config_class=None):
         from flask_wtf.csrf import generate_csrf
         return dict(csrf_token=generate_csrf)
 
-    # Route to serve uploaded files (including logo)
+    # Route to serve uploaded files
     @app.route('/uploads/<path:filename>')
     def serve_upload(filename):
         uploads_dir = os.path.join(app.root_path, '..', 'uploads')
@@ -142,7 +153,6 @@ def create_app(config_class=None):
             app.logger.error(f"Error serving file {filename}: {str(e)}")
             return f"File not found: {filename}", 404
 
-    # Alternative route if the above doesn't work
     @app.route('/static/uploads/<path:filename>')
     def serve_upload_static(filename):
         uploads_dir = os.path.join(app.root_path, '..', 'uploads')
@@ -173,23 +183,24 @@ def create_app(config_class=None):
     def internal_server_error(e):
         return render_template('500.html'), 500
 
-    # Extra filters
-    @app.template_filter('format_currency')
-    def format_currency_filter(value):
-        """Format value as currency"""
+    # Extra filters for Sri Lanka
+    @app.template_filter('format_currency_lkr')
+    def format_currency_lkr_filter(value):
+        """Format value as Sri Lankan Rupees"""
         try:
-            return f"₹{float(value):,.2f}"
+            return f"රු.{float(value):,.2f}"
         except (ValueError, TypeError):
-            return "₹0.00"
+            return "රු.0.00"
 
-    @app.template_filter('format_date')
-    def format_date_filter(value, format='%Y-%m-%d'):
-        """Format date"""
-        if not value:
-            return ''
-        if hasattr(value, 'strftime'):
-            return value.strftime(format)
-        return str(value)
+    @app.template_filter('format_date_sl')
+    def format_date_sl_filter(value, format='%Y-%m-%d'):
+        """Format date for Sri Lanka"""
+        return format_date_sri_lanka(value, format)
+
+    @app.template_filter('format_time_sl')
+    def format_time_sl_filter(value):
+        """Format time for Sri Lanka"""
+        return format_time_sri_lanka(value)
 
     @app.template_filter('truncate')
     def truncate_filter(value, length=50):
@@ -199,15 +210,6 @@ def create_app(config_class=None):
         if len(value) <= length:
             return value
         return value[:length] + '...'
-
-    @app.template_filter('format_time')
-    def format_time_filter(value):
-        """Format time"""
-        if not value:
-            return '--:--'
-        if hasattr(value, 'strftime'):
-            return value.strftime('%H:%M')
-        return str(value)
     
     @app.template_filter('match')
     def match_filter(value, pattern):
@@ -244,7 +246,7 @@ def create_app(config_class=None):
     # Health check endpoint
     @app.route('/health')
     def health_check():
-        return {'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()}
+        return {'status': 'healthy', 'timestamp': get_sri_lanka_time().isoformat()}
     
     # CSRF token endpoint
     @app.route('/csrf-token')

@@ -50,6 +50,17 @@ class Config:
     WTF_CSRF_ENABLED = os.environ.get('WTF_CSRF_ENABLED', 'false').lower() == 'true'
     WTF_CSRF_SECRET_KEY = os.environ.get('CSRF_SECRET_KEY') or 'csrf-secret-key-here-67890'
     
+        # ==================== Timezone Settings ====================
+    # Sri Lanka Timezone (UTC+5:30)
+    from pytz import timezone
+    SRI_LANKA_TZ = timezone('Asia/Colombo')
+    
+    # Business hours for Sri Lanka
+    BUSINESS_OPEN_TIME = os.environ.get('BUSINESS_OPEN_TIME', '08:30')
+    BUSINESS_CLOSE_TIME = os.environ.get('BUSINESS_CLOSE_TIME', '17:30')
+    BUSINESS_DAYS = os.environ.get('BUSINESS_DAYS', 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday').split(',')
+    
+    
     # ==================== Application Settings ====================
     
     # POS Settings
