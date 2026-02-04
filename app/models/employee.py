@@ -30,25 +30,27 @@ class Attendance(db.Model):
     def get_check_in_sri_lanka(self):
         """Get check-in time in Sri Lanka timezone"""
         if self.check_in:
+            if self.check_in.tzinfo is None:
+                return SRI_LANKA_TZ.localize(self.check_in)
             return self.check_in.astimezone(SRI_LANKA_TZ)
         return None
     
     def get_check_out_sri_lanka(self):
         """Get check-out time in Sri Lanka timezone"""
         if self.check_out:
+            if self.check_out.tzinfo is None:
+                return SRI_LANKA_TZ.localize(self.check_out)
             return self.check_out.astimezone(SRI_LANKA_TZ)
         return None
     
     def calculate_hours_sri_lanka(self):
         """Calculate hours based on Sri Lanka time"""
-        if self.check_in and self.check_out:
-            # Convert to Sri Lanka time
-            check_in_sl = self.get_check_in_sri_lanka()
-            check_out_sl = self.get_check_out_sri_lanka()
-            
-            if check_in_sl and check_out_sl:
-                time_diff = check_out_sl - check_in_sl
-                return time_diff.total_seconds() / 3600
+        check_in_sl = self.get_check_in_sri_lanka()
+        check_out_sl = self.get_check_out_sri_lanka()
+        
+        if check_in_sl and check_out_sl:
+            time_diff = check_out_sl - check_in_sl
+            return time_diff.total_seconds() / 3600
         return 0.0
 
 class AttendanceLog(db.Model):

@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .scanner-container {
-        max-width: 800px;
+        max-width: 900px;
         margin: 0 auto;
     }
     
@@ -96,6 +96,27 @@
     .sound-indicator {
         display: none;
     }
+    
+    .today-attendance {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .attendance-badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        border-radius: 20px;
+    }
+    
+    .current-time {
+        font-size: 0.9rem;
+        background: #e9ecef;
+        padding: 5px 10px;
+        border-radius: 5px;
+        display: inline-block;
+    }
 </style>
 {% endblock %}
 
@@ -110,6 +131,32 @@
             <a href="{{ url_for('employee.barcode_scanning_guide') }}" class="btn btn-outline-info ms-2">
                 <i class="fas fa-question-circle me-1"></i> Setup Guide
             </a>
+            <button class="btn btn-outline-success ms-2" onclick="loadTodayAttendance()">
+                <i class="fas fa-sync-alt me-1"></i> Refresh Status
+            </button>
+        </div>
+    </div>
+    
+    <!-- Current Time Display -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Sri Lanka Time
+                    </h5>
+                    <div class="current-time mt-2">
+                        <span id="currentDateTime">{{ now.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-day me-2"></i>
+                        {{ today_sl.strftime('%A, %B %d, %Y') }}
+                    </h5>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -117,6 +164,10 @@
     <div class="scanner-status status-ready" id="scannerStatus">
         <h4 class="mb-2"><i class="fas fa-check-circle me-2"></i>Ready to Scan</h4>
         <p class="mb-0">Scanner is active. Scan employee barcode to record attendance.</p>
+        <small class="d-block mt-2">
+            <i class="fas fa-info-circle me-1"></i>
+            First scan = Check In | Second scan = Check Out
+        </small>
     </div>
     
     <!-- Barcode Input (Hidden - for keyboard input from scanner) -->
@@ -135,73 +186,132 @@
         </div>
     </div>
     
-    <!-- Recent Scans -->
-    <div class="card">
-        <div class="card-header bg-light">
+    <!-- Today's Attendance Summary -->
+    <div class="today-attendance">
+        <h5 class="mb-3"><i class="fas fa-calendar-check me-2"></i>Today's Attendance Status</h5>
+        <div class="row" id="attendanceStatus">
+            <div class="col-md-4 text-center">
+                <div class="display-4 mb-2" id="checkedInCount">0</div>
+                <p class="text-muted mb-0">Checked In</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="display-4 mb-2" id="checkedOutCount">0</div>
+                <p class="text-muted mb-0">Checked Out</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="display-4 mb-2" id="totalScans">0</div>
+                <p class="text-muted mb-0">Total Scans</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Recent Scans -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Scans
+                        <span class="badge bg-secondary ms-2" id="recentCount">0</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="recent-scans" id="recentScans">
+                        <div class="text-center py-4">
+                            <i class="fas fa-barcode fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No recent scans. Scan an employee barcode to begin.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Updates in real-time. Scans from last 24 hours.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6><i class="fas fa-users me-2"></i>Employee Status</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Total Active Employees:</span>
+                            <strong id="totalEmployees">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>With Barcodes:</span>
+                            <strong id="withBarcodes">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Scanned Today:</span>
+                            <strong id="scannedToday">0</strong>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h6><i class="fas fa-clock me-2"></i>Last 24 Hours</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Check-ins:</span>
+                            <strong id="last24Checkins">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Check-outs:</span>
+                            <strong id="last24Checkouts">0</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadStatistics()">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh Stats
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Today's Active Employees -->
+    <div class="card mt-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-                <i class="fas fa-history me-2"></i>
-                Recent Scans
-                <span class="badge bg-secondary ms-2" id="recentCount">0</span>
+                <i class="fas fa-user-check me-2"></i>
+                Today's Attendance Details
             </h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleAttendanceDetails()">
+                <i class="fas fa-eye me-1"></i> Toggle View
+            </button>
         </div>
         <div class="card-body p-0">
-            <div class="recent-scans" id="recentScans">
-                <div class="text-center py-4">
-                    <i class="fas fa-barcode fa-2x text-muted mb-2"></i>
-                    <p class="text-muted mb-0">No recent scans. Scan an employee barcode to begin.</p>
-                </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="attendanceDetailsTable">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Hours</th>
+                            <th>Status</th>
+                            <th>Last Scan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceDetailsBody">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
             </div>
         </div>
         <div class="card-footer">
             <small class="text-muted">
-                <i class="fas fa-clock me-1"></i>
-                Updates in real-time. Scans from last 24 hours.
+                <i class="fas fa-info-circle me-1"></i>
+                Showing today's attendance. Refreshes automatically every 30 seconds.
             </small>
-        </div>
-    </div>
-    
-    <!-- Statistics -->
-    <div class="row mt-4">
-        <div class="col-md-4">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-1" id="todayScans">0</h2>
-                            <p class="mb-0">Today's Scans</p>
-                        </div>
-                        <i class="fas fa-qrcode fa-2x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-1" id="checkedIn">0</h2>
-                            <p class="mb-0">Checked In</p>
-                        </div>
-                        <i class="fas fa-sign-in-alt fa-2x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-1" id="checkedOut">0</h2>
-                            <p class="mb-0">Checked Out</p>
-                        </div>
-                        <i class="fas fa-sign-out-alt fa-2x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -228,9 +338,9 @@ const barcodeInput = document.getElementById('barcodeInput');
 const scannerStatus = document.getElementById('scannerStatus');
 const recentScans = document.getElementById('recentScans');
 const recentCount = document.getElementById('recentCount');
-const todayScans = document.getElementById('todayScans');
-const checkedIn = document.getElementById('checkedIn');
-const checkedOut = document.getElementById('checkedOut');
+const checkedInCount = document.getElementById('checkedInCount');
+const checkedOutCount = document.getElementById('checkedOutCount');
+const totalScans = document.getElementById('totalScans');
 const successSound = document.getElementById('successSound');
 const errorSound = document.getElementById('errorSound');
 const warningSound = document.getElementById('warningSound');
@@ -238,18 +348,48 @@ const warningSound = document.getElementById('warningSound');
 // State
 let scanInProgress = false;
 let recentScansData = [];
+let attendanceDetailsVisible = true;
+
+// Update current time
+function updateCurrentTime() {
+    const now = new Date();
+    // Sri Lanka is UTC+5:30
+    const sriLankaOffset = 5.5 * 60 * 60 * 1000;
+    const nowSL = new Date(now.getTime() + sriLankaOffset);
+    
+    const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    };
+    
+    document.getElementById('currentDateTime').textContent = 
+        nowSL.toLocaleDateString('en-US', options);
+}
 
 // Focus on barcode input when page loads
 window.addEventListener('DOMContentLoaded', function() {
     barcodeInput.focus();
+    updateCurrentTime();
     
-    // Load recent scans
+    // Update time every second
+    setInterval(updateCurrentTime, 1000);
+    
+    // Load initial data
     loadRecentScans();
     loadStatistics();
+    loadTodayAttendance();
+    loadAttendanceDetails();
     
-    // Auto-refresh every 30 seconds
-    setInterval(loadRecentScans, 30000);
-    setInterval(loadStatistics, 60000);
+    // Auto-refresh
+    setInterval(loadRecentScans, 30000); // 30 seconds
+    setInterval(loadStatistics, 60000); // 60 seconds
+    setInterval(loadAttendanceDetails, 30000); // 30 seconds
 });
 
 // Handle barcode input
@@ -303,6 +443,9 @@ function processBarcodeScan(barcode) {
             successSound.currentTime = 0;
             successSound.play().catch(e => console.log('Audio play failed:', e));
             updateScannerStatus('success', data.message, 'fa-check-circle');
+            
+            // Update statistics
+            updateStatistics(data);
         } else if (data.sound === 'error') {
             errorSound.currentTime = 0;
             errorSound.play().catch(e => console.log('Audio play failed:', e));
@@ -314,16 +457,13 @@ function processBarcodeScan(barcode) {
         }
         
         // Add to recent scans
-        addRecentScan({
-            employee: data.employee,
-            scan_type: data.scan_type,
-            time: data.time,
-            message: data.message,
-            success: data.success
-        });
+        addRecentScan(data);
         
-        // Reload statistics
-        loadStatistics();
+        // Reload attendance details
+        setTimeout(() => {
+            loadTodayAttendance();
+            loadAttendanceDetails();
+        }, 1000);
         
         // Reset input after delay
         setTimeout(() => {
@@ -360,16 +500,25 @@ function updateScannerStatus(type, message, icon) {
     scannerStatus.innerHTML = `
         <h4 class="mb-2"><i class="fas ${icon} me-2"></i>${type.toUpperCase()}</h4>
         <p class="mb-0">${message}</p>
+        <small class="d-block mt-2">
+            <i class="fas fa-info-circle me-1"></i>
+            First scan = Check In | Second scan = Check Out
+        </small>
     `;
 }
 
 // Add scan to recent scans list
 function addRecentScan(scanData) {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const timeString = scanData.time || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
     const scanCard = document.createElement('div');
     scanCard.className = `scan-card scan-${scanData.scan_type || 'unknown'}`;
+    
+    let hoursInfo = '';
+    if (scanData.total_hours) {
+        hoursInfo = `<small class="text-muted d-block mt-1">Hours: ${scanData.total_hours.toFixed(1)}</small>`;
+    }
+    
     scanCard.innerHTML = `
         <div class="d-flex align-items-center">
             <div class="employee-avatar me-3">
@@ -379,10 +528,11 @@ function addRecentScan(scanData) {
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h6 class="mb-0">${scanData.employee?.username || 'Unknown Employee'}</h6>
                     <span class="badge bg-${scanData.scan_type === 'check_in' ? 'success' : 'info'}">
-                        ${scanData.scan_type === 'check_in' ? 'IN' : 'OUT'} ${scanData.time || timeString}
+                        ${scanData.scan_type === 'check_in' ? 'IN' : 'OUT'} ${timeString}
                     </span>
                 </div>
                 <p class="mb-0 text-muted small">${scanData.message || 'Scan recorded'}</p>
+                ${hoursInfo}
             </div>
         </div>
     `;
@@ -398,12 +548,26 @@ function addRecentScan(scanData) {
     recentCount.textContent = recentScansData.length;
 }
 
+// Update statistics after scan
+function updateStatistics(scanData) {
+    if (scanData.scan_type === 'check_in') {
+        const currentCount = parseInt(checkedInCount.textContent);
+        checkedInCount.textContent = currentCount + 1;
+    } else if (scanData.scan_type === 'check_out') {
+        const currentCount = parseInt(checkedOutCount.textContent);
+        checkedOutCount.textContent = currentCount + 1;
+    }
+    
+    const totalCount = parseInt(totalScans.textContent);
+    totalScans.textContent = totalCount + 1;
+}
+
 // Load recent scans from server
 function loadRecentScans() {
     fetch('/employee/api/attendance-logs?limit=10')
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.logs.length > 0) {
+            if (data.success && data.logs && data.logs.length > 0) {
                 recentScans.innerHTML = '';
                 recentScansData = [];
                 
@@ -411,7 +575,8 @@ function loadRecentScans() {
                     addRecentScan({
                         employee: {
                             id: log.employee_id,
-                            username: log.employee_name
+                            username: log.employee_name || 'Unknown',
+                            full_name: log.full_name || ''
                         },
                         scan_type: log.scan_type,
                         time: new Date(log.scan_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
@@ -434,16 +599,149 @@ function loadStatistics() {
             if (data.success) {
                 const logs = data.logs || [];
                 
-                todayScans.textContent = logs.length;
+                totalScans.textContent = logs.length;
                 
                 const checkIns = logs.filter(log => log.scan_type === 'check_in').length;
                 const checkOuts = logs.filter(log => log.scan_type === 'check_out').length;
                 
-                checkedIn.textContent = checkIns;
-                checkedOut.textContent = checkOuts;
+                checkedInCount.textContent = checkIns;
+                checkedOutCount.textContent = checkOuts;
+                
+                // Update quick stats
+                updateQuickStats();
             }
         })
         .catch(error => console.error('Error loading statistics:', error));
+}
+
+// Load today's attendance
+function loadTodayAttendance() {
+    fetch('/employee/api/attendance-logs?date=' + new Date().toISOString().split('T')[0] + '&limit=50')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const logs = data.logs || [];
+                totalScans.textContent = logs.length;
+                
+                const checkIns = logs.filter(log => log.scan_type === 'check_in').length;
+                const checkOuts = logs.filter(log => log.scan_type === 'check_out').length;
+                
+                checkedInCount.textContent = checkIns;
+                checkedOutCount.textContent = checkOuts;
+            }
+        })
+        .catch(error => console.error('Error loading today\'s attendance:', error));
+}
+
+// Load attendance details
+function loadAttendanceDetails() {
+    if (!attendanceDetailsVisible) return;
+    
+    fetch('/employee/api/today-attendance-status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const tbody = document.getElementById('attendanceDetailsBody');
+                tbody.innerHTML = '';
+                
+                data.data.forEach(employee => {
+                    const row = document.createElement('tr');
+                    
+                    let checkInTime = employee.check_in_time || '--:--';
+                    let checkOutTime = employee.check_out_time || '--:--';
+                    let hours = '--';
+                    let statusBadge = '';
+                    
+                    if (employee.has_check_in && employee.has_check_out) {
+                        // Calculate hours
+                        const checkIn = new Date(`1970-01-01T${checkInTime}:00`);
+                        const checkOut = new Date(`1970-01-01T${checkOutTime}:00`);
+                        const diffMs = checkOut - checkIn;
+                        const diffHours = diffMs / (1000 * 60 * 60);
+                        hours = diffHours.toFixed(1);
+                        
+                        statusBadge = '<span class="badge bg-success">Completed</span>';
+                    } else if (employee.has_check_in && !employee.has_check_out) {
+                        statusBadge = '<span class="badge bg-warning">Checked In</span>';
+                        hours = '--';
+                    } else {
+                        statusBadge = '<span class="badge bg-secondary">Not Scanned</span>';
+                        hours = '--';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="employee-avatar" style="width: 30px; height: 30px; font-size: 14px;">
+                                    ${employee.username?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                <div class="ms-2">
+                                    <div>${employee.username || 'Unknown'}</div>
+                                    <small class="text-muted">ID: ${employee.employee_id}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">${checkInTime}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">${checkOutTime}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">${hours}h</span>
+                        </td>
+                        <td>
+                            ${statusBadge}
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                ${employee.check_out_time ? 'Checked out' : employee.check_in_time ? 'Checked in' : '--'}
+                            </small>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading attendance details:', error));
+}
+
+// Update quick stats
+function updateQuickStats() {
+    // These would be replaced with actual API calls if available
+    const totalEmployees = document.getElementById('totalEmployees');
+    const withBarcodes = document.getElementById('withBarcodes');
+    const scannedToday = document.getElementById('scannedToday');
+    const last24Checkins = document.getElementById('last24Checkins');
+    const last24Checkouts = document.getElementById('last24Checkouts');
+    
+    // For now, we'll use sample data
+    totalEmployees.textContent = '15';
+    withBarcodes.textContent = '12';
+    scannedToday.textContent = totalScans.textContent;
+    
+    // Get last 24 hours stats from recent scans
+    const checkins = recentScansData.filter(scan => scan.scan_type === 'check_in').length;
+    const checkouts = recentScansData.filter(scan => scan.scan_type === 'check_out').length;
+    
+    last24Checkins.textContent = checkins;
+    last24Checkouts.textContent = checkouts;
+}
+
+// Toggle attendance details view
+function toggleAttendanceDetails() {
+    const table = document.getElementById('attendanceDetailsTable');
+    const tbody = document.getElementById('attendanceDetailsBody');
+    
+    if (attendanceDetailsVisible) {
+        table.style.display = 'none';
+        attendanceDetailsVisible = false;
+    } else {
+        table.style.display = 'table';
+        attendanceDetailsVisible = true;
+        loadAttendanceDetails();
+    }
 }
 
 // Keyboard shortcuts
@@ -458,6 +756,29 @@ document.addEventListener('keydown', function(e) {
     // Escape to clear scanner
     if (e.key === 'Escape') {
         barcodeInput.value = '';
+        barcodeInput.focus();
+    }
+    
+    // Ctrl + R to refresh
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        loadRecentScans();
+        loadStatistics();
+        loadTodayAttendance();
+        loadAttendanceDetails();
+    }
+    
+    // Ctrl + T to toggle attendance details
+    if (e.ctrlKey && e.key === 't') {
+        e.preventDefault();
+        toggleAttendanceDetails();
+    }
+});
+
+// Auto-focus on barcode input when clicking anywhere on the page
+document.addEventListener('click', function(e) {
+    // Don't focus if user clicked on an input or button
+    if (!e.target.matches('input, button, a, select, textarea')) {
         barcodeInput.focus();
     }
 });
