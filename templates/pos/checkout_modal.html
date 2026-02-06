@@ -2,12 +2,56 @@
     <form id="checkoutForm" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     
-    <!-- Customer Information -->
+    <!-- Customer Information with Google-style Search -->
     <div class="mb-4">
         <h5 class="mb-3">Customer Information</h5>
         <input type="hidden" id="customerId" name="customer_id">
         
-        <div class="row g-3">
+        <!-- Customer Phone Search -->
+        <div class="mb-3 position-relative">
+            <label class="form-label">Customer Phone</label>
+            <div class="input-group" id="checkoutCustomerSearchGroup">
+                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                <input type="tel" 
+                       id="checkoutCustomerPhone" 
+                       class="form-control" 
+                       placeholder="Enter phone number or name"
+                       inputmode="tel"
+                       autocomplete="off"
+                       aria-label="Customer phone number"
+                       aria-describedby="customer-search-button">
+                <button class="btn btn-outline-primary" id="checkoutCustomerSearchButton">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            
+            <!-- Search Dropdown -->
+            <div id="checkoutCustomerSearchResults" class="dropdown-menu" style="display: none; width: 100%; max-height: 300px; overflow-y: auto;">
+                <!-- Results will be populated here -->
+            </div>
+            
+            <!-- Customer Info Display -->
+            <div id="checkoutCustomerInfo" class="customer-info mt-2" style="display: none;">
+                <small class="d-block">
+                    <i class="fas fa-user me-1"></i>
+                    <span id="checkoutCustomerName"></span>
+                </small>
+                <small class="text-muted d-block mt-1">
+                    <i class="fas fa-phone me-1"></i>
+                    <span id="checkoutCustomerPhoneDisplay"></span>
+                </small>
+                <small class="text-muted d-block mt-1" id="checkoutCustomerEmailContainer" style="display: none;">
+                    <i class="fas fa-envelope me-1"></i>
+                    <span id="checkoutCustomerEmail"></span>
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearCheckoutCustomer()">
+                    <i class="fas fa-times me-1"></i> Clear
+                </button>
+            </div>
+        </div>
+        
+        <!-- Customer Details (Auto-filled from search) -->
+        <div class="row g-3 mt-3">
             <div class="col-md-6">
                 <label class="form-label">Name *</label>
                 <input type="text" class="form-control" id="customerNameInput" name="customer_name" 
@@ -16,6 +60,12 @@
             <div class="col-md-6">
                 <label class="form-label">Phone</label>
                 <input type="tel" class="form-control" id="customerPhoneInput" name="customer_phone">
+            </div>
+        </div>
+        <div class="row g-3 mt-2">
+            <div class="col-md-12">
+                <label class="form-label">Email (Optional)</label>
+                <input type="email" class="form-control" id="customerEmailInput" name="customer_email">
             </div>
         </div>
     </div>
@@ -94,43 +144,649 @@
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
             <i class="fas fa-times me-1"></i>Cancel
         </button>
-        <button type="submit" class="btn btn-success btn-lg">
+        <button type="submit" class="btn btn-success btn-lg" id="completeSaleButton">
             <i class="fas fa-check-circle me-1"></i>Complete Sale
         </button>
     </div>
 </form>
 </div>
 
-<script>
-$(document).ready(function() {
-    // Load cart items into checkout form
-    loadCheckoutItems();
+<style>
+    /* Checkout Modal Specific Styles */
+    #checkoutCustomerSearchGroup {
+        position: relative;
+    }
     
-    // Show/hide payment reference field
+    #checkoutCustomerSearchResults {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 0.375rem 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: -1px;
+    }
+    
+    #checkoutCustomerSearchResults .dropdown-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border: none;
+        text-align: left;
+        width: 100%;
+        background: white;
+        display: block;
+    }
+    
+    #checkoutCustomerSearchResults .dropdown-item:hover,
+    #checkoutCustomerSearchResults .dropdown-item.active {
+        background-color: #f8f9fa;
+    }
+    
+    #checkoutCustomerSearchResults .dropdown-item:active {
+        background-color: #e9ecef;
+    }
+    
+    #checkoutCustomerSearchResults .dropdown-divider {
+        margin: 5px 0;
+    }
+    
+    .customer-result-highlight {
+        background-color: #fff3cd;
+        border-radius: 3px;
+        padding: 0 2px;
+    }
+    
+    .customer-info {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 12px 15px;
+        border-left: 4px solid var(--primary-color);
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Highlight for keyboard navigation */
+    .keyboard-navigating {
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+        border-color: #0d6efd;
+    }
+</style>
+
+<script>
+// Variables for checkout modal
+let checkoutCustomerSearchTimeout = null;
+let checkoutSelectedCustomer = null;
+let lastCheckoutSearchQuery = '';
+let currentFocusElement = null;
+
+// Initialize checkout modal functionality
+$(document).ready(function() {
+    // Setup checkout customer search
+    setupCheckoutCustomerSearch();
+    
+    // Setup payment method change handler
     $('#paymentMethod').on('change', function() {
         if (this.value === 'card' || this.value === 'bank_transfer' || this.value === 'digital_wallet') {
             $('#paymentReferenceField').show();
             $('#paymentReference').prop('required', true);
+            // Auto-focus on reference field when shown
+            setTimeout(() => {
+                $('#paymentReference').focus();
+            }, 100);
         } else {
             $('#paymentReferenceField').hide();
             $('#paymentReference').prop('required', false);
         }
     });
     
-    // Handle form submission
-    // Handle form submission
-// Handle form submission - FormData version
-$('#checkoutForm').on('submit', function(e) {
-    e.preventDefault();
+    // Setup checkout form submission
+    $('#checkoutForm').on('submit', function(e) {
+        e.preventDefault();
+        processCheckout();
+    });
+    
+    // Setup Enter key navigation for form fields
+    setupEnterKeyNavigation();
+    
+    // Focus on search field when modal opens
+    setTimeout(() => {
+        $('#checkoutCustomerPhone').focus();
+    }, 500);
+});
+
+// Setup Enter key navigation for form fields
+function setupEnterKeyNavigation() {
+    // List of fields in tab order
+    const tabOrder = [
+        '#checkoutCustomerPhone',
+        '#customerNameInput',
+        '#customerPhoneInput',
+        '#customerEmailInput',
+        '#discount',
+        '#paymentMethod',
+        '#paymentReference',
+        '#notes',
+        '#completeSaleButton'
+    ];
+    
+    // Handle Enter key on form fields
+    $(tabOrder.join(', ')).on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            
+            // Remove highlight from current element
+            if (currentFocusElement) {
+                $(currentFocusElement).removeClass('keyboard-navigating');
+            }
+            
+            // Get current field index
+            const currentId = '#' + $(this).attr('id');
+            const currentIndex = tabOrder.indexOf(currentId);
+            
+            if (currentIndex !== -1) {
+                // Find next visible field
+                let nextIndex = currentIndex + 1;
+                while (nextIndex < tabOrder.length) {
+                    const nextSelector = tabOrder[nextIndex];
+                    const nextElement = $(nextSelector);
+                    
+                    // Check if element is visible
+                    if (nextElement.length && nextElement.is(':visible')) {
+                        // Special handling for payment method dropdown
+                        if (nextSelector === '#paymentMethod') {
+                            // Open dropdown and focus
+                            nextElement.addClass('keyboard-navigating');
+                            setTimeout(() => {
+                                nextElement.focus();
+                                // Open dropdown if it's a select element
+                                if (nextElement.is('select')) {
+                                    nextElement.trigger('click');
+                                }
+                            }, 10);
+                            currentFocusElement = nextSelector;
+                            break;
+                        }
+                        // Special handling for Complete Sale button
+                        else if (nextSelector === '#completeSaleButton') {
+                            nextElement.addClass('keyboard-navigating');
+                            setTimeout(() => {
+                                nextElement.focus();
+                                // Auto-click after short delay for better UX
+                                setTimeout(() => {
+                                    if (confirm('Press Enter again to complete sale, or click the button.')) {
+                                        processCheckout();
+                                    }
+                                }, 100);
+                            }, 10);
+                            currentFocusElement = nextSelector;
+                            break;
+                        }
+                        // Normal field navigation
+                        else {
+                            nextElement.addClass('keyboard-navigating');
+                            setTimeout(() => {
+                                nextElement.focus();
+                                // Select all text for easy editing
+                                if (nextElement.is('input[type="text"], input[type="tel"], input[type="email"], input[type="number"]')) {
+                                    nextElement.select();
+                                }
+                            }, 10);
+                            currentFocusElement = nextSelector;
+                            break;
+                        }
+                    }
+                    nextIndex++;
+                }
+                
+                // If we reached the end, loop back to start
+                if (nextIndex >= tabOrder.length) {
+                    $(tabOrder[0]).addClass('keyboard-navigating').focus().select();
+                    currentFocusElement = tabOrder[0];
+                }
+            }
+        }
+    });
+    
+    // Remove highlight on blur
+    $(tabOrder.join(', ')).on('blur', function() {
+        $(this).removeClass('keyboard-navigating');
+        currentFocusElement = null;
+    });
+    
+    // Special handling for payment method dropdown
+    $('#paymentMethod').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // Close dropdown if open
+            $(this).blur();
+            // Move to next field
+            setTimeout(() => {
+                if ($('#paymentReferenceField').is(':visible')) {
+                    $('#paymentReference').addClass('keyboard-navigating').focus().select();
+                    currentFocusElement = '#paymentReference';
+                } else {
+                    $('#notes').addClass('keyboard-navigating').focus().select();
+                    currentFocusElement = '#notes';
+                }
+            }, 10);
+        }
+    });
+    
+    // Special handling for Complete Sale button
+    $('#completeSaleButton').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $(this).addClass('keyboard-navigating');
+            // Process checkout on Enter press
+            processCheckout();
+        }
+    }).on('focus', function() {
+        $(this).addClass('keyboard-navigating');
+        currentFocusElement = '#completeSaleButton';
+    }).on('blur', function() {
+        $(this).removeClass('keyboard-navigating');
+    });
+}
+
+// Setup checkout customer search functionality
+function setupCheckoutCustomerSearch() {
+    const customerPhoneInput = $('#checkoutCustomerPhone');
+    const searchResults = $('#checkoutCustomerSearchResults');
+    const searchButton = $('#checkoutCustomerSearchButton');
+    
+    // Handle input with debounce
+    customerPhoneInput.on('input', function() {
+        const query = $(this).val().trim();
+        
+        // Clear any existing timeout
+        if (checkoutCustomerSearchTimeout) {
+            clearTimeout(checkoutCustomerSearchTimeout);
+        }
+        
+        // Hide dropdown if query is too short or same as last
+        if (query.length < 2 || query === lastCheckoutSearchQuery) {
+            searchResults.hide().empty();
+            return;
+        }
+        
+        // Set timeout for debouncing
+        checkoutCustomerSearchTimeout = setTimeout(() => {
+            searchCheckoutCustomers(query);
+        }, 300); // 300ms debounce
+    });
+    
+    // Handle Enter key - navigate to next field
+    customerPhoneInput.on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = $(this).val().trim();
+            if (query.length >= 2) {
+                searchCheckoutCustomers(query);
+            } else {
+                // If no search, move to next field
+                $('#customerNameInput').addClass('keyboard-navigating').focus().select();
+                currentFocusElement = '#customerNameInput';
+            }
+        }
+    });
+    
+    // Handle search button click
+    searchButton.on('click', function() {
+        const query = customerPhoneInput.val().trim();
+        if (query.length >= 2) {
+            searchCheckoutCustomers(query);
+        }
+    });
+    
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#checkoutCustomerSearchGroup').length) {
+            searchResults.hide();
+        }
+    });
+    
+    // Handle Escape key
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            searchResults.hide();
+        }
+    });
+}
+
+// Search customers for checkout modal
+function searchCheckoutCustomers(query) {
+    if (!query || query.length < 2) {
+        $('#checkoutCustomerSearchResults').hide().empty();
+        return;
+    }
+    
+    lastCheckoutSearchQuery = query;
+    
+    showCheckoutLoading(true);
+    
+    $.ajax({
+        url: '/pos/search-customers',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ query: query }),
+        headers: {
+            'X-CSRFToken': $('input[name="csrf_token"]').val(),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            showCheckoutLoading(false);
+            
+            if (response.success) {
+                displayCheckoutSearchResults(response.results, query);
+            } else {
+                showCheckoutToast(response.message || 'Search failed', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            showCheckoutLoading(false);
+            console.error('Error searching customers:', error);
+            showCheckoutToast('Error searching customers', 'error');
+        }
+    });
+}
+
+// Display search results in checkout modal dropdown
+function displayCheckoutSearchResults(results, query) {
+    const searchResults = $('#checkoutCustomerSearchResults');
+    
+    if (!results || results.length === 0) {
+        searchResults.html(`
+            <div class="dropdown-item text-muted">
+                <i class="fas fa-search me-2"></i>
+                No customers found for "${query}"
+            </div>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item text-primary" onclick="createNewCheckoutCustomer('${query}')">
+                <i class="fas fa-plus-circle me-2"></i>
+                Create new customer: "${query}"
+            </button>
+        `).show();
+        return;
+    }
+    
+    let html = '';
+    results.forEach((customer, index) => {
+        // Highlight matching text in results
+        const highlightedName = highlightText(customer.name, query);
+        const highlightedPhone = highlightText(customer.phone, query);
+        
+        html += `
+            <button type="button" 
+                    class="dropdown-item customer-result" 
+                    data-customer-id="${customer.id}"
+                    data-customer-phone="${customer.phone}"
+                    data-customer-name="${customer.name}"
+                    data-customer-email="${customer.email}"
+                    ${index === 0 ? 'autofocus' : ''}>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div style="flex: 1;">
+                        <strong class="d-block">${highlightedPhone}</strong>
+                        <div class="text-muted small">${highlightedName}</div>
+                        ${customer.email ? `<div class="text-muted small mt-1"><i class="fas fa-envelope me-1"></i>${customer.email}</div>` : ''}
+                    </div>
+                    <i class="fas fa-chevron-right text-muted"></i>
+                </div>
+            </button>
+        `;
+    });
+    
+    // Add option to create new customer
+    html += `
+        <div class="dropdown-divider"></div>
+        <button type="button" class="dropdown-item text-primary" onclick="createNewCheckoutCustomer('${query}')">
+            <i class="fas fa-plus-circle me-2"></i>
+            Create new customer: "${query}"
+        </button>
+    `;
+    
+    searchResults.html(html).show();
+    
+    // Setup click handlers for results
+    $('.customer-result').on('click', function() {
+        selectCheckoutCustomer(
+            $(this).data('customer-id'),
+            $(this).data('customer-phone'),
+            $(this).data('customer-name'),
+            $(this).data('customer-email')
+        );
+    });
+    
+    // Handle keyboard navigation in dropdown
+    setupCheckoutKeyboardNavigation();
+}
+
+// Highlight matching text in search results
+function highlightText(text, query) {
+    if (!query || !text) return text;
+    
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    
+    if (lowerText.includes(lowerQuery)) {
+        const startIndex = lowerText.indexOf(lowerQuery);
+        const endIndex = startIndex + query.length;
+        
+        return text.substring(0, startIndex) + 
+               `<span class="customer-result-highlight">${text.substring(startIndex, endIndex)}</span>` + 
+               text.substring(endIndex);
+    }
+    
+    return text;
+}
+
+// Setup keyboard navigation for checkout search results dropdown
+function setupCheckoutKeyboardNavigation() {
+    const results = $('.customer-result');
+    let selectedIndex = -1;
+    
+    $(document).off('keydown.checkoutCustomerSearch').on('keydown.checkoutCustomerSearch', function(e) {
+        if (!$('#checkoutCustomerSearchResults').is(':visible')) return;
+        
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
+                updateCheckoutSelection();
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                updateCheckoutSelection();
+                break;
+                
+            case 'Enter':
+                e.preventDefault();
+                if (selectedIndex >= 0 && selectedIndex < results.length) {
+                    $(results[selectedIndex]).click();
+                }
+                break;
+                
+            case 'Escape':
+                e.preventDefault();
+                $('#checkoutCustomerSearchResults').hide();
+                break;
+        }
+    });
+    
+    function updateCheckoutSelection() {
+        results.removeClass('active');
+        if (selectedIndex >= 0) {
+            $(results[selectedIndex]).addClass('active').focus();
+        }
+    }
+}
+
+// Select a customer in checkout modal
+function selectCheckoutCustomer(customerId, phone, name, email) {
+    checkoutSelectedCustomer = {
+        id: customerId,
+        phone: phone,
+        name: name,
+        email: email || ''
+    };
+    
+    // Update input fields
+    $('#customerId').val(customerId);
+    $('#customerNameInput').val(name);
+    $('#customerPhoneInput').val(phone);
+    $('#customerEmailInput').val(email || '');
+    
+    // Update search field
+    $('#checkoutCustomerPhone').val(phone);
+    
+    // Update customer info display
+    $('#checkoutCustomerName').text(name);
+    $('#checkoutCustomerPhoneDisplay').text(phone);
+    
+    if (email) {
+        $('#checkoutCustomerEmail').text(email);
+        $('#checkoutCustomerEmailContainer').show();
+    } else {
+        $('#checkoutCustomerEmailContainer').hide();
+    }
+    
+    // Show customer info
+    $('#checkoutCustomerInfo').show();
+    
+    // Hide dropdown
+    $('#checkoutCustomerSearchResults').hide().empty();
+    
+    // Auto-focus on discount field after customer selection
+    setTimeout(() => {
+        $('#discount').addClass('keyboard-navigating').focus().select();
+        currentFocusElement = '#discount';
+    }, 100);
+}
+
+// Clear customer selection in checkout modal
+function clearCheckoutCustomer() {
+    checkoutSelectedCustomer = null;
+    $('#customerId').val('');
+    $('#customerNameInput').val('');
+    $('#customerPhoneInput').val('');
+    $('#customerEmailInput').val('');
+    $('#checkoutCustomerPhone').val('');
+    $('#checkoutCustomerInfo').hide();
+    $('#checkoutCustomerSearchResults').hide().empty();
+    $('#checkoutCustomerPhone').addClass('keyboard-navigating').focus();
+    currentFocusElement = '#checkoutCustomerPhone';
+}
+
+// Create new customer from checkout modal
+function createNewCheckoutCustomer(query) {
+    // Hide dropdown
+    $('#checkoutCustomerSearchResults').hide();
+    
+    // Check if query looks like a phone number
+    const isPhoneNumber = /^[0-9+]{10,}$/.test(query.replace(/\D/g, ''));
+    
+    if (isPhoneNumber) {
+        // If it's a phone number, use it as phone and ask for name
+        $('#customerPhoneInput').val(query);
+        $('#customerNameInput').val('').addClass('keyboard-navigating').focus();
+        currentFocusElement = '#customerNameInput';
+    } else {
+        // If it's a name, use it as name and ask for phone
+        $('#customerNameInput').val(query);
+        $('#customerPhoneInput').val('').addClass('keyboard-navigating').focus();
+        currentFocusElement = '#customerPhoneInput';
+    }
+    
+    // Clear search field
+    $('#checkoutCustomerPhone').val(query);
+    
+    // Hide customer info if shown
+    $('#checkoutCustomerInfo').hide();
+}
+
+// Show/hide loading for checkout search
+function showCheckoutLoading(show) {
+    if (show) {
+        // Add loading spinner to search button
+        $('#checkoutCustomerSearchButton').html('<i class="fas fa-spinner fa-spin"></i>');
+    } else {
+        // Restore search icon
+        $('#checkoutCustomerSearchButton').html('<i class="fas fa-search"></i>');
+    }
+}
+
+// Show toast in checkout modal
+function showCheckoutToast(message, type = 'success') {
+    // Create toast element
+    const toastId = 'checkout-toast-' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999">
+            <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-${type} text-white">
+                    <strong class="me-auto">${type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Info'}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('body').append(toastHtml);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        $(`#${toastId}`).remove();
+    }, 3000);
+}
+
+// Handle form submission
+function processCheckout() {
+    // Remove keyboard navigation highlight
+    $('.keyboard-navigating').removeClass('keyboard-navigating');
+    
+    // Validate required fields
+    if (!$('#customerNameInput').val().trim()) {
+        showCheckoutToast('Customer name is required', 'error');
+        $('#customerNameInput').addClass('keyboard-navigating').focus();
+        currentFocusElement = '#customerNameInput';
+        return;
+    }
+    
+    if (!$('#paymentMethod').val()) {
+        showCheckoutToast('Payment method is required', 'error');
+        $('#paymentMethod').addClass('keyboard-navigating').focus();
+        currentFocusElement = '#paymentMethod';
+        return;
+    }
     
     // Create FormData from the form
-    const formData = new FormData(this);
+    const formData = new FormData(document.getElementById('checkoutForm'));
     
     // Add tax rate
     formData.append('tax_rate', 0.15);
     
     // Disable submit button
-    const submitBtn = $('button[type="submit"]');
+    const submitBtn = $('#checkoutForm button[type="submit"]');
     submitBtn.prop('disabled', true).html(
         '<i class="fas fa-spinner fa-spin me-1"></i>Processing...'
     );
@@ -160,7 +816,7 @@ $('#checkoutForm').on('submit', function(e) {
                 $('#checkoutModal').modal('hide');
                 
                 // Show success message
-                showAlert(`Sale completed! Invoice: ${response.invoice_number}`, 'success');
+                showToast(`Sale completed! Invoice: ${response.invoice_number}`, 'success');
                 
                 // Clear cart
                 cart = {};
@@ -178,7 +834,7 @@ $('#checkoutForm').on('submit', function(e) {
                 }, 500);
                 
             } else {
-                showAlert(response.message || 'Checkout failed', 'error');
+                showCheckoutToast(response.message || 'Checkout failed', 'error');
                 submitBtn.prop('disabled', false).html(
                     '<i class="fas fa-check-circle me-1"></i>Complete Sale'
                 );
@@ -186,14 +842,15 @@ $('#checkoutForm').on('submit', function(e) {
         },
         error: function(xhr, status, error) {
             console.error('Error during checkout:', error, xhr.responseText);
-            showAlert('Error completing sale. Please try again.', 'error');
+            showCheckoutToast('Error completing sale. Please try again.', 'error');
             submitBtn.prop('disabled', false).html(
                 '<i class="fas fa-check-circle me-1"></i>Complete Sale'
             );
         }
     });
-});
+}
 
+// Load checkout items (called from parent page)
 function loadCheckoutItems() {
     const itemsContainer = $('#checkoutItems');
     itemsContainer.empty();
@@ -225,6 +882,7 @@ function loadCheckoutItems() {
     $('#checkoutTotal').text('Rs.' + total.toFixed(2));
 }
 
+// Calculate checkout total when discount changes
 function calculateCheckoutTotal() {
     loadCheckoutItems();
 }

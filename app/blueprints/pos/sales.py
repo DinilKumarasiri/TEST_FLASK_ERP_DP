@@ -939,3 +939,33 @@ def get_available_stock_item():
             'imei': stock_item.imei
         }
     })
+    
+@pos_bp.route('/search-customers', methods=['POST'])
+@login_required
+def search_customers():
+    """Search customers by phone or name for autocomplete"""
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query or len(query) < 2:
+        return jsonify({'success': True, 'results': []})
+    
+    # Search in both phone numbers and names
+    customers = Customer.query.filter(
+        db.or_(
+            Customer.phone.ilike(f'%{query}%'),
+            Customer.name.ilike(f'%{query}%')
+        )
+    ).limit(10).all()
+    
+    results = []
+    for customer in customers:
+        results.append({
+            'id': customer.id,
+            'phone': customer.phone,
+            'name': customer.name,
+            'email': customer.email or '',
+            'display_text': f'{customer.phone} – {customer.name}'
+        })
+    
+    return jsonify({'success': True, 'results': results})
