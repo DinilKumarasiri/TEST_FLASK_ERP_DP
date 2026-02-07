@@ -1,186 +1,839 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Card - {{ job.job_number }} - {{ company_name }}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* A5 Paper Size: 148mm x 210mm */
+        @page {
+            size: A5;
+            margin: 5mm;
+        }
+        
+        @media print {
+            /* Hide everything on print */
+            body * {
+                visibility: hidden;
+            }
+            
+            .print-container, .print-container * {
+                visibility: visible;
+            }
+            
+            .print-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 8.5px;
+                line-height: 1.15;
+                margin: 0;
+                padding: 0;
+                background: white !important;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .print-container {
+                width: 148mm !important;
+                min-height: 210mm !important;
+                padding: 5mm !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                background: white !important;
+            }
+            
+            /* Logo styling for print */
+            .logo-container {
+                text-align: center !important;
+                margin-bottom: 6px !important;
+            }
+            
+            .logo-img {
+                max-height: 20px !important;
+                width: auto !important;
+                margin-bottom: 3px !important;
+            }
+            
+            .company-print-name {
+                font-size: 10px !important;
+                font-weight: bold !important;
+                margin-bottom: 2px !important;
+            }
+            
+            .company-print-info {
+                font-size: 7px !important;
+                line-height: 1 !important;
+                margin-bottom: 2px !important;
+            }
+            
+            .table {
+                margin-bottom: 4px !important;
+                width: 100% !important;
+            }
+            
+            .table th, .table td {
+                padding: 2px 4px !important;
+                font-size: 7.5px;
+                border: 0.5px solid #000 !important;
+            }
+            
+            .table th {
+                background-color: #f0f0f0 !important;
+                font-weight: bold;
+            }
+            
+            h1, h2, h3, h4, h5, h6 {
+                page-break-after: avoid;
+            }
+            
+            h5 {
+                font-size: 9px;
+                font-weight: bold;
+            }
+            
+            /* Compact layout */
+            .section {
+                page-break-inside: avoid;
+                margin-bottom: 6px;
+            }
 
-{% block title %}Job Card - {{ job.job_number }}{% endblock %}
+          * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            .section,
+            .compact-card,
+            .one-line-grid,
+            .issue-box,
+            .financial-box,
+            .warranty-box {
+                page-break-inside: avoid;
+            }
 
-{% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h4 class="mb-0 text-center">Repair Job Card</h4>
+            /* Force single page */
+            .page-break {
+                page-break-before: avoid;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            
+            /* Compact margins */
+            .mb-1 { margin-bottom: 2px !important; }
+            .mb-2 { margin-bottom: 4px !important; }
+            .mb-3 { margin-bottom: 6px !important; }
+            .mb-4 { margin-bottom: 8px !important; }
+            .mt-1 { margin-top: 2px !important; }
+            .mt-2 { margin-top: 4px !important; }
+            .mt-3 { margin-top: 6px !important; }
+            
+            /* ONE LINE LAYOUT */
+            .one-line-grid {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                gap: 4px !important;
+                margin-bottom: 8px !important;
+            }
+            
+            .one-line-item {
+                flex: 1 !important;
+                text-align: center !important;
+                border: 0.5px solid #000 !important;
+                padding: 3px 2px !important;
+                border-radius: 2px !important;
+            }
+            
+            .one-line-label {
+                font-weight: bold !important;
+                font-size: 7px !important;
+                margin-bottom: 1px !important;
+                display: block !important;
+            }
+            
+            .one-line-value {
+                font-size: 8px !important;
+                line-height: 1 !important;
+            }
+        }
+        
+        /* Screen preview styles */
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .print-container {
+            width: 148mm;
+            min-height: 210mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 10mm;
+            position: relative;
+        }
+        
+        /* Company Header with Logo */
+        .company-header {
+            text-align: center;
+            border-bottom: 1.5px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .logo-img {
+            max-height: 40px;
+            width: auto;
+            margin-bottom: 5px;
+        }
+        
+        .company-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            letter-spacing: 0.5px;
+            color: #333;
+        }
+        
+        .company-info {
+            font-size: 8px;
+            line-height: 1.1;
+            margin-bottom: 2px;
+            color: #555;
+        }
+        
+        .company-contact {
+            font-size: 8px;
+            color: #666;
+            margin-bottom: 0;
+        }
+        
+        .job-title {
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .job-number {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 3px 0;
+            color: #0d6efd;
+        }
+        
+        .job-date {
+            font-size: 8px;
+            color: #666;
+        }
+        
+        .section-title {
+            background-color: #f8f9fa;
+            padding: 3px 6px;
+            margin: 6px 0 3px 0;
+            border-left: 2px solid #0d6efd;
+            font-size: 9px;
+            font-weight: bold;
+            border-radius: 2px;
+        }
+        
+        .compact-card {
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            margin-bottom: 6px;
+            padding: 5px;
+            background: #fff;
+        }
+        
+        .field-label {
+            font-weight: bold;
+            color: #444;
+            font-size: 8px;
+            margin-bottom: 1px;
+        }
+        
+        .field-value {
+            font-size: 8px;
+            line-height: 1.1;
+        }
+        
+        .status-badge {
+            font-size: 7px;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+        
+        /* ONE LINE LAYOUT (screen) */
+        .one-line-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .one-line-item {
+            flex: 1;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            padding: 4px 2px;
+            border-radius: 3px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 30px;
+        }
+        
+        .one-line-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 7px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+        
+        .one-line-value {
+            font-size: 8px;
+            line-height: 1.1;
+            font-weight: 500;
+        }
+        
+        .compact-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin-bottom: 6px;
+        }
+        
+        .footer-note {
+            font-size: 7px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 4px;
+            border-top: 0.5px solid #ddd;
+            position: absolute;
+            bottom: 5mm;
+            left: 5mm;
+            right: 5mm;
+        }
+        
+        .issue-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            padding: 5px;
+            margin: 4px 0;
+            font-size: 8px;
+            line-height: 1.2;
+        }
+        
+        .financial-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 3px;
+            padding: 5px;
+            margin: 4px 0;
+            font-size: 8px;
+        }
+        
+        .warranty-box {
+            background: #d1e7dd;
+            border: 1px solid #198754;
+            border-radius: 3px;
+            padding: 5px;
+            margin: 4px 0;
+            font-size: 8px;
+        }
+        
+        .signature-area {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #000;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            width: 80%;
+            margin: 0 auto 5px auto;
+            height: 20px;
+        }
+        
+        /* Print status message */
+        .print-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #198754;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            z-index: 10000;
+            display: none;
+        }
+        
+        /* Logo fallback styling */
+        .logo-fallback {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Status Message -->
+    <div id="printStatus" class="print-status no-print">
+        <i class="fas fa-print me-1"></i> Printing...
+    </div>
+    
+    <!-- Screen Controls -->
+    <div class="no-print">
+        <div class="container mt-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-print me-2"></i>Job Card - {{ job.job_number }} - {{ company_name }}</h6>
+                <div>
+                    <button onclick="manualPrint()" class="btn btn-primary btn-sm me-2">
+                        <i class="fas fa-print me-1"></i> Print Now
+                    </button>
+                    <button onclick="closeWindow()" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-times me-1"></i> Close Window
+                    </button>
                 </div>
-                <div class="card-body">
-                    <!-- Job Header -->
-                    <div class="text-center mb-4">
-                        <h3>{{ job.job_number }}</h3>
-                        <p class="text-muted">Mobile Shop ERP</p>
-                    </div>
-                    
-                    <!-- Customer Info -->
-                    <div class="mb-4">
-                        <h5>Customer Information</h5>
-                        <table class="table table-bordered">
-                            <tr>
-                                <th width="30%">Name</th>
-                                <td>{{ job.customer.name if job.customer else 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Phone</th>
-                                <td>{{ job.customer.phone if job.customer else 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Email</th>
-                                <td>{{ job.customer.email if job.customer else 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Address</th>
-                                <td>{{ job.customer.address if job.customer else 'N/A' }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    
-                    <!-- Device Info -->
-                    <div class="mb-4">
-                        <h5>Device Information</h5>
-                        <table class="table table-bordered">
-                            <tr>
-                                <th width="30%">Device Type</th>
-                                <td>{{ job.device_type|title }}</td>
-                            </tr>
-                            <tr>
-                                <th>Brand/Model</th>
-                                <td>{{ job.brand }} {{ job.model }}</td>
-                            </tr>
-                            <tr>
-                                <th>IMEI</th>
-                                <td>{{ job.imei or 'N/A' }}</td>
-                            </tr>
-                            <tr>
-                                <th>Serial Number</th>
-                                <td>{{ job.serial_number or 'N/A' }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    
-                    <!-- Issue Description -->
-                    <div class="mb-4">
-                        <h5>Issue Description</h5>
-                        <div class="border p-3">
-                            {{ job.issue_description|replace('\n', '<br>')|safe }}
-                        </div>
-                    </div>
-                    
-                    <!-- Accessories -->
-                    {% if job.accessories_received %}
-                    <div class="mb-4">
-                        <h5>Accessories Received</h5>
-                        <div class="border p-3">
-                            {{ job.accessories_received|replace('\n', '<br>')|safe }}
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Financial Info -->
-                    <div class="mb-4">
-                        <h5>Financial Information</h5>
-                        <table class="table table-bordered">
-                            <tr>
-                                <th width="30%">Advance Payment</th>
-                                <td>Rs.{{ "%.2f"|format(job.estimated_cost) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Final Cost</th>
-                                <td>Rs.{{ "%.2f"|format(job.final_cost) }}</td>
-                            </tr>
-                            <tr>
-                                <th>Warranty</th>
-                                <td>{{ job.warranty_period }} months</td>
-                            </tr>
-                            <tr>
-                                <th>Status</th>
-                                <td>{{ job.status|title }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    
-                    <!-- Dates -->
-                    <div class="mb-4">
-                        <h5>Important Dates</h5>
-                        <table class="table table-bordered">
-                            <tr>
-                                <th width="30%">Created Date</th>
-                                <td>{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% if job.approval_date %}
-                            <tr>
-                                <th>Approval Date</th>
-                                <td>{{ job.approval_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if job.completed_date %}
-                            <tr>
-                                <th>Completed Date</th>
-                                <td>{{ job.completed_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if job.delivered_date %}
-                            <tr>
-                                <th>Delivered Date</th>
-                                <td>{{ job.delivered_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                            </tr>
-                            {% endif %}
-                        </table>
-                    </div>
-                    
-                    <!-- Signatures -->
-                    <div class="row mt-5">
-                        <div class="col-6 text-center">
-                            <p class="border-top pt-2">Customer Signature</p>
-                        </div>
-                        <div class="col-6 text-center">
-                            <p class="border-top pt-2">Technician Signature</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Print Button -->
-                    <div class="text-center mt-4">
-                        <button class="btn btn-primary" onclick="window.print()">
-                            <i class="fas fa-print me-2"></i> Print Job Card
-                        </button>
-                        <a href="{{ url_for('repair.job_detail', job_id=job.id) }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i> Back to Job Details
-                        </a>
+            </div>
+            <div class="alert alert-info alert-sm mt-2 py-1">
+                <i class="fas fa-info-circle me-1"></i>
+                <small>Optimized for A5 paper (148x210mm) - Single page only | Press Ctrl+P to print</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- A5 Paper Content -->
+    <div class="print-container page-break">
+        <!-- Company Header with Logo -->
+        <div class="company-header">
+            <div class="logo-container">
+                <!-- Logo with fallback -->
+                <div id="logoDisplay">
+                    <img src="{{ company_logo_url }}" 
+                         alt="{{ company_name }}" 
+                         class="logo-img"
+                         onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block';">
+                    <div id="logoFallback" class="logo-fallback" style="display: none;">
+                        {{ company_name[:2]|upper }}
                     </div>
                 </div>
-                <div class="card-footer text-center text-muted">
-                    <small>Generated on {{ now.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+            
+            <div class="company-name">{{ company_name }}</div>
+            <div class="company-info">{{ company_address }}</div>
+            <div class="company-contact">
+                {% if company_phone %}Tel: {{ company_phone }} | {% endif %}
+                {% if company_email %}Email: {{ company_email }}{% endif %}
+                {% if company_gst %} | GST: {{ company_gst }}{% endif %}
+            </div>
+        </div>
+        
+        <!-- Job Title -->
+        <div class="job-title">
+            <div class="job-number">{{ job.job_number }}</div>
+            <div class="job-date">
+                REPAIR JOB CARD | 
+                Generated: {{ now.strftime('%d-%m-%Y %H:%M') }} 
+                (Sri Lanka Time)
+            </div>
+        </div>
+        
+        <!-- Status & Dates - ONE LINE LAYOUT -->
+        <div class="one-line-grid">
+            <div class="one-line-item">
+                <span class="one-line-label">Status</span>
+                <span class="one-line-value">
+                    <span class="badge bg-secondary status-badge">{{ job.status|upper }}</span>
+                </span>
+            </div>
+            <div class="one-line-item">
+                <span class="one-line-label">Technician</span>
+                <span class="one-line-value">{{ job.technician.username if job.technician else 'Not Assigned' }}</span>
+            </div>
+            <div class="one-line-item">
+                <span class="one-line-label">Created</span>
+                <span class="one-line-value">{{ job.created_at.strftime('%d-%m-%Y') }}</span>
+            </div>
+            <div class="one-line-item">
+                <span class="one-line-label">Warranty</span>
+                <span class="one-line-value">{{ job.warranty_period }} month{% if job.warranty_period > 1 %}s{% endif %}</span>
+            </div>
+        </div>
+        
+        <!-- Customer Information -->
+        <div class="section-title">CUSTOMER INFORMATION</div>
+        <div class="compact-grid">
+            <div class="compact-card">
+                <div class="field-label">Name</div>
+                <div class="field-value">{{ job.customer.name if job.customer else 'N/A' }}</div>
+            </div>
+            <div class="compact-card">
+                <div class="field-label">Phone</div>
+                <div class="field-value">{{ job.customer.phone if job.customer else 'N/A' }}</div>
+            </div>
+            <div class="compact-card">
+                <div class="field-label">Email</div>
+                <div class="field-value">{{ job.customer.email if job.customer else 'N/A' }}</div>
+            </div>
+            <div class="compact-card">
+                <div class="field-label">Address</div>
+                <div class="field-value">{{ job.customer.address if job.customer else 'N/A' }}</div>
+            </div>
+        </div>
+        
+        <!-- Device Information -->
+        <div class="section-title">DEVICE INFORMATION</div>
+        <div class="compact-grid">
+            <div class="compact-card">
+                <div class="field-label">Device Type</div>
+                <div class="field-value">{{ job.device_type|title }}</div>
+            </div>
+            <div class="compact-card">
+                <div class="field-label">Brand/Model</div>
+                <div class="field-value">{{ job.brand }} {{ job.model }}</div>
+            </div>
+            <div class="compact-card">
+                <div class="field-label">IMEI</div>
+                <div class="field-value">{{ job.imei or 'N/A' }}</div>
+            </div>
+            <div class="compact-card">
+                <div class="field-label">Serial No</div>
+                <div class="field-value">{{ job.serial_number or 'N/A' }}</div>
+            </div>
+        </div>
+        
+        <!-- Issue Description -->
+        <div class="section-title">ISSUE DESCRIPTION</div>
+        <div class="issue-box">
+            {{ job.issue_description }}
+        </div>
+        
+        <!-- Accessories Received -->
+        {% if job.accessories_received %}
+        <div class="section-title">ACCESSORIES RECEIVED</div>
+        <div class="issue-box">
+            {{ job.accessories_received }}
+        </div>
+        {% endif %}
+        
+        <!-- Financial Information -->
+        <div class="section-title">FINANCIAL INFORMATION</div>
+        <div class="financial-box">
+            <div class="compact-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div>
+                    <div class="field-label">Advance</div>
+                    <div class="field-value">Rs.{{ "%.2f"|format(job.estimated_cost) }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Final Cost</div>
+                    <div class="field-value">Rs.{{ "%.2f"|format(job.final_cost) }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Balance</div>
+                    <div class="field-value">Rs.{{ "%.2f"|format(job.final_cost - job.estimated_cost) }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Parts Used</div>
+                    <div class="field-value">{{ job.repair_items|length if job.repair_items else 0 }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Parts Used (if any) -->
+        {% if job.repair_items %}
+        <div class="section-title">PARTS USED</div>
+        <table class="table table-sm mb-2" style="font-size: 7.5px;">
+            <thead>
+                <tr>
+                    <th>Part Name</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in job.repair_items|slice(0, 3) %}
+                <tr>
+                    <td>{{ (item.product.name if item.product else 'Part')[:20] }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>Rs.{{ "%.2f"|format(item.unit_price) }}</td>
+                    <td>Rs.{{ "%.2f"|format(item.total_price) }}</td>
+                </tr>
+                {% endfor %}
+                {% if job.repair_items|length > 3 %}
+                <tr>
+                    <td colspan="4" class="text-center" style="font-size: 7px;">
+                        + {{ job.repair_items|length - 3 }} more parts
+                    </td>
+                </tr>
+                {% endif %}
+                <tr style="font-weight: bold;">
+                    <td colspan="3" class="text-end">Total Parts Cost:</td>
+                    <td>Rs.{{ "%.2f"|format(job.final_cost) }}</td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
+        
+        <!-- Dates -->
+        <div class="section-title">IMPORTANT DATES</div>
+        <div class="compact-grid">
+            <div class="compact-card">
+                <div class="field-label">Created</div>
+                <div class="field-value">{{ job.created_at.strftime('%d-%m-%Y') }}</div>
+            </div>
+            {% if job.approval_date %}
+            <div class="compact-card">
+                <div class="field-label">Approved</div>
+                <div class="field-value">{{ job.approval_date.strftime('%d-%m-%Y') }}</div>
+            </div>
+            {% endif %}
+            {% if job.completed_date %}
+            <div class="compact-card">
+                <div class="field-label">Completed</div>
+                <div class="field-value">{{ job.completed_date.strftime('%d-%m-%Y') }}</div>
+            </div>
+            {% endif %}
+            {% if job.delivered_date %}
+            <div class="compact-card">
+                <div class="field-label">Delivered</div>
+                <div class="field-value">{{ job.delivered_date.strftime('%d-%m-%Y') }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Warranty Info -->
+        {% if job.warranty_period > 0 %}
+        <div class="section-title">WARRANTY INFORMATION</div>
+        <div class="warranty-box">
+            <strong>{{ job.warranty_period }} month{% if job.warranty_period > 1 %}s{% endif %} warranty</strong>
+            {% if job.delivered_date %}
+                | Started: {{ job.delivered_date.strftime('%d-%m-%Y') }}
+                {% set warranty_end = job.delivered_date + timedelta(days=30*job.warranty_period) %}
+                | Ends: {{ warranty_end.strftime('%d-%m-%Y') }}
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Important Notes -->
+        <div class="section-title" style="margin-top: 8px;">IMPORTANT NOTES</div>
+        <div class="compact-card" style="font-size: 7px; padding: 4px;">
+            1. Data backup is customer's responsibility<br>
+            2. Unclaimed devices disposed after 30 days<br>
+            3. Warranty void if tampered or liquid damage<br>
+            4. Original parts returned upon request<br>
+            5. Final cost subject to change based on actual repair
+        </div>
+        
+        <!-- Signatures -->
+         <!-- 
+        <div class="signature-area">
+            <div class="row">
+                <div class="col-6 text-center">
+                    <div class="signature-line"></div>
+                    <div class="field-label">CUSTOMER SIGNATURE</div>
+                    <div class="field-value" style="font-size: 7px;">Date: _______________</div>
+                </div>
+                <div class="col-6 text-center">
+                    <div class="signature-line"></div>
+                    <div class="field-label">TECHNICIAN SIGNATURE</div>
+                    <div class="field-value" style="font-size: 7px;">Date: _______________</div>
+                </div>
+            </div>
+        </div>
+        -->
+        
+        <!-- Footer -->
+        <div class="footer-note">
+            {{ company_name }} | 
+            {% if company_phone %}Tel: {{ company_phone }} | {% endif %}
+            Job: {{ job.job_number }} | 
+            Generated: {{ now.strftime('%d-%m-%Y %H:%M') }} (SL Time)
+        </div>
+    </div>
+    
+    <!-- Screen Instructions -->
+    <div class="no-print mt-3">
+        <div class="container">
+            <div class="alert alert-secondary py-2">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small><i class="fas fa-print me-1"></i> <strong>Print Settings:</strong> A5, Portrait, 1 page</small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small><i class="fas fa-check me-1"></i> <strong>Auto-print enabled:</strong> {{ "Yes" if auto_print else "No" }}</small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<style>
-@media print {
-    .sidebar, .main-content > :not(.container) {
-        display: none !important;
-    }
-    .container {
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: 100% !important;
-    }
-    .card {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    .btn {
-        display: none !important;
-    }
-    .card-footer {
-        display: none !important;
-    }
-}
-</style>
-{% endblock %}
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables
+        let hasPrinted = false;
+        let isAutoPrintMode = {{ 'true' if auto_print else 'false' }};
+        
+        // Show print status
+        function showPrintStatus(message) {
+            const statusEl = document.getElementById('printStatus');
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Close window function
+        function closeWindow() {
+            showPrintStatus('Closing window...');
+            setTimeout(() => {
+                window.close();
+            }, 300);
+        }
+        
+        // Manual print function
+        function manualPrint() {
+            printAndClose(false); // false = don't auto-close
+        }
+        
+        // Main print function
+        function printAndClose(autoClose = true) {
+            if (hasPrinted) {
+                showPrintStatus('Already printed');
+                if (autoClose) {
+                    setTimeout(() => window.close(), 500);
+                }
+                return;
+            }
+            
+            hasPrinted = true;
+            showPrintStatus('Opening print dialog...');
+            
+            // Print the page
+            setTimeout(() => {
+                window.print();
+            }, 100);
+            
+            // Setup auto-close after print (only for autoprint mode or if specified)
+            if (autoClose || isAutoPrintMode) {
+                // Listen for afterprint event
+                window.onafterprint = function() {
+                    showPrintStatus('Print completed. Closing...');
+                    setTimeout(() => {
+                        window.close();
+                    }, 1000);
+                };
+                
+                // Fallback in case onafterprint doesn't fire
+                setTimeout(() => {
+                    if (!document.hidden && (autoClose || isAutoPrintMode)) {
+                        showPrintStatus('Closing window...');
+                        setTimeout(() => {
+                            window.close();
+                        }, 500);
+                    }
+                }, 5000);
+            }
+        }
+        
+        // Auto-print when page loads (for autoprint mode)
+        window.addEventListener('load', function() {
+            if (isAutoPrintMode) {
+                console.log('Auto-print mode enabled');
+                showPrintStatus('Auto-printing in 1 second...');
+                
+                // Small delay to ensure content is fully loaded
+                setTimeout(function() {
+                    printAndClose(true);
+                }, 1000);
+            }
+        });
+        
+        // Keyboard shortcut for print (Ctrl+P)
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                manualPrint();
+            }
+            // Escape key to close
+            if (e.key === 'Escape') {
+                closeWindow();
+            }
+        });
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && isAutoPrintMode && hasPrinted) {
+                // Page became hidden (likely print dialog opened)
+                console.log('Print dialog opened');
+            }
+        });
+        
+        // Initialize
+        console.log('Job Card Print Page Loaded');
+        console.log('Company:', '{{ company_name }}');
+        console.log('Auto-print mode:', isAutoPrintMode);
+        console.log('Job Number:', '{{ job.job_number }}');
+        
+        // Handle logo loading errors
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoImg = document.querySelector('.logo-img');
+            const logoFallback = document.getElementById('logoFallback');
+            
+            if (logoImg) {
+                logoImg.addEventListener('error', function() {
+                    this.style.display = 'none';
+                    if (logoFallback) {
+                        logoFallback.style.display = 'inline-block';
+                    }
+                });
+                
+                // Check if image loaded successfully
+                if (logoImg.complete && logoImg.naturalHeight === 0) {
+                    // Image failed to load
+                    logoImg.style.display = 'none';
+                    if (logoFallback) {
+                        logoFallback.style.display = 'inline-block';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

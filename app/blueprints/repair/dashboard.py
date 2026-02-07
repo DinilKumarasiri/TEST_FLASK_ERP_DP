@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash
+from flask import render_template, redirect, request, url_for, flash, current_app
 from flask_login import login_required, current_user
 from ... import db
 from ...models import RepairJob, User
@@ -105,13 +105,39 @@ def technician_dashboard():
         flash(f'Error loading technician dashboard: {str(e)}', 'danger')
         return redirect(url_for('repair.repair_dashboard'))
 
-@repair_bp.route('/job-card/<int:job_id>')
+@repair_bp.route('/job/<int:job_id>/job-card')
 @login_required
 def job_card(job_id):
-    """Redirect to job detail page or create a print view"""
+    """View job card for A5 printing with auto-print option"""
     try:
-        # Instead of rendering a separate template, redirect to job detail
-        return redirect(url_for('repair.job_detail', job_id=job_id))
+        job = RepairJob.query.get_or_404(job_id)
+        
+        # Calculate warranty end date
+        warranty_end = None
+        if job.delivered_date and job.warranty_period > 0:
+            from datetime import timedelta
+            warranty_end = job.delivered_date + timedelta(days=30 * job.warranty_period)
+        
+        # Check if auto-print is requested
+        auto_print = request.args.get('autoprint', 'false').lower() == 'true'
+        
+        # Get Sri Lanka current time
+        from app.utils.timezone_helper import get_sri_lanka_time
+        now_sl = get_sri_lanka_time()
+        
+        return render_template('repair/job_card.html',
+                             job=job,
+                             now=now_sl,  # Pass Sri Lanka time
+                             warranty_end=warranty_end,
+                             auto_print=auto_print,
+                             # Pass config variables
+                             company_name=current_app.config.get('COMPANY_NAME', 'Mobile Repair Center'),
+                             company_phone=current_app.config.get('COMPANY_PHONE', '+94 77 123 4567'),
+                             company_address=current_app.config.get('COMPANY_ADDRESS', 'Colombo, Sri Lanka'),
+                             company_email=current_app.config.get('COMPANY_EMAIL', 'info@mobilerepair.com'),
+                             company_gst=current_app.config.get('COMPANY_GST', ''),
+                             company_logo_url=current_app.config.get('COMPANY_LOGO_URL', '/uploads/logo.jpg'),
+                             title=f'Job Card - {job.job_number}')
     except Exception as e:
-        flash(f'Error loading job: {str(e)}', 'danger')
-        return redirect(url_for('repair.job_list'))
+        flash(f'Error loading job card: {str(e)}', 'danger')
+        return redirect(url_for('repair.job_detail', job_id=job_id))

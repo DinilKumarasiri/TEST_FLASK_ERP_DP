@@ -91,9 +91,12 @@
         <a href="{{ url_for('repair.job_list') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i> Back to Jobs
         </a>
-        <a href="{{ url_for('repair.job_card', job_id=job.id) }}" class="btn btn-outline-primary">
-            <i class="fas fa-print me-1"></i> Print Job Card
-        </a>
+<a href="{{ url_for('repair.job_card', job_id=job.id, autoprint='true') }}" 
+   class="btn btn-outline-primary" 
+   target="_blank"
+   onclick="openPrintWindow(this.href); return false;">
+    <i class="fas fa-print me-1"></i> Print Job Card
+</a>
     </div>
 </div>
 
@@ -1035,5 +1038,11 @@ $(document).ready(function() {
     // Initialize tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
 });
+function openPrintWindow(url) {
+    // Open in new window without navigation
+    const features = 'width=900,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+    window.open(url, 'PrintJobCard', features);
+    return false;
+}
 </script>
 {% endblock %}

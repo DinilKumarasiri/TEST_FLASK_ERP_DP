@@ -38,6 +38,24 @@ class Config:
         'pool_timeout': int(os.environ.get('SQLALCHEMY_POOL_TIMEOUT', 30)),
     }
     
+     # ====================Company Information====================
+    COMPANY_NAME = os.environ.get('COMPANY_NAME', 'Mobile Repair Center')
+    COMPANY_PHONE = os.environ.get('COMPANY_PHONE', '+94 77 123 4567')
+    COMPANY_ADDRESS = os.environ.get('COMPANY_ADDRESS', '123 Galle Road, Colombo 03, Sri Lanka')
+    COMPANY_EMAIL = os.environ.get('COMPANY_EMAIL', 'info@mobilerepair.com')
+    COMPANY_WEBSITE = os.environ.get('COMPANY_WEBSITE', 'www.mobilerepair.com')
+    COMPANY_GST = os.environ.get('COMPANY_GST', '123456789V')
+    COMPANY_BUSINESS_NO = os.environ.get('COMPANY_BUSINESS_NO', 'AB12345678C')
+    
+    # ====================Logo Configuration====================
+    COMPANY_LOGO_URL = os.environ.get('COMPANY_LOGO_URL', '/static/uploads/logo.jpg')
+    COMPANY_LOGO_WIDTH = int(os.environ.get('COMPANY_LOGO_WIDTH', 60))
+    COMPANY_LOGO_HEIGHT = int(os.environ.get('COMPANY_LOGO_HEIGHT', 60))
+    
+    # ====================Print Settings====================
+    PRINT_PAPER_SIZE = os.environ.get('PRINT_PAPER_SIZE', 'A5')
+    PRINT_MARGIN = os.environ.get('PRINT_MARGIN', '5mm')
+    
     # ==================== Security Configuration ====================
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = os.environ.get('SESSION_COOKIE_HTTPONLY', 'true').lower() == 'true'
