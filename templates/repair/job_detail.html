@@ -433,13 +433,17 @@
                 {% endif %}
                 
                 <!-- View Invoice Button (if invoice exists) -->
+                <!-- Replace the View Invoice button section in job_detail.html -->
                 {% if job.repair_invoices %}
                     {% set existing_invoice = job.repair_invoices|first %}
                     <div class="mb-3">
-                        <a href="{{ url_for('repair.repair_invoice_detail', invoice_id=existing_invoice.id) }}" 
-                           class="btn btn-info w-100">
-                            <i class="fas fa-eye me-1"></i> View Invoice
+                        <a href="{{ url_for('repair.print_repair_invoice', invoice_id=existing_invoice.id, autoprint='true') }}" 
+                        class="btn btn-info w-100" target="_blank">
+                            <i class="fas fa-print me-1"></i> Print Invoice
                         </a>
+                        <small class="text-muted d-block mt-1 text-center">
+                            Invoice #: {{ existing_invoice.invoice_number }}
+                        </small>
                     </div>
                 {% endif %}
             </div>

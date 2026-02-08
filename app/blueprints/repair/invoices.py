@@ -1,5 +1,5 @@
 # app/blueprints/repair/invoices.py
-from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask import current_app, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from ... import db
 from ...models import RepairJob, RepairInvoice, RepairInvoiceItem, RepairPayment, Customer
@@ -36,7 +36,10 @@ def create_repair_invoice(job_id):
         existing_invoice = RepairInvoice.query.filter_by(repair_job_id=job_id).first()
         if existing_invoice:
             flash(f'Invoice already exists: {existing_invoice.invoice_number}', 'warning')
-            return redirect(url_for('repair.repair_invoice_detail', invoice_id=existing_invoice.id))
+            # Redirect to print view
+            return redirect(url_for('repair.print_repair_invoice', 
+                                  invoice_id=existing_invoice.id,
+                                  autoprint='true'))
         
         # Generate invoice number
         invoice_number = generate_repair_invoice_number()
@@ -196,7 +199,10 @@ def create_repair_invoice(job_id):
         job.delivered_date = datetime.utcnow()
         db.session.commit()
         
-        return redirect(url_for('repair.repair_invoice_detail', invoice_id=invoice.id))
+        # REDIRECT TO PRINT PAGE WITH AUTOPRINT
+        return redirect(url_for('repair.print_repair_invoice', 
+                              invoice_id=invoice.id,
+                              autoprint='true'))
         
     except Exception as e:
         db.session.rollback()
@@ -257,6 +263,14 @@ def repair_invoice_detail(invoice_id):
         invoice = RepairInvoice.query.get_or_404(invoice_id)
         return render_template('repair/invoice_detail.html',
                              invoice=invoice,
+                             # Company information from config
+                             company_name=current_app.config.get('COMPANY_NAME', 'Mobile Repair Center'),
+                             company_phone=current_app.config.get('COMPANY_PHONE', '+94 77 123 4567'),
+                             company_address=current_app.config.get('COMPANY_ADDRESS', 'Colombo, Sri Lanka'),
+                             company_email=current_app.config.get('COMPANY_EMAIL', 'info@mobilerepair.com'),
+                             company_website=current_app.config.get('COMPANY_WEBSITE', 'www.mobilerepair.com'),
+                             company_gst=current_app.config.get('COMPANY_GST', ''),
+                             company_business_no=current_app.config.get('COMPANY_BUSINESS_NO', ''),
                              title=f'Repair Invoice {invoice.invoice_number}')
     except Exception as e:
         flash(f'Error loading invoice: {str(e)}', 'danger')
@@ -360,4 +374,30 @@ def email_repair_invoice(invoice_id):
         
     except Exception as e:
         flash(f'Error preparing email: {str(e)}', 'danger')
+        return redirect(url_for('repair.repair_invoice_detail', invoice_id=invoice_id))
+    
+@repair_bp.route('/repair-invoice/<int:invoice_id>/print')
+@login_required
+def print_repair_invoice(invoice_id):
+    """Print repair invoice for A5 paper"""
+    try:
+        invoice = RepairInvoice.query.get_or_404(invoice_id)
+        
+        # Check for autoprint parameter
+        autoprint = request.args.get('autoprint', 'false').lower() == 'true'
+        
+        return render_template('repair/print_invoice.html',
+                             invoice=invoice,
+                             autoprint=autoprint,
+                             # Company information from config
+                             company_name=current_app.config.get('COMPANY_NAME', 'Mobile Repair Center'),
+                             company_phone=current_app.config.get('COMPANY_PHONE', '+94 77 123 4567'),
+                             company_address=current_app.config.get('COMPANY_ADDRESS', 'Colombo, Sri Lanka'),
+                             company_email=current_app.config.get('COMPANY_EMAIL', 'info@mobilerepair.com'),
+                             company_website=current_app.config.get('COMPANY_WEBSITE', 'www.mobilerepair.com'),
+                             company_gst=current_app.config.get('COMPANY_GST', ''),
+                             company_business_no=current_app.config.get('COMPANY_BUSINESS_NO', ''),
+                             title=f'Print Invoice {invoice.invoice_number}')
+    except Exception as e:
+        flash(f'Error loading print view: {str(e)}', 'danger')
         return redirect(url_for('repair.repair_invoice_detail', invoice_id=invoice_id))

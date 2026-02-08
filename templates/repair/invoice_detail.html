@@ -84,14 +84,19 @@
                 <!-- Header -->
                 <div class="invoice-header">
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="company-logo">
-                                <i class="fas fa-tools"></i> Mobile Repair Center
-                            </div>
-                            <p class="mb-1">123 Repair Street</p>
-                            <p class="mb-1">City, State 12345</p>
-                            <p class="mb-0">Phone: (123) 456-7890 | GST: 27ABCDE1234F1Z5</p>
+                    <div class="col-md-6">
+                        <div class="company-logo">
+                            <i class="fas fa-tools"></i> {{ company_name or 'Mobile Repair Center' }}
                         </div>
+                        <p class="mb-1">{{ company_address }}</p>
+                        <p class="mb-0">
+                            Phone: {{ company_phone }} 
+                            {% if company_email %}| Email: {{ company_email }}{% endif %}
+                            {% if company_website %}| Website: {{ company_website }}{% endif %}
+                            {% if company_gst %}| GST: {{ company_gst }}{% endif %}
+                            {% if company_business_no %}| Business No: {{ company_business_no }}{% endif %}
+                        </p>
+                    </div>
                         <div class="col-md-6 text-end">
                             <h1 class="display-6 mb-2">REPAIR INVOICE</h1>
                             <p class="mb-1"><strong>Invoice #:</strong> {{ invoice.invoice_number }}</p>
@@ -261,7 +266,9 @@
                 <div class="mt-4 pt-4 border-top text-center">
                     <p class="mb-1">Thank you for choosing our repair service!</p>
                     <p class="text-muted small mb-0">
-                        For warranty claims or queries, contact: repair@mobileshop.com | Phone: (123) 456-7890
+                        For warranty claims or queries, contact: 
+                        {{ company_email or 'repair@mobileshop.com' }} | 
+                        Phone: {{ company_phone or '(123) 456-7890' }}
                     </p>
                 </div>
                 
@@ -289,6 +296,10 @@
             </a>
         </div>
         <div>
+            <a href="{{ url_for('repair.print_repair_invoice', invoice_id=invoice.id, autoprint='true') }}" 
+            class="btn btn-primary me-2" target="_blank">
+                <i class="fas fa-print me-1"></i> Print & Auto-Close
+            </a>
             <!-- Print Button that triggers print dialog on current page -->
             <button onclick="printCurrentInvoice()" class="btn btn-outline-primary me-2">
                 <i class="fas fa-print me-1"></i> Print Invoice
